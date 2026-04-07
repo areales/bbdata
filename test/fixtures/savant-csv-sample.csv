@@ -1,0 +1,14 @@
+pitch_type,game_date,release_speed,release_spin_rate,pfx_x,pfx_z,plate_x,plate_z,player_name,pitcher,batter,batter_name,description,events,bb_type,stand,p_throws,launch_speed,launch_angle,estimated_ba_using_speedangle,estimated_woba_using_speedangle
+FF,2025-04-15,95.2,2350,0.8,1.2,-0.3,2.8,Burnes Corbin,669203,592450,Aaron Judge,called_strike,,,R,R,,,,
+SL,2025-04-15,87.1,2680,-0.5,0.4,0.1,1.9,Burnes Corbin,669203,592450,Aaron Judge,swinging_strike,,,R,R,,,,
+CH,2025-04-15,89.3,1780,1.2,0.6,0.4,2.1,Burnes Corbin,669203,592450,Aaron Judge,ball,,,R,R,,,,
+FF,2025-04-15,96.1,2400,0.7,1.1,-0.1,3.0,Burnes Corbin,669203,592450,Aaron Judge,hit_into_play,single,line_drive,R,R,102.3,18,0.650,0.800
+SL,2025-04-15,86.8,2710,-0.6,0.3,0.3,2.5,Burnes Corbin,669203,660271,Giancarlo Stanton,foul,,,R,R,,,,
+FF,2025-04-15,95.8,2380,0.9,1.3,-0.2,2.6,Burnes Corbin,669203,660271,Giancarlo Stanton,swinging_strike,,,R,R,,,,
+CH,2025-04-15,88.9,1800,1.1,0.5,0.5,1.8,Burnes Corbin,669203,660271,Giancarlo Stanton,hit_into_play,home_run,fly_ball,R,R,108.5,28,0.890,1.200
+FF,2025-04-15,94.7,2320,0.6,1.0,0.0,2.4,Burnes Corbin,669203,543760,Anthony Rizzo,called_strike,,,L,R,,,,
+SL,2025-04-15,87.5,2650,-0.4,0.4,-0.2,2.0,Burnes Corbin,669203,543760,Anthony Rizzo,swinging_strike,,,L,R,,,,
+FF,2025-04-15,95.5,2360,0.8,1.2,0.1,2.9,Burnes Corbin,669203,543760,Anthony Rizzo,hit_into_play,field_out,ground_ball,L,R,88.2,-5,0.120,0.090
+SL,2025-04-15,86.5,2700,-0.5,0.3,0.2,1.7,Burnes Corbin,669203,592450,,swinging_strike,,,R,R,,,,
+FF,2025-04-15,95.0,2340,0.7,1.1,-0.3,2.7,Burnes Corbin,669203,592450,,foul,,,R,R,,,,
+,2025-04-15,,,,,,,Burnes Corbin,669203,592450,Aaron Judge,automatic_ball,,,R,R,,,,

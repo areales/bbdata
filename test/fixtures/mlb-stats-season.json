@@ -1,0 +1,31 @@
+{
+  "stats": [
+    {
+      "splits": [
+        {
+          "stat": {
+            "gamesPlayed": 150,
+            "atBats": 540,
+            "runs": 110,
+            "hits": 155,
+            "homeRuns": 52,
+            "rbi": 120,
+            "stolenBases": 5,
+            "avg": ".287",
+            "obp": ".394",
+            "slg": ".601",
+            "ops": ".995"
+          },
+          "season": "2025",
+          "team": {
+            "abbreviation": "NYY"
+          },
+          "player": {
+            "id": 592450,
+            "fullName": "Aaron Judge"
+          }
+        }
+      ]
+    }
+  ]
+}

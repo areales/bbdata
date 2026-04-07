@@ -1,0 +1,14 @@
+{
+  "people": [
+    {
+      "id": 592450,
+      "fullName": "Aaron Judge",
+      "currentTeam": {
+        "abbreviation": "NYY"
+      },
+      "primaryPosition": {
+        "abbreviation": "RF"
+      }
+    }
+  ]
+}
