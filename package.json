@@ -1,0 +1,63 @@
+{
+  "name": "@ai-baseball/bbdata",
+  "version": "0.1.0",
+  "description": "Baseball data CLI for querying, scouting reports, and analytics — built for humans and AI agents",
+  "type": "module",
+  "bin": {
+    "bbdata": "./dist/bin/bbdata.js"
+  },
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/src/index.js",
+      "types": "./dist/src/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "src/templates/**/*.hbs",
+    "src/cache/schema.sql"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsx bin/bbdata.ts",
+    "start": "node dist/bin/bbdata.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src/ bin/ test/",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "baseball",
+    "analytics",
+    "statcast",
+    "fangraphs",
+    "scouting",
+    "mlb",
+    "cli",
+    "ai"
+  ],
+  "author": "AI Baseball Data Analyst",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^5.4.1",
+    "cli-table3": "^0.6.5",
+    "commander": "^13.1.0",
+    "csv-parse": "^5.6.0",
+    "csv-stringify": "^6.5.2",
+    "handlebars": "^4.7.8",
+    "sql.js": "^1.12.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "tsup": "^8.4.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
