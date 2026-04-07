@@ -50,10 +50,22 @@ export class FanGraphsAdapter implements DataAdapter {
       const parsed = JSON.parse(data);
 
       const nameNorm = name.toLowerCase().trim();
-      const match = (parsed.data ?? []).find(
-        (p: Record<string, unknown>) =>
-          String(p.PlayerName ?? p.Name ?? '').toLowerCase().includes(nameNorm),
-      );
+      const players = (parsed.data ?? []) as Record<string, unknown>[];
+      const getName = (p: Record<string, unknown>) =>
+        String(p.PlayerName ?? p.Name ?? '').toLowerCase().trim();
+
+      // Exact match first, then token-based fuzzy match
+      let match = players.find((p) => getName(p) === nameNorm);
+      if (!match) {
+        const tokens = nameNorm.split(/\s+/);
+        match = players.find((p) => {
+          const words = getName(p).split(/\s+/);
+          return tokens.every((t) => words.some((w) => w.startsWith(t)));
+        });
+        if (match) {
+          log.debug(`FanGraphs: fuzzy match for "${name}" → "${getName(match)}"`);
+        }
+      }
 
       if (!match) return null;
 
@@ -100,10 +112,21 @@ export class FanGraphsAdapter implements DataAdapter {
     // If searching for a specific player, filter
     let filtered = rows;
     if (query.player_name) {
-      const nameNorm = query.player_name.toLowerCase();
-      filtered = rows.filter((r) =>
-        String(r.PlayerName ?? r.Name ?? '').toLowerCase().includes(nameNorm),
-      );
+      const nameNorm = query.player_name.toLowerCase().trim();
+      const getName = (r: Record<string, unknown>) =>
+        String(r.PlayerName ?? r.Name ?? '').toLowerCase().trim();
+
+      // Exact match first, then token-based fuzzy match
+      const exact = rows.filter((r) => getName(r) === nameNorm);
+      if (exact.length > 0) {
+        filtered = exact;
+      } else {
+        const tokens = nameNorm.split(/\s+/);
+        filtered = rows.filter((r) => {
+          const words = getName(r).split(/\s+/);
+          return tokens.every((t) => words.some((w) => w.startsWith(t)));
+        });
+      }
     }
 
     const stats: PlayerStats[] = filtered.map((row) => ({

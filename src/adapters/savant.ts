@@ -89,11 +89,16 @@ export class SavantAdapter implements DataAdapter {
       cast_date: false,
     }) as Record<string, unknown>[];
 
-    const data: PitchData[] = rawRows.map((row) => ({
+    // Filter out rows with no pitch_type (intentional walks, pitchouts, automatic balls)
+    const filteredRows = rawRows.filter(
+      (row) => row.pitch_type && String(row.pitch_type).trim() !== '',
+    );
+
+    const data: PitchData[] = filteredRows.map((row) => ({
       pitcher_id: String(row.pitcher ?? ''),
       pitcher_name: String(row.player_name ?? ''),
       batter_id: String(row.batter ?? ''),
-      batter_name: String(row.batter_name ?? row.stand ?? ''),
+      batter_name: String(row.batter_name || '') || (row.batter ? `Unknown (#${row.batter})` : 'Unknown'),
       game_date: String(row.game_date ?? ''),
       pitch_type: String(row.pitch_type ?? ''),
       release_speed: Number(row.release_speed) || 0,
