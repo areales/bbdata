@@ -30,7 +30,27 @@ vi.mock('../../src/config/config.js', () => ({
 import { query } from '../../src/commands/query.js';
 import { resolveAdapters } from '../../src/adapters/index.js';
 
-function makeMockAdapter(data: unknown[] = [{ stat: 'value' }]) {
+const MOCK_PITCH: Record<string, unknown> = {
+  pitch_type: 'FF',
+  release_speed: 95.2,
+  release_spin_rate: 2400,
+  pfx_x: -1.2,
+  pfx_z: 1.8,
+  plate_x: 0.3,
+  plate_z: 2.5,
+  description: 'swinging_strike',
+  events: null,
+  bb_type: null,
+  stand: 'R',
+  p_throws: 'R',
+  pitcher: '123456',
+  player_name: 'Test Player',
+  batter: '654321',
+  batter_name: 'Test Batter',
+  game_date: '2025-06-01',
+};
+
+function makeMockAdapter(data: unknown[] = [MOCK_PITCH]) {
   return {
     source: 'savant' as const,
     description: 'Mock',

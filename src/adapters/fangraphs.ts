@@ -11,6 +11,8 @@ import type {
 
 const FG_LEADERS_URL = 'https://www.fangraphs.com/api/leaders/major-league/data';
 
+const stripHtml = (s: string) => s.replace(/<[^>]*>/g, '');
+
 /**
  * FanGraphs adapter — fetches aggregated player stats via their leaderboard API.
  * Best for: season stats, leaderboards, wRC+, FIP, WAR, projections.
@@ -52,7 +54,7 @@ export class FanGraphsAdapter implements DataAdapter {
       const nameNorm = name.toLowerCase().trim();
       const players = (parsed.data ?? []) as Record<string, unknown>[];
       const getName = (p: Record<string, unknown>) =>
-        String(p.PlayerName ?? p.Name ?? '').toLowerCase().trim();
+        stripHtml(String(p.PlayerName ?? p.Name ?? '')).toLowerCase().trim();
 
       // Exact match first, then token-based fuzzy match
       let match = players.find((p) => getName(p) === nameNorm);
@@ -72,8 +74,8 @@ export class FanGraphsAdapter implements DataAdapter {
       return {
         mlbam_id: String(match.xMLBAMID ?? ''),
         fangraphs_id: String(match.playerid ?? ''),
-        name: String(match.PlayerName ?? match.Name),
-        team: String(match.Team ?? ''),
+        name: stripHtml(String(match.PlayerName ?? match.Name)),
+        team: stripHtml(String(match.TeamNameAbb ?? match.TeamName ?? match.Team ?? '')),
       };
     } catch (error) {
       log.warn(`FanGraphs player resolution failed: ${error}`);
@@ -114,7 +116,7 @@ export class FanGraphsAdapter implements DataAdapter {
     if (query.player_name) {
       const nameNorm = query.player_name.toLowerCase().trim();
       const getName = (r: Record<string, unknown>) =>
-        String(r.PlayerName ?? r.Name ?? '').toLowerCase().trim();
+        stripHtml(String(r.PlayerName ?? r.Name ?? '')).toLowerCase().trim();
 
       // Exact match first, then token-based fuzzy match
       const exact = rows.filter((r) => getName(r) === nameNorm);
@@ -131,8 +133,8 @@ export class FanGraphsAdapter implements DataAdapter {
 
     const stats: PlayerStats[] = filtered.map((row) => ({
       player_id: String(row.xMLBAMID ?? row.playerid ?? ''),
-      player_name: String(row.PlayerName ?? row.Name ?? ''),
-      team: String(row.Team ?? ''),
+      player_name: stripHtml(String(row.PlayerName ?? row.Name ?? '')),
+      team: stripHtml(String(row.TeamNameAbb ?? row.TeamName ?? row.Team ?? '')),
       season: query.season,
       stat_type: query.stat_type,
       stats: row as Record<string, string | number | null>,

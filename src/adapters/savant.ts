@@ -47,12 +47,13 @@ export class SavantAdapter implements DataAdapter {
     }
 
     // Build Savant CSV search URL
+    // Note: Savant expects array-style param names (e.g., pitchers_lookup[]) for player IDs
     const params = new URLSearchParams({
       all: 'true',
-      type: 'detail',
+      type: 'details',
       ...(query.stat_type === 'pitching'
-        ? { player_type: 'pitcher', pitchers_lookup: playerId ?? '' }
-        : { player_type: 'batter', batters_lookup: playerId ?? '' }),
+        ? { player_type: 'pitcher', 'pitchers_lookup[]': playerId ?? '' }
+        : { player_type: 'batter', 'batters_lookup[]': playerId ?? '' }),
       ...(query.start_date
         ? { game_date_gt: query.start_date }
         : { game_date_gt: `${query.season}-01-01` }),
@@ -88,6 +89,11 @@ export class SavantAdapter implements DataAdapter {
       cast: true,
       cast_date: false,
     }) as Record<string, unknown>[];
+
+    // Log when headers present but no data rows (player may not have played in date range)
+    if (rawRows.length === 0 && csvText.trim().length > 50) {
+      log.debug('Savant returned headers but no data rows');
+    }
 
     // Filter out rows with no pitch_type (intentional walks, pitchouts, automatic balls)
     const filteredRows = rawRows.filter(

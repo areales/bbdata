@@ -100,6 +100,12 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
       const rows = template.transform(adapterResult.data, params);
       const columns = template.columns(params);
 
+      // If adapter returned data but transform produced 0 rows, try next adapter
+      if (rows.length === 0) {
+        log.debug(`${adapter.source} returned 0 rows. Trying next source...`);
+        continue;
+      }
+
       result = {
         rows,
         columns,

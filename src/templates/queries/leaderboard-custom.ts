@@ -15,10 +15,12 @@ const template: QueryTemplate = {
   ],
 
   buildQuery(params) {
+    const pitchingStats = ['era', 'fip', 'xfip', 'siera', 'whip', 'k/9', 'bb/9', 'hr/9', 'ip', 'w', 'sv', 'hld'];
+    const isPitching = pitchingStats.includes((params.stat ?? '').toLowerCase());
     return {
       season: params.season ?? new Date().getFullYear(),
       team: params.team,
-      stat_type: 'batting', // Will be overridden based on stat
+      stat_type: isPitching ? 'pitching' : 'batting',
       min_pa: params.minPa,
       min_ip: params.minIp,
     };
