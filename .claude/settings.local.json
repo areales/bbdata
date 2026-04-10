@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(git update-index:*)",
+      "Bash(grep:*)",
+      "PowerShell(npm run:*)"
+    ]
+  }
+}

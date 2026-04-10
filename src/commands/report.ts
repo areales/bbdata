@@ -8,6 +8,8 @@ import { log } from '../utils/logger.js';
 import { gradeLabel, gradeColor, formatGrade } from '../utils/grading.js';
 import { pitchTypeName } from '../adapters/types.js';
 import { query as runQuery } from './query.js';
+import { getStdinAdapter } from '../adapters/index.js';
+import { readStdin } from '../utils/stdin.js';
 import {
   getReportTemplate,
   listReportTemplates,
@@ -22,6 +24,7 @@ export interface ReportOptions {
   audience?: Audience;
   format?: 'markdown' | 'json';
   validate?: boolean;
+  stdin?: boolean;
 }
 
 export interface ReportResult {
@@ -99,6 +102,13 @@ function generateFallbackTemplate(templateFile: string): string {
  * Programmatic API — skills and agents call this directly.
  */
 export async function report(options: ReportOptions): Promise<ReportResult> {
+  // Pre-load stdin data once for all sub-queries
+  if (options.stdin) {
+    const raw = await readStdin();
+    const adapter = getStdinAdapter();
+    adapter.load(raw);
+  }
+
   const config = getConfig();
   const audience = options.audience ?? (config.defaultAudience as Audience);
 
@@ -123,6 +133,7 @@ export async function report(options: ReportOptions): Promise<ReportResult> {
         team: options.team,
         season,
         format: 'json',
+        ...(options.stdin ? { source: 'stdin' } : {}),
       });
       dataResults[req.queryTemplate] = result.data;
       if (!dataSources.includes(result.meta.source)) {
@@ -222,6 +233,7 @@ export function registerReportCommand(program: Command): void {
     .option('-a, --audience <role>', 'Target audience: coach, gm, scout, analyst')
     .option('-f, --format <fmt>', 'Output: markdown, json', 'markdown')
     .option('--validate', 'Run validation checklist on the report')
+    .option('--stdin', 'Read pre-fetched JSON data from stdin instead of fetching from APIs')
     .addHelpText('after', `
 Examples:
   bbdata report pro-pitcher-eval --player "Corbin Burnes"
@@ -255,6 +267,7 @@ Available templates:
           audience: opts.audience as Audience,
           format: opts.format,
           validate: opts.validate,
+          stdin: opts.stdin,
         });
 
         log.data(result.formatted);

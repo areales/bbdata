@@ -1,8 +1,9 @@
 import { Command } from 'commander';
-import { resolveAdapters } from '../adapters/index.js';
+import { resolveAdapters, getStdinAdapter } from '../adapters/index.js';
 import { format, type OutputFormat, type FormattedOutput } from '../formatters/index.js';
 import { getConfig } from '../config/config.js';
 import { log } from '../utils/logger.js';
+import { readStdin } from '../utils/stdin.js';
 import {
   getTemplate,
   listTemplates,
@@ -25,6 +26,7 @@ export interface QueryOptions {
   format?: OutputFormat;
   source?: string;
   cache?: boolean;
+  stdin?: boolean;
 }
 
 export interface QueryResult {
@@ -43,6 +45,14 @@ export interface QueryResult {
  * Programmatic API — skills and agents call this directly.
  */
 export async function query(options: QueryOptions): Promise<QueryResult> {
+  // If --stdin, load data into the stdin adapter and force source
+  if (options.stdin) {
+    const raw = await readStdin();
+    const adapter = getStdinAdapter();
+    adapter.load(raw);
+    options.source = 'stdin';
+  }
+
   const config = getConfig();
   const outputFormat = options.format ?? (config.defaultFormat as OutputFormat);
 
@@ -168,6 +178,7 @@ export function registerQueryCommand(program: Command): void {
     .option('--top <n>', 'Number of results for leaderboards', parseInt)
     .option('--seasons <range>', 'Season range (e.g., 2023-2025)')
     .option('--no-cache', 'Bypass cache')
+    .option('--stdin', 'Read pre-fetched JSON data from stdin instead of fetching from APIs')
     .addHelpText('after', `
 Examples:
   bbdata query pitcher-arsenal --player "Corbin Burnes" --season 2025
@@ -210,6 +221,7 @@ Available templates:
           format: opts.format as OutputFormat,
           source: opts.source,
           cache: opts.cache,
+          stdin: opts.stdin,
         });
 
         log.data(result.formatted);

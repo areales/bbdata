@@ -3,13 +3,21 @@ import { MlbStatsApiAdapter } from './mlb-stats-api.js';
 import { SavantAdapter } from './savant.js';
 import { FanGraphsAdapter } from './fangraphs.js';
 import { BaseballReferenceAdapter } from './baseball-reference.js';
+import { StdinAdapter } from './stdin.js';
+
+const stdinAdapter = new StdinAdapter();
 
 const adapters: Record<DataSource, DataAdapter> = {
   'mlb-stats-api': new MlbStatsApiAdapter(),
   'savant': new SavantAdapter(),
   'fangraphs': new FanGraphsAdapter(),
   'baseball-reference': new BaseballReferenceAdapter(),
+  'stdin': stdinAdapter,
 };
+
+export function getStdinAdapter(): StdinAdapter {
+  return stdinAdapter;
+}
 
 export function getAdapter(source: DataSource): DataAdapter {
   return adapters[source];

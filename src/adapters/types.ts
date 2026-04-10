@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 // --- Data Source Types ---
 
-export type DataSource = 'savant' | 'fangraphs' | 'mlb-stats-api' | 'baseball-reference';
+export type DataSource = 'savant' | 'fangraphs' | 'mlb-stats-api' | 'baseball-reference' | 'stdin';
 
 // --- Pitch-level data (Statcast granularity) ---
 
