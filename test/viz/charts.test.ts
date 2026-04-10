@@ -133,6 +133,50 @@ describe('rollingBuilder', () => {
     const whiff = spec.data.values.find((r) => r.metric === 'Whiff');
     expect(whiff?.value).toBeCloseTo(35.7);
   });
+
+  it('produces a faceted spec with independent y scales per metric', () => {
+    const rows = {
+      'trend-rolling-average': [
+        { 'Window End': '2025-05-01', AVG: '0.300', 'Avg EV': '90.5 mph' },
+        { 'Window End': '2025-05-08', AVG: '0.312', 'Avg EV': '91.2 mph' },
+      ],
+    };
+    const spec = rollingBuilder.buildSpec(rows, { ...baseOptions, type: 'rolling' }) as {
+      facet?: { row?: { field: string } };
+      resolve?: { scale?: { y?: string } };
+    };
+    expect(spec.facet?.row?.field).toBe('metric');
+    expect(spec.resolve?.scale?.y).toBe('independent');
+  });
+
+  it('excludes Games from metric auto-detection', () => {
+    const rows = {
+      'trend-rolling-average': [
+        { 'Window End': '2025-05-01', Games: 15, AVG: '0.300' },
+        { 'Window End': '2025-05-08', Games: 15, AVG: '0.312' },
+      ],
+    };
+    const spec = rollingBuilder.buildSpec(rows, { ...baseOptions, type: 'rolling' }) as {
+      data: { values: Array<{ metric: string }> };
+    };
+    const metrics = new Set(spec.data.values.map((r) => r.metric));
+    expect(metrics.has('AVG')).toBe(true);
+    expect(metrics.has('Games')).toBe(false);
+  });
+
+  it('emits a graceful message spec when tidy dataset is empty', () => {
+    const rows = {
+      'trend-rolling-average': [
+        { Window: 'Insufficient data', 'Window End': '', Games: 3, AVG: '—' },
+      ],
+    };
+    const spec = rollingBuilder.buildSpec(rows, { ...baseOptions, type: 'rolling' }) as {
+      mark?: { type: string };
+      data: { values: Array<{ msg?: string }> };
+    };
+    expect(spec.mark?.type).toBe('text');
+    expect(spec.data.values[0]?.msg).toMatch(/Insufficient data/);
+  });
 });
 
 describe('chart registry', () => {

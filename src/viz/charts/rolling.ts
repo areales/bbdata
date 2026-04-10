@@ -87,47 +87,65 @@ export const rollingBuilder: ChartBuilder = {
       };
     }
 
+    // Use faceted small multiples so metrics with different scales
+    // (e.g., AVG ~0.3 vs Avg EV ~90 mph) each get their own y-axis.
+    // Shared x (time) across panels; independent y per metric.
+    const metricOrder = Array.from(metricKeys);
+    const panelHeight = Math.max(80, Math.floor(options.height / metricOrder.length) - 30);
+
     return {
       $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
       title: options.title,
-      width: options.width,
-      height: options.height,
       data: { values: tidy },
-      layer: [
-        {
-          mark: { type: 'line', point: true, strokeWidth: 2 },
-          encoding: {
-            x: {
-              field: 'window_end',
-              type: 'temporal',
-              axis: { title: 'Window End', format: '%b %d' },
-            },
-            y: {
-              field: 'value',
-              type: 'quantitative',
-              axis: { title: 'Value' },
-              scale: { zero: false },
-            },
-            color: {
-              field: 'metric',
-              type: 'nominal',
-              legend: { title: 'Metric' },
-            },
-            tooltip: [
-              { field: 'window_end', type: 'temporal', format: '%Y-%m-%d' },
-              { field: 'metric', title: 'Metric' },
-              { field: 'value', title: 'Value', format: '.3f' },
-            ],
-          },
+      facet: {
+        row: {
+          field: 'metric',
+          type: 'nominal',
+          title: null,
+          header: { labelAngle: 0, labelAlign: 'left', labelFontWeight: 'bold' },
+          sort: metricOrder,
         },
-        {
-          mark: { type: 'rule', strokeDash: [4, 4], opacity: 0.5 },
-          encoding: {
-            y: { aggregate: 'mean', field: 'value', type: 'quantitative' },
-            color: { field: 'metric', type: 'nominal' },
+      },
+      spec: {
+        width: options.width - 120,
+        height: panelHeight,
+        layer: [
+          {
+            mark: { type: 'line', point: true, strokeWidth: 2 },
+            encoding: {
+              x: {
+                field: 'window_end',
+                type: 'temporal',
+                axis: { title: 'Window End', format: '%b %d' },
+              },
+              y: {
+                field: 'value',
+                type: 'quantitative',
+                axis: { title: null },
+                scale: { zero: false },
+              },
+              color: {
+                field: 'metric',
+                type: 'nominal',
+                legend: null,
+              },
+              tooltip: [
+                { field: 'window_end', type: 'temporal', format: '%Y-%m-%d' },
+                { field: 'metric', title: 'Metric' },
+                { field: 'value', title: 'Value', format: '.3f' },
+              ],
+            },
           },
-        },
-      ],
+          {
+            mark: { type: 'rule', strokeDash: [4, 4], opacity: 0.4 },
+            encoding: {
+              y: { aggregate: 'mean', field: 'value', type: 'quantitative' },
+              color: { field: 'metric', type: 'nominal', legend: null },
+            },
+          },
+        ],
+      },
+      resolve: { scale: { y: 'independent' } },
       config: audienceConfig(options.audience, options.colorblind),
     };
   },
