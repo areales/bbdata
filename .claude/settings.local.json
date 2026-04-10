@@ -3,7 +3,8 @@
     "allow": [
       "PowerShell(git update-index:*)",
       "Bash(grep:*)",
-      "PowerShell(npm run:*)"
+      "PowerShell(npm run:*)",
+      "PowerShell(New-Item:*)"
     ]
   }
 }
