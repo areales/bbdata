@@ -36,7 +36,9 @@
       "Bash(node dist/bin/bbdata.js viz movement --player \"Test Pitcher\" --stdin -o .reports/demo_movement.svg)",
       "Bash(node dist/bin/bbdata.js viz spray --player \"Test Hitter\" --stdin -o .reports/demo_spray.svg)",
       "Bash(node dist/bin/bbdata.js viz zone --player \"Test Hitter\" --stdin -o .reports/demo_zone.svg)",
-      "Bash(ls -la .reports/demo_*)"
+      "Bash(ls -la .reports/demo_*)",
+      "Bash(rm -f .reports/demo_*.svg .reports/demo_*.md)",
+      "Bash(node dist/bin/bbdata.js viz rolling --player \"Test Hitter\" --stdin -o .reports/demo_rolling.svg)"
     ]
   }
 }

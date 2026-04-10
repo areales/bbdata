@@ -37,20 +37,27 @@ export const rollingBuilder: ChartBuilder = {
   buildSpec(rows, options: ResolvedVizOptions) {
     const wideRows = (rows['trend-rolling-average'] ?? []) as RollingRow[];
 
-    // Identify the date column and metric columns. The template may label
-    // the date field 'Window End', 'Date', or similar — try a few names.
-    const dateKey =
-      wideRows.length > 0
-        ? (['Window End', 'window_end', 'Date', 'date', 'End Date'].find(
-            (k) => k in (wideRows[0] as RollingRow),
-          ) ?? Object.keys(wideRows[0] as RollingRow)[0])
-        : null;
+    // Identify the date column. Prefer explicit ISO-date columns; fall back
+    // to checking each candidate for a value that Date.parse() accepts.
+    const preferredKeys = ['Window End', 'window_end', 'Date', 'date', 'End Date'];
+    let dateKey: string | null = null;
+    if (wideRows.length > 0) {
+      const first = wideRows[0] as RollingRow;
+      for (const k of preferredKeys) {
+        if (k in first && isParseableDate(first[k])) {
+          dateKey = k;
+          break;
+        }
+      }
+    }
 
-    // Metric keys = all non-date keys whose values parse as numeric.
+    // Metric keys = all non-date keys whose values parse as numeric
+    // AND are not the raw "Games" count (which dominates the scale).
     const metricKeys = new Set<string>();
+    const excluded = new Set([dateKey, 'Window', 'Games'].filter(Boolean));
     for (const r of wideRows) {
       for (const k of Object.keys(r)) {
-        if (k === dateKey) continue;
+        if (excluded.has(k)) continue;
         if (parseNumeric(r[k]) != null) metricKeys.add(k);
       }
     }
@@ -58,11 +65,26 @@ export const rollingBuilder: ChartBuilder = {
     const tidy: Array<{ window_end: string; metric: string; value: number }> = [];
     for (const r of wideRows) {
       const date = dateKey ? String(r[dateKey] ?? '') : '';
-      if (!date) continue;
+      if (!date || !isParseableDate(date)) continue;
       for (const k of metricKeys) {
         const n = parseNumeric(r[k]);
         if (n != null) tidy.push({ window_end: date, metric: k, value: n });
       }
+    }
+
+    // Graceful degradation — no usable rows means we can't draw a trend.
+    // Emit a single text mark explaining why instead of a blank chart.
+    if (tidy.length === 0) {
+      return {
+        $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+        title: options.title,
+        width: options.width,
+        height: options.height,
+        data: { values: [{ msg: 'Insufficient data for rolling trend (need 15+ games)' }] },
+        mark: { type: 'text', fontSize: 14, color: '#888' },
+        encoding: { text: { field: 'msg', type: 'nominal' } },
+        config: audienceConfig(options.audience, options.colorblind),
+      };
     }
 
     return {
@@ -110,3 +132,13 @@ export const rollingBuilder: ChartBuilder = {
     };
   },
 };
+
+function isParseableDate(v: unknown): boolean {
+  if (v == null || v === '') return false;
+  const s = String(v);
+  // Guard against pure numbers (e.g., '1', '15' are technically parseable
+  // as year-only but not what we want) — require at least YYYY-MM or MM/DD.
+  if (!/[-/]/.test(s)) return false;
+  const t = Date.parse(s);
+  return Number.isFinite(t);
+}

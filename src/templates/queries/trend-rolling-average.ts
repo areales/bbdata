@@ -22,7 +22,7 @@ const template: QueryTemplate = {
   },
 
   columns() {
-    return ['Window', 'Games', 'AVG', 'SLG', 'K %', 'Avg EV', 'Hard Hit %'];
+    return ['Window', 'Window End', 'Games', 'AVG', 'SLG', 'K %', 'Avg EV', 'Hard Hit %'];
   },
 
   transform(data) {
@@ -41,7 +41,16 @@ const template: QueryTemplate = {
     const windowSize = 15;
 
     if (dates.length < windowSize) {
-      return [{ Window: 'Insufficient data', Games: dates.length, AVG: '—', SLG: '—', 'K %': '—', 'Avg EV': '—', 'Hard Hit %': '—' }];
+      return [{
+        Window: 'Insufficient data',
+        'Window End': '',
+        Games: dates.length,
+        AVG: '—',
+        SLG: '—',
+        'K %': '—',
+        'Avg EV': '—',
+        'Hard Hit %': '—',
+      }];
     }
 
     // Calculate rolling windows
@@ -68,8 +77,11 @@ const template: QueryTemplate = {
         : null;
       const hardHit = batted.filter((p) => p.launch_speed! >= 95).length;
 
+      const windowEnd = windowDates[windowDates.length - 1]!;
+
       results.push({
-        Window: `${windowDates[0]} → ${windowDates[windowDates.length - 1]}`,
+        Window: `${windowDates[0]} → ${windowEnd}`,
+        'Window End': windowEnd,
         Games: windowDates.length,
         AVG: pas.length > 0 ? (hits.length / pas.length).toFixed(3) : '—',
         SLG: pas.length > 0 ? (totalBases / pas.length).toFixed(3) : '—',
