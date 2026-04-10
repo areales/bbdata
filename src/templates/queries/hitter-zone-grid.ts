@@ -54,15 +54,33 @@ const template: QueryTemplate = {
           p.plate_x >= z.xMin && p.plate_x < z.xMax &&
           p.plate_z >= z.zMin && p.plate_z < z.zMax,
       );
-      const withXwoba = inZone.filter((p) => p.estimated_woba != null);
-      const xwoba = withXwoba.length > 0
-        ? withXwoba.reduce((sum, p) => sum + (p.estimated_woba ?? 0), 0) / withXwoba.length
-        : 0;
+
+      // Compute actual xwOBA across all plate-appearance-ending events in
+      // this zone (not just balls in play). Walks and HBPs use their canonical
+      // wOBA weights; strikeouts contribute zero; batted balls use the
+      // Statcast expected wOBA for that event.
+      const paEnding = inZone.filter((p) => p.events != null);
+      let xwobaSum = 0;
+      for (const p of paEnding) {
+        if (p.events === 'walk') {
+          xwobaSum += 0.69;
+        } else if (p.events === 'hit_by_pitch') {
+          xwobaSum += 0.72;
+        } else if (p.events === 'strikeout') {
+          xwobaSum += 0;
+        } else {
+          // Batted ball: use Statcast estimated wOBA for the contact event
+          xwobaSum += p.estimated_woba ?? 0;
+        }
+      }
+      const xwoba = paEnding.length > 0 ? xwobaSum / paEnding.length : 0;
+
       return {
         zone: z.name,
         row: z.row,
         col: z.col,
         pitches: inZone.length,
+        pa: paEnding.length,
         xwoba: Number(xwoba.toFixed(3)),
       };
     });

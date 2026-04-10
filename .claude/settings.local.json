@@ -38,7 +38,10 @@
       "Bash(node dist/bin/bbdata.js viz zone --player \"Test Hitter\" --stdin -o .reports/demo_zone.svg)",
       "Bash(ls -la .reports/demo_*)",
       "Bash(rm -f .reports/demo_*.svg .reports/demo_*.md)",
-      "Bash(node dist/bin/bbdata.js viz rolling --player \"Test Hitter\" --stdin -o .reports/demo_rolling.svg)"
+      "Bash(node dist/bin/bbdata.js viz rolling --player \"Test Hitter\" --stdin -o .reports/demo_rolling.svg)",
+      "Bash(node dist/bin/bbdata.js report pro-hitter-eval --player \"Aaron Judge\" --season 2025)",
+      "Bash(node dist/bin/bbdata.js query hitter-zone-grid --player \"Aaron Judge\" --season 2025 --format table)",
+      "Bash(awk '/Zone Heatmap/,/Splits Analysis/' .reports/judge_2025.md)"
     ]
   }
 }

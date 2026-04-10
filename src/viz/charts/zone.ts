@@ -51,14 +51,24 @@ export const zoneBuilder: ChartBuilder = {
             color: {
               field: 'xwoba',
               type: 'quantitative',
+              // Domain covers the league-wide realistic range for xwOBA
+              // (~.200 is Mendoza-esque; ~.500 is MVP-tier).
+              // `clamp: true` caps values outside the range to the endpoint
+              // colors so elite hitters still render cleanly.
               scale: options.colorblind
-                ? { scheme: 'viridis', domain: [0.2, 0.45] }
-                : { scheme: 'redyellowblue', reverse: true, domain: [0.2, 0.45] },
+                ? { scheme: 'viridis', domain: [0.2, 0.5], clamp: true }
+                : {
+                    scheme: 'redyellowblue',
+                    reverse: true,
+                    domain: [0.2, 0.5],
+                    clamp: true,
+                  },
               legend: { title: 'xwOBA' },
             },
             tooltip: [
               { field: 'zone', title: 'Zone' },
               { field: 'pitches', title: 'Pitches' },
+              { field: 'pa', title: 'PAs' },
               { field: 'xwoba', title: 'xwOBA', format: '.3f' },
             ],
           },
@@ -68,15 +78,18 @@ export const zoneBuilder: ChartBuilder = {
             type: 'text',
             fontSize: 18,
             fontWeight: 'bold',
+            // Halo stroke keeps text legible against every cell color —
+            // light (yellow) and dark (saturated red or blue) alike.
+            stroke: 'white',
+            strokeWidth: 3,
+            strokeOpacity: 0.9,
+            paintOrder: 'stroke',
           },
           encoding: {
             x: { field: 'col', type: 'ordinal' },
             y: { field: 'row', type: 'ordinal' },
             text: { field: 'xwoba', type: 'quantitative', format: '.3f' },
-            color: {
-              condition: { test: 'datum.xwoba > 0.35', value: 'white' },
-              value: 'black',
-            },
+            color: { value: 'black' },
           },
         },
       ],
