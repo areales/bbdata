@@ -10,6 +10,7 @@ export default defineConfig({
   target: 'node18',
   splitting: false,
   shims: true,
+  external: ['vega', 'vega-lite'],
   banner: {
     js: '#!/usr/bin/env node',
   },

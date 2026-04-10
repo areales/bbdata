@@ -24,6 +24,12 @@
 *Arsenal data not available*
 {{/if}}
 
+{{#if graphs.movementChart}}
+### Movement Plot
+
+{{{svgOrEmpty graphs.movementChart}}}
+{{/if}}
+
 ## Performance Profile
 
 *Season statistics to be populated from FanGraphs data (ERA, FIP, xFIP, SIERA, K-BB%, WAR)*
@@ -50,6 +56,12 @@
 {{/each}}
 {{else}}
 *Velocity trend data not available*
+{{/if}}
+
+{{#if graphs.rollingChart}}
+### Rolling Trend Chart
+
+{{{svgOrEmpty graphs.rollingChart}}}
 {{/if}}
 
 ## Risk Assessment

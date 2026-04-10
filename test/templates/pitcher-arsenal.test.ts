@@ -86,6 +86,8 @@ function makePitch(overrides: Partial<PitchData> = {}): PitchData {
     plate_z: 2.5,
     launch_speed: null,
     launch_angle: null,
+    hc_x: null,
+    hc_y: null,
     description: 'called_strike',
     events: null,
     bb_type: null,

@@ -1,0 +1,156 @@
+import { describe, it, expect } from 'vitest';
+import { movementBuilder } from '../../src/viz/charts/movement.js';
+import { sprayBuilder } from '../../src/viz/charts/spray.js';
+import { zoneBuilder } from '../../src/viz/charts/zone.js';
+import { rollingBuilder } from '../../src/viz/charts/rolling.js';
+import { getChartBuilder, listChartTypes } from '../../src/viz/charts/index.js';
+import type { ResolvedVizOptions } from '../../src/viz/types.js';
+
+const baseOptions: ResolvedVizOptions = {
+  type: 'movement',
+  player: 'Test Pitcher',
+  season: 2025,
+  audience: 'analyst',
+  format: 'svg',
+  width: 640,
+  height: 480,
+  colorblind: false,
+  title: 'Test Chart',
+};
+
+describe('movementBuilder', () => {
+  it('declares the pitcher-raw-pitches requirement', () => {
+    expect(movementBuilder.id).toBe('movement');
+    expect(movementBuilder.dataRequirements).toHaveLength(1);
+    expect(movementBuilder.dataRequirements[0]?.queryTemplate).toBe('pitcher-raw-pitches');
+  });
+
+  it('produces a Vega-Lite spec with layered point + centroid encoding', () => {
+    const rows = {
+      'pitcher-raw-pitches': [
+        { pitch_type: 'FF', pfx_x: 0.8, pfx_z: 1.2, release_speed: 95 },
+        { pitch_type: 'SL', pfx_x: -0.5, pfx_z: 0.4, release_speed: 87 },
+      ],
+    };
+    const spec = movementBuilder.buildSpec(rows, baseOptions) as {
+      title: string;
+      layer: unknown[];
+      config: unknown;
+    };
+    expect(spec.title).toBe('Test Chart');
+    expect(Array.isArray(spec.layer)).toBe(true);
+    expect(spec.layer.length).toBeGreaterThanOrEqual(3);
+    expect(spec.config).toBeDefined();
+  });
+});
+
+describe('sprayBuilder', () => {
+  it('converts hc_x/hc_y via the standard Statcast transform', () => {
+    const rows = {
+      'hitter-raw-bip': [
+        { hc_x: 125.42, hc_y: 104, launch_speed: 100, launch_angle: 25, events: 'home_run' },
+      ],
+    };
+    const spec = sprayBuilder.buildSpec(rows, { ...baseOptions, type: 'spray' }) as {
+      layer: Array<{ data?: { values: unknown[] } }>;
+    };
+    // Batted-ball points are the first layer (drives scale/axis merging)
+    const pointsLayer = spec.layer[0];
+    expect(pointsLayer?.data?.values).toHaveLength(1);
+    const pt = (pointsLayer!.data!.values as Array<{ x: number; y: number }>)[0]!;
+    // hc_x = 125.42 → x ≈ 0
+    expect(Math.abs(pt.x)).toBeLessThan(0.1);
+    // hc_y = 104 → y = (204 - 104) * 2.5 = 250
+    expect(pt.y).toBeCloseTo(250, 1);
+  });
+});
+
+describe('zoneBuilder', () => {
+  it('produces a layered rect + text spec and declares hitter-zone-grid', () => {
+    expect(zoneBuilder.dataRequirements[0]?.queryTemplate).toBe('hitter-zone-grid');
+    const rows = {
+      'hitter-zone-grid': Array.from({ length: 9 }, (_, i) => ({
+        zone: `z${i}`,
+        row: Math.floor(i / 3),
+        col: i % 3,
+        pitches: 10 + i,
+        xwoba: 0.25 + i * 0.02,
+      })),
+    };
+    const spec = zoneBuilder.buildSpec(rows, { ...baseOptions, type: 'zone' }) as {
+      layer: unknown[];
+    };
+    expect(spec.layer).toHaveLength(2);
+  });
+
+  it('uses viridis scheme when colorblind is set', () => {
+    const rows = {
+      'hitter-zone-grid': [
+        { zone: 'z0', row: 0, col: 0, pitches: 1, xwoba: 0.3 },
+      ],
+    };
+    const spec = zoneBuilder.buildSpec(rows, {
+      ...baseOptions,
+      type: 'zone',
+      colorblind: true,
+    }) as {
+      layer: Array<{ encoding?: { color?: { scale?: { scheme?: string } } } }>;
+    };
+    const rectLayer = spec.layer[0];
+    expect(rectLayer?.encoding?.color?.scale?.scheme).toBe('viridis');
+  });
+});
+
+describe('rollingBuilder', () => {
+  it('pivots wide rows to tidy metric/value pairs', () => {
+    const rows = {
+      'trend-rolling-average': [
+        { 'Window End': '2025-05-01', AVG: '0.300', SLG: '0.520' },
+        { 'Window End': '2025-05-08', AVG: '0.312', SLG: '0.540' },
+      ],
+    };
+    const spec = rollingBuilder.buildSpec(rows, { ...baseOptions, type: 'rolling' }) as {
+      data: { values: Array<{ window_end: string; metric: string; value: number }> };
+    };
+    const tidy = spec.data.values;
+    expect(tidy).toHaveLength(4); // 2 rows × 2 metrics
+    const avg = tidy.filter((r) => r.metric === 'AVG');
+    expect(avg).toHaveLength(2);
+    expect(avg[0]?.value).toBeCloseTo(0.3);
+  });
+
+  it('parses numerics out of strings with units (mph, %)', () => {
+    const rows = {
+      'trend-rolling-average': [
+        { 'Window End': '2025-05-01', Velo: '95.2 mph', Whiff: '35.7%' },
+      ],
+    };
+    const spec = rollingBuilder.buildSpec(rows, { ...baseOptions, type: 'rolling' }) as {
+      data: { values: Array<{ metric: string; value: number }> };
+    };
+    const velo = spec.data.values.find((r) => r.metric === 'Velo');
+    expect(velo?.value).toBeCloseTo(95.2);
+    const whiff = spec.data.values.find((r) => r.metric === 'Whiff');
+    expect(whiff?.value).toBeCloseTo(35.7);
+  });
+});
+
+describe('chart registry', () => {
+  it('listChartTypes returns all four chart types', () => {
+    const types = listChartTypes();
+    expect(types).toEqual(expect.arrayContaining(['movement', 'spray', 'zone', 'rolling']));
+    expect(types).toHaveLength(4);
+  });
+
+  it('getChartBuilder returns the correct builder for each type', () => {
+    expect(getChartBuilder('movement').id).toBe('movement');
+    expect(getChartBuilder('spray').id).toBe('spray');
+    expect(getChartBuilder('zone').id).toBe('zone');
+    expect(getChartBuilder('rolling').id).toBe('rolling');
+  });
+
+  it('getChartBuilder throws for unknown types', () => {
+    // @ts-expect-error — deliberately invalid type
+    expect(() => getChartBuilder('nonexistent')).toThrow('Unknown chart type');
+  });
+});

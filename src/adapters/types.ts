@@ -21,6 +21,8 @@ export const PitchDataSchema = z.object({
   plate_z: z.number(),            // vertical location
   launch_speed: z.number().nullable(),   // exit velocity (mph)
   launch_angle: z.number().nullable(),   // degrees
+  hc_x: z.number().nullable(),    // Statcast hit coordinate x (horizontal)
+  hc_y: z.number().nullable(),    // Statcast hit coordinate y (distance from home)
   description: z.string(),        // called_strike, swinging_strike, ball, foul, hit_into_play, etc.
   events: z.string().nullable(),  // single, double, home_run, strikeout, etc.
   bb_type: z.string().nullable(), // fly_ball, ground_ball, line_drive, popup

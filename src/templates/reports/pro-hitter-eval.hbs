@@ -16,6 +16,12 @@
 *Batted ball data not available*
 {{/if}}
 
+{{#if graphs.sprayChart}}
+### Spray Chart
+
+{{{svgOrEmpty graphs.sprayChart}}}
+{{/if}}
+
 ## Approach & Discipline
 
 {{#if data.hitter-vs-pitch-type}}
@@ -38,6 +44,12 @@
 {{/each}}
 {{else}}
 *Zone data not available*
+{{/if}}
+
+{{#if graphs.zoneChart}}
+### Zone Heatmap
+
+{{{svgOrEmpty graphs.zoneChart}}}
 {{/if}}
 
 ## Splits Analysis

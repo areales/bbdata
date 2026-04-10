@@ -115,6 +115,8 @@ export class SavantAdapter implements DataAdapter {
       plate_z: Number(row.plate_z) || 0,
       launch_speed: row.launch_speed != null ? Number(row.launch_speed) || null : null,
       launch_angle: row.launch_angle != null ? Number(row.launch_angle) || null : null,
+      hc_x: row.hc_x != null && row.hc_x !== '' ? Number(row.hc_x) || null : null,
+      hc_y: row.hc_y != null && row.hc_y !== '' ? Number(row.hc_y) || null : null,
       description: String(row.description ?? ''),
       events: row.events ? String(row.events) : null,
       bb_type: row.bb_type ? String(row.bb_type) : null,

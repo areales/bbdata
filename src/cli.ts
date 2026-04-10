@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { registerQueryCommand } from './commands/query.js';
 import { registerReportCommand } from './commands/report.js';
+import { registerVizCommand } from './commands/viz.js';
 
 export const program = new Command();
 
@@ -11,3 +12,4 @@ program
 
 registerQueryCommand(program);
 registerReportCommand(program);
+registerVizCommand(program);

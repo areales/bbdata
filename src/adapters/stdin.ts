@@ -69,8 +69,12 @@ export class StdinAdapter implements DataAdapter {
       throw new Error('Stdin adapter has no data — pipe JSON via stdin with --stdin flag');
     }
 
+    // TS variance: `(PitchData | PlayerStats)[]` is not assignable to
+    // `PitchData[] | PlayerStats[]`. At runtime every record in `this.data`
+    // came from a single payload so the array is homogeneous — cast to the
+    // adapter result type.
     return {
-      data: this.data,
+      data: this.data as PitchData[] | PlayerStats[],
       source: 'stdin',
       cached: false,
       fetchedAt: new Date().toISOString(),

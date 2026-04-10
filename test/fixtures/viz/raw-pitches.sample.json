@@ -1,0 +1,8 @@
+{
+  "data": [
+    {"pitcher_id":"1","pitcher_name":"Test Pitcher","batter_id":"2","batter_name":"B","game_date":"2025-04-15","pitch_type":"FF","release_speed":95.2,"release_spin_rate":2350,"pfx_x":0.8,"pfx_z":1.2,"plate_x":-0.3,"plate_z":2.8,"launch_speed":null,"launch_angle":null,"hc_x":null,"hc_y":null,"description":"called_strike","events":null,"bb_type":null,"stand":"R","p_throws":"R","estimated_ba":null,"estimated_woba":null},
+    {"pitcher_id":"1","pitcher_name":"Test Pitcher","batter_id":"2","batter_name":"B","game_date":"2025-04-15","pitch_type":"SL","release_speed":87.1,"release_spin_rate":2680,"pfx_x":-0.5,"pfx_z":0.4,"plate_x":0.1,"plate_z":1.9,"launch_speed":null,"launch_angle":null,"hc_x":null,"hc_y":null,"description":"swinging_strike","events":null,"bb_type":null,"stand":"R","p_throws":"R","estimated_ba":null,"estimated_woba":null},
+    {"pitcher_id":"1","pitcher_name":"Test Pitcher","batter_id":"2","batter_name":"B","game_date":"2025-04-15","pitch_type":"CH","release_speed":89.3,"release_spin_rate":1780,"pfx_x":1.2,"pfx_z":0.6,"plate_x":0.4,"plate_z":2.1,"launch_speed":null,"launch_angle":null,"hc_x":null,"hc_y":null,"description":"ball","events":null,"bb_type":null,"stand":"R","p_throws":"R","estimated_ba":null,"estimated_woba":null},
+    {"pitcher_id":"1","pitcher_name":"Test Pitcher","batter_id":"2","batter_name":"B","game_date":"2025-04-15","pitch_type":"FF","release_speed":96.1,"release_spin_rate":2400,"pfx_x":0.7,"pfx_z":1.1,"plate_x":-0.1,"plate_z":3.0,"launch_speed":102.3,"launch_angle":18,"hc_x":95.2,"hc_y":135.8,"description":"hit_into_play","events":"single","bb_type":"line_drive","stand":"R","p_throws":"R","estimated_ba":0.65,"estimated_woba":0.80}
+  ]
+}

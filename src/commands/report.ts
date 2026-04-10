@@ -10,6 +10,7 @@ import { pitchTypeName } from '../adapters/types.js';
 import { query as runQuery } from './query.js';
 import { getStdinAdapter } from '../adapters/index.js';
 import { readStdin } from '../utils/stdin.js';
+import { generateReportGraphs } from '../viz/embed.js';
 import {
   getReportTemplate,
   listReportTemplates,
@@ -62,6 +63,9 @@ Handlebars.registerHelper('compare', (value: number, leagueAvg: number) => {
 Handlebars.registerHelper('ifGt', function (this: unknown, a: number, b: number, options: any) {
   return a > b ? options.fn(this) : options.inverse(this);
 });
+Handlebars.registerHelper('svgOrEmpty', (svg: string) =>
+  new Handlebars.SafeString(svg ?? ''),
+);
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const BUNDLED_TEMPLATES_DIR = join(__dirname, '..', 'templates', 'reports');
@@ -147,6 +151,15 @@ export async function report(options: ReportOptions): Promise<ReportResult> {
     }
   }
 
+  // Generate any graphs this report embeds (failures degrade gracefully to '')
+  const graphs = await generateReportGraphs(
+    template.id,
+    player,
+    season,
+    audience,
+    { stdin: options.stdin },
+  );
+
   // Load and compile Handlebars template
   const hbsSource = loadTemplate(template.templateFile);
   const compiled = Handlebars.compile(hbsSource);
@@ -159,6 +172,7 @@ export async function report(options: ReportOptions): Promise<ReportResult> {
     date: new Date().toISOString().split('T')[0],
     sources: dataSources.join(', ') || 'none',
     data: dataResults,
+    graphs,
     ...dataResults,
   });
 

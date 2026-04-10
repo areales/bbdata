@@ -1,0 +1,8 @@
+{
+  "data": [
+    {"pitcher_id":"1","pitcher_name":"X","batter_id":"2","batter_name":"Test Hitter","game_date":"2025-04-15","pitch_type":"FF","release_speed":95,"release_spin_rate":2300,"pfx_x":0.8,"pfx_z":1.2,"plate_x":-0.1,"plate_z":2.8,"launch_speed":102.3,"launch_angle":18,"hc_x":95.2,"hc_y":135.8,"description":"hit_into_play","events":"single","bb_type":"line_drive","stand":"R","p_throws":"R","estimated_ba":0.65,"estimated_woba":0.80},
+    {"pitcher_id":"1","pitcher_name":"X","batter_id":"2","batter_name":"Test Hitter","game_date":"2025-04-16","pitch_type":"SL","release_speed":87,"release_spin_rate":2600,"pfx_x":-0.5,"pfx_z":0.4,"plate_x":0.2,"plate_z":2.2,"launch_speed":108.5,"launch_angle":28,"hc_x":155.3,"hc_y":80.2,"description":"hit_into_play","events":"home_run","bb_type":"fly_ball","stand":"R","p_throws":"R","estimated_ba":0.89,"estimated_woba":1.20},
+    {"pitcher_id":"1","pitcher_name":"X","batter_id":"2","batter_name":"Test Hitter","game_date":"2025-04-17","pitch_type":"CH","release_speed":88,"release_spin_rate":1800,"pfx_x":1.1,"pfx_z":0.5,"plate_x":0.5,"plate_z":1.8,"launch_speed":88.2,"launch_angle":-5,"hc_x":105.6,"hc_y":180.4,"description":"hit_into_play","events":"field_out","bb_type":"ground_ball","stand":"R","p_throws":"R","estimated_ba":0.12,"estimated_woba":0.09},
+    {"pitcher_id":"1","pitcher_name":"X","batter_id":"2","batter_name":"Test Hitter","game_date":"2025-04-18","pitch_type":"FF","release_speed":96,"release_spin_rate":2400,"pfx_x":0.7,"pfx_z":1.1,"plate_x":0.0,"plate_z":2.5,"launch_speed":95.0,"launch_angle":22,"hc_x":130.0,"hc_y":120.0,"description":"hit_into_play","events":"double","bb_type":"fly_ball","stand":"R","p_throws":"R","estimated_ba":0.45,"estimated_woba":0.70}
+  ]
+}

@@ -10,14 +10,15 @@ import {
 } from '../../src/templates/queries/registry.js';
 
 describe('query template registry', () => {
-  it('has all 12 templates registered', () => {
+  it('has all 15 templates registered', () => {
     const all = getAllTemplates();
-    expect(all.length).toBe(12);
+    // 12 original + 3 viz-raw (pitcher-raw-pitches, hitter-raw-bip, hitter-zone-grid)
+    expect(all.length).toBe(15);
   });
 
   it('listTemplates returns id, name, category, description for each', () => {
     const list = listTemplates();
-    expect(list.length).toBe(12);
+    expect(list.length).toBe(15);
 
     for (const t of list) {
       expect(t).toHaveProperty('id');

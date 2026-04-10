@@ -7,6 +7,11 @@ vi.mock('../../src/commands/query.js', () => ({
   query: vi.fn(),
 }));
 
+// Avoid cascading into the real vega pipeline during report tests.
+vi.mock('../../src/viz/embed.js', () => ({
+  generateReportGraphs: vi.fn(async () => ({})),
+}));
+
 vi.mock('../../src/utils/logger.js', () => ({
   log: { info: vi.fn(), debug: vi.fn(), warn: vi.fn(), success: vi.fn(), error: vi.fn(), data: vi.fn() },
 }));
