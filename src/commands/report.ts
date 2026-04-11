@@ -16,6 +16,7 @@ import {
   listReportTemplates,
   type Audience,
 } from '../templates/reports/registry.js';
+import { CLI_VERSION } from '../utils/version.js';
 
 export interface ReportOptions {
   template: string;
@@ -171,6 +172,7 @@ export async function report(options: ReportOptions): Promise<ReportResult> {
     audience,
     date: new Date().toISOString().split('T')[0],
     sources: dataSources.join(', ') || 'none',
+    cliVersion: CLI_VERSION,
     data: dataResults,
     graphs,
     ...dataResults,

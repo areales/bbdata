@@ -59,7 +59,8 @@
       "Bash(cp -v dist/bin/bbdata.js dist/bin/bbdata.js.map \"../scout-app/node_modules/bbdata-cli/dist/bin/\")",
       "Bash(cp -v dist/src/index.js dist/src/index.js.map \"../scout-app/node_modules/bbdata-cli/dist/src/\")",
       "Bash(cp -v dist/templates/reports/pro-hitter-eval.hbs \"../scout-app/node_modules/bbdata-cli/dist/templates/reports/\")",
-      "Bash(node \"../scout-app/node_modules/bbdata-cli/dist/bin/bbdata.js\" report pro-hitter-eval --player \"Aaron Judge\" --season 2025 --format markdown --validate)"
+      "Bash(node \"../scout-app/node_modules/bbdata-cli/dist/bin/bbdata.js\" report pro-hitter-eval --player \"Aaron Judge\" --season 2025 --format markdown --validate)",
+      "PowerShell(npm version:*)"
     ]
   }
 }
