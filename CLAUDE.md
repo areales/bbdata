@@ -61,6 +61,21 @@ CLI options → Command → Template.buildQuery() → Adapter.fetch() → Templa
 
 Tests use vitest with aggressive mocking. Adapters mock HTTP layers; commands mock entire adapters. Templates self-register via side-effect imports, so import order matters — import templates before mocking adapters.
 
+## Releasing
+
+```powershell
+npm version patch                         # or minor/major — bumps package.json + package-lock.json, commits, tags (one step)
+git push --follow-tags origin main        # ship commit and tag together
+npm publish                                # prepublishOnly runs build + typecheck + test
+npm view bbdata-cli@<version> version     # verify the publish landed
+```
+
+- **Never hand-edit the version field.** `npm version` is atomic across `package.json` and `package-lock.json` — hand edits drift the lockfile.
+- **Do not re-enable the `Stop` auto-commit hook** (removed in `cbdfddb`). It raced `npm version`'s two-file write and produced lockfile drift (0.3.0 and 0.4.0 shipped with `package-lock.json` stuck at 0.2.0). The hook script is still at `.claude/hooks/auto-commit.ps1` but is unreferenced from `.claude/settings.json`.
+- **Do not use `--ignore-scripts` on publish** unless you've already run `npm run build && npm run typecheck && npm test` manually in the same session. The only legitimate reason to skip `prepublishOnly` is to minimize the window between 2FA OTP generation and npm's registry validation.
+- **Version string wiring:** `src/utils/version.ts` walks up to find `package.json` at load time; `src/cli.ts` and `src/commands/report.ts` import `CLI_VERSION` from it. `test/utils/version.test.ts` asserts `CLI_VERSION` and `program.version()` match `package.json` — don't hardcode version strings anywhere.
+- **npm refuses to overwrite published versions.** If publish fails after `npm version` has already bumped, either `npm unpublish` within 72 hours or bump again (e.g., 0.4.1 → 0.4.2).
+
 ## Shell
 
 Use PowerShell for all shell commands.

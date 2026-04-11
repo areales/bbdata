@@ -60,7 +60,15 @@
       "Bash(cp -v dist/src/index.js dist/src/index.js.map \"../scout-app/node_modules/bbdata-cli/dist/src/\")",
       "Bash(cp -v dist/templates/reports/pro-hitter-eval.hbs \"../scout-app/node_modules/bbdata-cli/dist/templates/reports/\")",
       "Bash(node \"../scout-app/node_modules/bbdata-cli/dist/bin/bbdata.js\" report pro-hitter-eval --player \"Aaron Judge\" --season 2025 --format markdown --validate)",
-      "PowerShell(npm version:*)"
+      "PowerShell(npm version:*)",
+      "Bash(node -p \"require\\('./package.json'\\).version\")",
+      "Bash(npm view:*)",
+      "Bash(node -p \"JSON.stringify\\(require\\('./package.json'\\).files\\)\")",
+      "Bash(node:*)",
+      "Read(//c/Users/aaron/OneDrive/Documents/1 - Projects/AI Baseball Data Analyst/bbdata/**)",
+      "Bash(npm whoami:*)",
+      "Bash(npm pack:*)",
+      "Bash(npm publish:*)"
     ]
   }
 }
