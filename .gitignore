@@ -3,3 +3,6 @@ dist/
 *.tsbuildinfo
 .env
 .env.local
+
+# Rasterized preview artifacts from scripts/extract-report-assets.ts — regenerable, not part of fixtures
+.reports/*-chart-*.png
