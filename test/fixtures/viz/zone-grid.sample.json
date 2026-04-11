@@ -1,0 +1,13 @@
+{
+  "data": [
+    {"zone":"High-In",  "row":0, "col":0, "pitches":149, "pa":42, "xwoba":0.524},
+    {"zone":"High-Mid", "row":0, "col":1, "pitches":123, "pa":38, "xwoba":0.602},
+    {"zone":"High-Out", "row":0, "col":2, "pitches":134, "pa":36, "xwoba":0.373},
+    {"zone":"Mid-In",   "row":1, "col":0, "pitches":171, "pa":45, "xwoba":0.705},
+    {"zone":"Mid-Mid",  "row":1, "col":1, "pitches":186, "pa":51, "xwoba":0.650},
+    {"zone":"Mid-Out",  "row":1, "col":2, "pitches":148, "pa":41, "xwoba":0.473},
+    {"zone":"Low-In",   "row":2, "col":0, "pitches":110, "pa":32, "xwoba":0.391},
+    {"zone":"Low-Mid",  "row":2, "col":1, "pitches":162, "pa":48, "xwoba":0.339},
+    {"zone":"Low-Out",  "row":2, "col":2, "pitches":171, "pa":52, "xwoba":0.190}
+  ]
+}

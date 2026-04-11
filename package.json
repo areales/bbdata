@@ -1,6 +1,6 @@
 {
   "name": "bbdata-cli",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Baseball data CLI for querying, scouting reports, and analytics — built for humans and AI agents",
   "type": "module",
   "bin": {
@@ -26,7 +26,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src/ bin/ test/",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "viz:fixtures": "tsx scripts/render-fixtures.ts",
+    "prepublishOnly": "npm run build && npm run typecheck && npm test"
   },
   "keywords": [
     "baseball",
@@ -53,6 +55,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@types/node": "^22.13.0",
     "tsup": "^8.4.0",
     "tsx": "^4.19.2",

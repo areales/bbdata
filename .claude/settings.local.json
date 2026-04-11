@@ -41,7 +41,12 @@
       "Bash(node dist/bin/bbdata.js viz rolling --player \"Test Hitter\" --stdin -o .reports/demo_rolling.svg)",
       "Bash(node dist/bin/bbdata.js report pro-hitter-eval --player \"Aaron Judge\" --season 2025)",
       "Bash(node dist/bin/bbdata.js query hitter-zone-grid --player \"Aaron Judge\" --season 2025 --format table)",
-      "Bash(awk '/Zone Heatmap/,/Splits Analysis/' .reports/judge_2025.md)"
+      "Bash(awk '/Zone Heatmap/,/Splits Analysis/' .reports/judge_2025.md)",
+      "PowerShell(npx vitest run test/viz/render.test.ts)",
+      "PowerShell(npm install:*)",
+      "PowerShell(npx vitest run test/viz/snapshots.test.ts 2>&1 | Select-Object -Last 60)",
+      "PowerShell(npm test:*)",
+      "PowerShell(git stash:*)"
     ]
   }
 }
