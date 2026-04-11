@@ -52,7 +52,14 @@
       "Bash(gh auth:*)",
       "Bash(gh repo:*)",
       "Bash(git push:*)",
-      "Bash(git:*)"
+      "Bash(git:*)",
+      "Bash(npx eslint:*)",
+      "Bash(ls -la .eslint* eslint*)",
+      "Bash(awk 'NR>=103 && NR<=120' \"C:/Users/aaron/.claude/projects/C--Users-aaron-OneDrive-Documents-1---Projects-AI-Baseball-Data-Analyst-bbdata/54ca490f-d7fe-49f0-b242-93cf0cd94872/tool-results/bps6auh0j.txt\")",
+      "Bash(cp -v dist/bin/bbdata.js dist/bin/bbdata.js.map \"../scout-app/node_modules/bbdata-cli/dist/bin/\")",
+      "Bash(cp -v dist/src/index.js dist/src/index.js.map \"../scout-app/node_modules/bbdata-cli/dist/src/\")",
+      "Bash(cp -v dist/templates/reports/pro-hitter-eval.hbs \"../scout-app/node_modules/bbdata-cli/dist/templates/reports/\")",
+      "Bash(node \"../scout-app/node_modules/bbdata-cli/dist/bin/bbdata.js\" report pro-hitter-eval --player \"Aaron Judge\" --season 2025 --format markdown --validate)"
     ]
   }
 }

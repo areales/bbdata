@@ -81,6 +81,8 @@ registerReportTemplate({
     { queryTemplate: 'hitter-batted-ball', paramMapping: { player: 'player' }, required: true },
     { queryTemplate: 'hitter-vs-pitch-type', paramMapping: { player: 'player' }, required: true },
     { queryTemplate: 'hitter-hot-cold-zones', paramMapping: { player: 'player' }, required: false },
+    { queryTemplate: 'hitter-handedness-splits', paramMapping: { player: 'player' }, required: false },
+    { queryTemplate: 'trend-rolling-average', paramMapping: { player: 'player' }, required: false },
   ],
   requiredSections: ['Header', 'Batted Ball Profile', 'Approach & Discipline', 'Splits Analysis', 'Trend Analysis', 'Risk Assessment', 'Comparable Player', 'Role Projection'],
   examples: ['bbdata report pro-hitter-eval --player "Juan Soto"'],

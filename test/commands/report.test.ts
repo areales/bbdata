@@ -77,6 +77,19 @@ describe('report command', () => {
     expect(runQuery).toHaveBeenCalledTimes(3);
   });
 
+  it('fetches data for each pro-hitter-eval data requirement', async () => {
+    await report({
+      template: 'pro-hitter-eval',
+      player: 'Aaron Judge',
+      season: 2025,
+    });
+
+    // pro-hitter-eval has 5 data requirements:
+    // hitter-batted-ball, hitter-vs-pitch-type, hitter-hot-cold-zones,
+    // hitter-handedness-splits, trend-rolling-average
+    expect(runQuery).toHaveBeenCalledTimes(5);
+  });
+
   it('validation detects placeholder text', async () => {
     // Mock query to return null data (triggers fallback template with "Data pending")
     vi.mocked(runQuery).mockResolvedValue({

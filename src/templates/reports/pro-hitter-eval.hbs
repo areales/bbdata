@@ -54,11 +54,33 @@
 
 ## Splits Analysis
 
-*To be populated: vs LHP/RHP, home/away*
+{{#if data.hitter-handedness-splits}}
+| vs | PA | AVG | SLG | K % | BB % | Avg EV | Whiff % |
+|----|-----|-----|-----|-----|------|--------|---------|
+{{#each data.hitter-handedness-splits}}
+| {{this.vs}} | {{this.PA}} | {{this.AVG}} | {{this.SLG}} | {{this.[K %]}} | {{this.[BB %]}} | {{this.[Avg EV]}} | {{this.[Whiff %]}} |
+{{/each}}
+{{else}}
+*Splits data not available*
+{{/if}}
 
 ## Trend Analysis
 
-*To be populated: rolling average trends*
+{{#if data.trend-rolling-average}}
+| Window | Games | AVG | SLG | K % | Avg EV | Hard Hit % |
+|--------|-------|-----|-----|-----|--------|------------|
+{{#each data.trend-rolling-average}}
+| {{this.Window}} | {{this.Games}} | {{this.AVG}} | {{this.SLG}} | {{this.[K %]}} | {{this.[Avg EV]}} | {{this.[Hard Hit %]}} |
+{{/each}}
+{{else}}
+*Rolling trend data not available*
+{{/if}}
+
+{{#if graphs.rollingChart}}
+### Rolling Trend Chart
+
+{{{svgOrEmpty graphs.rollingChart}}}
+{{/if}}
 
 ## Risk Assessment
 

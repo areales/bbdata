@@ -5,6 +5,7 @@ import './pitcher-handedness-splits.js';
 import './hitter-batted-ball.js';
 import './hitter-vs-pitch-type.js';
 import './hitter-hot-cold-zones.js';
+import './hitter-handedness-splits.js';
 import './matchup-pitcher-vs-hitter.js';
 import './matchup-situational.js';
 import './leaderboard-custom.js';

@@ -20,6 +20,7 @@ const REPORT_GRAPH_MAP: Record<
   'pro-hitter-eval': [
     { slot: 'sprayChart', type: 'spray' },
     { slot: 'zoneChart', type: 'zone' },
+    { slot: 'rollingChart', type: 'rolling' },
   ],
 };
 
