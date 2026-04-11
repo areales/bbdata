@@ -46,7 +46,8 @@
       "PowerShell(npm install:*)",
       "PowerShell(npx vitest run test/viz/snapshots.test.ts 2>&1 | Select-Object -Last 60)",
       "PowerShell(npm test:*)",
-      "PowerShell(git stash:*)"
+      "PowerShell(git stash:*)",
+      "Bash(git tag:*)"
     ]
   }
 }
