@@ -1,16 +1,3 @@
 {
-  "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "pwsh -NoProfile -File \"$CLAUDE_PROJECT_DIR/.claude/hooks/auto-commit.ps1\"",
-            "statusMessage": "Auto-committing and pushing changes...",
-            "timeout": 30
-          }
-        ]
-      }
-    ]
-  }
+  "hooks": {}
 }
