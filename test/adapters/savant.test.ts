@@ -162,6 +162,55 @@ describe('SavantAdapter', () => {
     expect(url).toContain('hfGT=R%7C');
   });
 
+  it('maps inning/balls/strikes/outs_when_up/at_bat_number/pitch_number from CSV (BBDATA-011)', async () => {
+    vi.mocked(fetchJson).mockResolvedValueOnce(mlbSearchFixture);
+    // Mini CSV with the 6 new columns. Row 1 has balls=0/strikes=0 (valid
+    // zeros that must NOT coerce to null); row 2 has everything blank
+    // (must degrade to null); row 3 has a full count late in a game.
+    const csv =
+      'pitch_type,game_date,release_speed,release_spin_rate,pfx_x,pfx_z,plate_x,plate_z,player_name,pitcher,batter,batter_name,description,events,bb_type,stand,p_throws,launch_speed,launch_angle,hc_x,hc_y,estimated_ba_using_speedangle,estimated_woba_using_speedangle,game_type,inning,balls,strikes,outs_when_up,at_bat_number,pitch_number\n' +
+      'FF,2025-04-15,95.2,2350,0.8,1.2,-0.3,2.8,Pitcher A,111,592450,Aaron Judge,called_strike,,,R,R,,,,,,,R,1,0,0,0,1,1\n' +
+      'SL,2025-04-15,87.1,2680,-0.5,0.4,0.1,1.9,Pitcher A,111,592450,Aaron Judge,ball,,,R,R,,,,,,,R,,,,,,\n' +
+      'FC,2025-04-15,91.3,2500,0.2,0.9,0.0,2.3,Pitcher A,111,592450,Aaron Judge,swinging_strike,,,R,R,,,,,,,R,7,3,2,2,27,6\n';
+    vi.mocked(fetchText).mockResolvedValueOnce(csv);
+
+    const result = await adapter.fetch({
+      player_name: 'Aaron Judge',
+      season: 2025,
+      stat_type: 'batting',
+    });
+
+    expect(result.data).toHaveLength(3);
+
+    const row1 = result.data[0]!;
+    // Legitimate zeros must be preserved (0 balls, 0 strikes, 0 outs is the
+    // count state at the start of every game) — the prior `|| null` idiom
+    // would have silently nulled these out.
+    expect(row1.inning).toBe(1);
+    expect(row1.balls).toBe(0);
+    expect(row1.strikes).toBe(0);
+    expect(row1.outs_when_up).toBe(0);
+    expect(row1.at_bat_number).toBe(1);
+    expect(row1.pitch_number).toBe(1);
+
+    const row2 = result.data[1]!;
+    // Empty cells degrade cleanly to null.
+    expect(row2.inning).toBeNull();
+    expect(row2.balls).toBeNull();
+    expect(row2.strikes).toBeNull();
+    expect(row2.outs_when_up).toBeNull();
+    expect(row2.at_bat_number).toBeNull();
+    expect(row2.pitch_number).toBeNull();
+
+    const row3 = result.data[2]!;
+    expect(row3.inning).toBe(7);
+    expect(row3.balls).toBe(3);
+    expect(row3.strikes).toBe(2);
+    expect(row3.outs_when_up).toBe(2);
+    expect(row3.at_bat_number).toBe(27);
+    expect(row3.pitch_number).toBe(6);
+  });
+
   it('throws when player cannot be resolved', async () => {
     vi.mocked(fetchJson).mockResolvedValueOnce({ people: [] });
 

@@ -30,6 +30,17 @@ export const PitchDataSchema = z.object({
   p_throws: z.enum(['L', 'R']),   // pitcher handedness
   estimated_ba: z.number().nullable(),   // xBA
   estimated_woba: z.number().nullable(), // xwOBA
+  // Count / inning / PA fields — added for advance-sp tactical sections
+  // (BBDATA-011). Optional+nullable: Savant CSV historically includes them
+  // but consumer templates written before the extension should still
+  // compile, and stdin-piped payloads without these fields should still
+  // pass type-checking.
+  inning: z.number().nullable().optional(),
+  balls: z.number().nullable().optional(),         // balls before the pitch
+  strikes: z.number().nullable().optional(),       // strikes before the pitch
+  outs_when_up: z.number().nullable().optional(),  // outs at start of PA
+  at_bat_number: z.number().nullable().optional(), // PA index within the game
+  pitch_number: z.number().nullable().optional(),  // pitch index within the PA
 });
 
 export type PitchData = z.infer<typeof PitchDataSchema>;

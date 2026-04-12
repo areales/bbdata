@@ -118,6 +118,16 @@ export class SavantAdapter implements DataAdapter {
       return true;
     });
 
+    // Nullable numeric parse that preserves legitimate zeros (e.g. balls=0,
+    // strikes=0, outs_when_up=0 are all valid count/PA states) and rejects
+    // NaN from malformed cells. Distinct from the `Number(x) || null` idiom
+    // used for fields like launch_speed where 0 is not a meaningful value.
+    const numOrNull = (v: unknown): number | null => {
+      if (v == null || v === '') return null;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    };
+
     const data: PitchData[] = filteredRows.map((row) => ({
       pitcher_id: String(row.pitcher ?? ''),
       pitcher_name: String(row.player_name ?? ''),
@@ -146,6 +156,17 @@ export class SavantAdapter implements DataAdapter {
       estimated_woba: row.estimated_woba_using_speedangle != null
         ? Number(row.estimated_woba_using_speedangle) || null
         : null,
+      // BBDATA-011: count/inning/PA fields. Savant's CSV export includes
+      // these as numeric columns; we map them through nullable so older
+      // CSV fixtures (and stdin payloads written before the extension)
+      // still parse cleanly. Downstream templates (pitcher-recent-form,
+      // pitcher-by-count, pitcher-tto) guard on `!= null` before using.
+      inning: numOrNull(row.inning),
+      balls: numOrNull(row.balls),
+      strikes: numOrNull(row.strikes),
+      outs_when_up: numOrNull(row.outs_when_up),
+      at_bat_number: numOrNull(row.at_bat_number),
+      pitch_number: numOrNull(row.pitch_number),
     }));
 
     log.success(`Fetched ${data.length} pitches from Savant`);
