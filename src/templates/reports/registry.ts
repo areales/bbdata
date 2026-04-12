@@ -65,6 +65,11 @@ registerReportTemplate({
     { queryTemplate: 'pitcher-arsenal', paramMapping: { player: 'player' }, required: true },
     { queryTemplate: 'pitcher-velocity-trend', paramMapping: { player: 'player' }, required: false },
     { queryTemplate: 'pitcher-handedness-splits', paramMapping: { player: 'player' }, required: true },
+    // BBDATA-003: FanGraphs season stats for the Performance Profile section.
+    // required:false because FanGraphs occasionally 500s — we don't want a
+    // flaky FG day to break the entire pro eval; the Performance Profile
+    // section will fall back to placeholder text instead.
+    { queryTemplate: 'pitcher-season-profile', paramMapping: { player: 'player' }, required: false },
   ],
   requiredSections: ['Header', 'Pitch Arsenal', 'Performance Profile', 'Splits Analysis', 'Trend Analysis', 'Risk Assessment', 'Comparable Player', 'Role Projection'],
   examples: ['bbdata report pro-pitcher-eval --player "Corbin Burnes"'],
@@ -83,8 +88,12 @@ registerReportTemplate({
     { queryTemplate: 'hitter-hot-cold-zones', paramMapping: { player: 'player' }, required: false },
     { queryTemplate: 'hitter-handedness-splits', paramMapping: { player: 'player' }, required: false },
     { queryTemplate: 'trend-rolling-average', paramMapping: { player: 'player' }, required: false },
+    // BBDATA-004: FanGraphs season stats for the Performance Profile section.
+    // Same required:false rationale as pro-pitcher-eval — the report should
+    // degrade gracefully if FanGraphs is unreachable.
+    { queryTemplate: 'hitter-season-profile', paramMapping: { player: 'player' }, required: false },
   ],
-  requiredSections: ['Header', 'Batted Ball Profile', 'Approach & Discipline', 'Splits Analysis', 'Trend Analysis', 'Risk Assessment', 'Comparable Player', 'Role Projection'],
+  requiredSections: ['Header', 'Batted Ball Profile', 'Performance Profile', 'Approach & Discipline', 'Splits Analysis', 'Trend Analysis', 'Risk Assessment', 'Comparable Player', 'Role Projection'],
   examples: ['bbdata report pro-hitter-eval --player "Juan Soto"'],
 });
 
@@ -148,6 +157,14 @@ registerReportTemplate({
   dataRequirements: [
     { queryTemplate: 'pitcher-arsenal', paramMapping: { player: 'player' }, required: true },
     { queryTemplate: 'pitcher-handedness-splits', paramMapping: { player: 'player' }, required: true },
+    // BBDATA-011: tactical pitch-level queries that populate the 4 sections
+    // (Recent Form, By Count, TTO, Late-in-Game) that previously rendered
+    // as hardcoded placeholders. All required:false so a Savant flake or
+    // a pitcher with no recent starts degrades gracefully to "data not
+    // available" rather than aborting the report.
+    { queryTemplate: 'pitcher-recent-form', paramMapping: { player: 'player' }, required: false },
+    { queryTemplate: 'pitcher-by-count', paramMapping: { player: 'player' }, required: false },
+    { queryTemplate: 'pitcher-tto', paramMapping: { player: 'player' }, required: false },
   ],
   requiredSections: ['Header', 'Recent Form', 'Pitch Mix & Sequencing', 'Times Through Order', 'Platoon Vulnerabilities', 'How to Attack'],
   examples: ['bbdata report advance-sp --player "Gerrit Cole" --audience coach'],

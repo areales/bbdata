@@ -6,7 +6,17 @@
 
 ## Recent Form
 
-*Last 5 starts — to be populated with game log data*
+{{#if data.pitcher-recent-form}}
+| Date | IP | H | K | BB/HBP | Pitches | Avg FB | Max Velo |
+|------|-----|---|---|--------|---------|--------|----------|
+{{#each data.pitcher-recent-form}}
+| {{this.Date}} | {{this.IP}} | {{this.H}} | {{this.K}} | {{this.[BB/HBP]}} | {{this.Pitches}} | {{this.[Avg FB]}} | {{this.[Max Velo]}} |
+{{/each}}
+
+_IP is approximate (derived from Statcast event data); ER is omitted — cross-reference a box score for earned-run totals._
+{{else}}
+*Last 5 starts — game-log data not available*
+{{/if}}
 
 ## Pitch Mix & Sequencing
 
@@ -18,13 +28,22 @@
 {{#each data.pitcher-arsenal}}
 | {{this.[Pitch Type]}} | {{this.[Usage %]}} | {{this.[Avg Velo]}} | {{this.[Avg Spin]}} | {{this.[Whiff %]}} |
 {{/each}}
-
-### By Count (to be populated)
-- **Ahead in count:** Primary pitch selection
-- **Behind in count:** Go-to pitch
-- **Two-strike:** Put-away pitch
 {{else}}
 *Arsenal data not available*
+{{/if}}
+
+### By Count
+
+{{#if data.pitcher-by-count}}
+| Count State | Pitches | Usage % | Whiff % | Primary Pitch | xwOBA |
+|-------------|---------|---------|---------|---------------|-------|
+{{#each data.pitcher-by-count}}
+| {{this.[Count State]}} | {{this.Pitches}} | {{this.[Usage %]}} | {{this.[Whiff %]}} | {{this.[Primary Pitch]}} | {{this.xwOBA}} |
+{{/each}}
+{{else}}
+- **Ahead in count:** Primary pitch selection (data not available)
+- **Behind in count:** Go-to pitch (data not available)
+- **Two-strike:** Put-away pitch (data not available)
 {{/if}}
 
 {{#if graphs.movementChart}}
@@ -35,7 +54,15 @@
 
 ## Times Through the Order
 
-*3rd time adjustment, velocity drop patterns — to be analyzed from pitch-level data*
+{{#if data.pitcher-tto}}
+| Pass | PAs | K % | BB % | xwOBA | Avg FB Velo |
+|------|-----|-----|------|-------|-------------|
+{{#each data.pitcher-tto}}
+| {{this.Pass}} | {{this.PAs}} | {{this.[K %]}} | {{this.[BB %]}} | {{this.xwOBA}} | {{this.[Avg FB Velo]}} |
+{{/each}}
+{{else}}
+*3rd time adjustment, velocity drop patterns — pitch-level TTO data not available*
+{{/if}}
 
 ## Platoon Vulnerabilities
 
@@ -52,10 +79,14 @@
 ## How to Attack
 
 ### Early in Game (1st time through)
-- *To be filled: patient approach? aggressive?*
+- *To be filled by evaluator: patient approach? aggressive?*
 
 ### Late in Game (3rd+ time through)
+{{#if data.pitcher-tto}}
+- {{ttoVeloDelta data.pitcher-tto}}
+{{else}}
 - *To be filled: exploit fatigue patterns?*
+{{/if}}
 
 ### Key Weaknesses
 - *To be filled by evaluator*

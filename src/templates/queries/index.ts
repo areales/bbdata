@@ -15,6 +15,13 @@ import './trend-year-over-year.js';
 import './pitcher-raw-pitches.js';
 import './hitter-raw-bip.js';
 import './hitter-zone-grid.js';
+// BBDATA-011: advance-sp tactical query templates
+import './pitcher-recent-form.js';
+import './pitcher-by-count.js';
+import './pitcher-tto.js';
+// BBDATA-003/004: FanGraphs season-aggregate templates for pro-* reports
+import './pitcher-season-profile.js';
+import './hitter-season-profile.js';
 
 export {
   getTemplate,

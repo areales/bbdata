@@ -73,8 +73,10 @@ describe('report command', () => {
       season: 2025,
     });
 
-    // pro-pitcher-eval has 3 data requirements
-    expect(runQuery).toHaveBeenCalledTimes(3);
+    // pro-pitcher-eval has 4 data requirements:
+    // pitcher-arsenal, pitcher-velocity-trend, pitcher-handedness-splits,
+    // pitcher-season-profile (BBDATA-003)
+    expect(runQuery).toHaveBeenCalledTimes(4);
   });
 
   it('fetches data for each pro-hitter-eval data requirement', async () => {
@@ -84,10 +86,85 @@ describe('report command', () => {
       season: 2025,
     });
 
-    // pro-hitter-eval has 5 data requirements:
+    // pro-hitter-eval has 6 data requirements:
     // hitter-batted-ball, hitter-vs-pitch-type, hitter-hot-cold-zones,
-    // hitter-handedness-splits, trend-rolling-average
+    // hitter-handedness-splits, trend-rolling-average,
+    // hitter-season-profile (BBDATA-004)
+    expect(runQuery).toHaveBeenCalledTimes(6);
+  });
+
+  it('advance-sp fetches all 5 data requirements including the BBDATA-011 tactical queries', async () => {
+    await report({
+      template: 'advance-sp',
+      player: 'Gerrit Cole',
+      season: 2024,
+      audience: 'coach',
+    });
+
+    // pitcher-arsenal, pitcher-handedness-splits, pitcher-recent-form,
+    // pitcher-by-count, pitcher-tto
     expect(runQuery).toHaveBeenCalledTimes(5);
+  });
+
+  it('advance-sp renders populated tables (not placeholders) when tactical queries succeed', async () => {
+    // Return shape-accurate mock data for each query template so the
+    // Handlebars template exercises its populated branch for every new
+    // BBDATA-011 section.
+    vi.mocked(runQuery).mockImplementation(async (opts: { template: string }) => {
+      const shapes: Record<string, Record<string, unknown>[]> = {
+        'pitcher-arsenal': [
+          { 'Pitch Type': 'Four-Seam Fastball', 'Usage %': '48.2%', 'Avg Velo': '96.4 mph', 'Avg Spin': '2450 rpm', 'Whiff %': '24.3%' },
+        ],
+        'pitcher-handedness-splits': [
+          { vs: 'R', PA: 420, AVG: '.218', SLG: '.362', 'K %': '28.5%', 'BB %': '7.4%' },
+        ],
+        'pitcher-recent-form': [
+          { Date: '2024-09-25', IP: '6.2', H: 4, K: 9, 'BB/HBP': 1, Pitches: 101, 'Avg FB': '96.8 mph', 'Max Velo': '99.1 mph' },
+        ],
+        'pitcher-by-count': [
+          { 'Count State': 'Ahead', Pitches: 800, 'Usage %': '40.0%', 'Whiff %': '30.2%', 'Primary Pitch': 'Slider', xwOBA: '0.210' },
+          { 'Count State': 'Even', Pitches: 600, 'Usage %': '30.0%', 'Whiff %': '22.5%', 'Primary Pitch': 'Four-Seam Fastball', xwOBA: '0.290' },
+          { 'Count State': 'Behind', Pitches: 600, 'Usage %': '30.0%', 'Whiff %': '15.0%', 'Primary Pitch': 'Four-Seam Fastball', xwOBA: '0.350' },
+          { 'Count State': 'Two-strike (overlay)', Pitches: 700, 'Usage %': '35.0%', 'Whiff %': '38.4%', 'Primary Pitch': 'Slider', xwOBA: '0.190' },
+        ],
+        'pitcher-tto': [
+          { Pass: '1st TTO', PAs: 90, 'K %': '32.0%', 'BB %': '6.0%', xwOBA: '0.280', 'Avg FB Velo': '97.2 mph' },
+          { Pass: '2nd TTO', PAs: 85, 'K %': '28.5%', 'BB %': '7.0%', xwOBA: '0.310', 'Avg FB Velo': '96.5 mph' },
+          { Pass: '3rd+ TTO', PAs: 40, 'K %': '21.0%', 'BB %': '9.0%', xwOBA: '0.360', 'Avg FB Velo': '95.1 mph' },
+        ],
+      };
+      return {
+        data: shapes[opts.template] ?? [],
+        formatted: '{}',
+        meta: { template: opts.template, source: 'savant', cached: false, rowCount: 1, season: 2024 },
+      };
+    });
+
+    const result = await report({
+      template: 'advance-sp',
+      player: 'Gerrit Cole',
+      season: 2024,
+      audience: 'coach',
+    });
+
+    // The placeholder copy from the old template must NOT appear.
+    expect(result.content).not.toContain('Last 5 starts — game-log data not available');
+    expect(result.content).not.toContain('3rd time adjustment, velocity drop patterns');
+
+    // Recent Form table row rendered with the mocked date
+    expect(result.content).toContain('2024-09-25');
+    expect(result.content).toContain('6.2'); // IP
+
+    // By Count table rows (all 4 including the two-strike overlay)
+    expect(result.content).toContain('Two-strike (overlay)');
+
+    // TTO table rows
+    expect(result.content).toContain('1st TTO');
+    expect(result.content).toContain('3rd+ TTO');
+
+    // How to Attack: the ttoVeloDelta helper should have produced a sentence
+    // referencing a velocity drop (97.2 → 95.1 = ~2.1 mph drop).
+    expect(result.content).toMatch(/Fastball velo drops ~2\.1 mph/);
   });
 
   it('validation detects placeholder text', async () => {
@@ -279,9 +356,10 @@ describe('report command', () => {
 
     const parsed = JSON.parse(result.formatted);
     expect(parsed).toHaveProperty('sections');
-    // pro-pitcher-eval has 3 data requirements; sections should hold one entry per id.
+    // pro-pitcher-eval has 4 data requirements after BBDATA-003;
+    // sections should hold one entry per id.
     const sectionKeys = Object.keys(parsed.sections);
-    expect(sectionKeys.length).toBe(3);
+    expect(sectionKeys.length).toBe(4);
     // Each section's value should be the raw query data, not a markdown string.
     for (const key of sectionKeys) {
       expect(Array.isArray(parsed.sections[key])).toBe(true);

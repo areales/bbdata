@@ -90,6 +90,37 @@ Handlebars.registerHelper('svgOrEmpty', (svg: string) =>
   new Handlebars.SafeString(svg ?? ''),
 );
 
+// BBDATA-011: Produce a one-liner summary of fastball velocity change
+// across the 1st vs 3rd+ time through the order, given a pitcher-tto
+// query result array. Returns an empty string if either bucket is
+// missing or has no FB velo data so the advance-sp template can fall
+// back to a static placeholder via {{#if}}.
+//
+// Expected input shape: rows produced by src/templates/queries/pitcher-tto.ts,
+// where the "Avg FB Velo" field is a formatted string like "95.2 mph"
+// or "—" when the bucket has no fastballs.
+Handlebars.registerHelper('ttoVeloDelta', (rows: unknown) => {
+  if (!Array.isArray(rows) || rows.length < 3) return '';
+  const parseVelo = (r: unknown): number | null => {
+    if (!r || typeof r !== 'object') return null;
+    const v = (r as Record<string, unknown>)['Avg FB Velo'];
+    if (typeof v !== 'string' || v === '—') return null;
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : null;
+  };
+  const first = parseVelo(rows[0]);
+  const third = parseVelo(rows[2]);
+  if (first == null || third == null) return '';
+  const delta = first - third;
+  if (Math.abs(delta) < 0.1) {
+    return `Fastball velo holds steady (${first.toFixed(1)} mph) through the 3rd time through — no fatigue tell.`;
+  }
+  if (delta > 0) {
+    return `Fastball velo drops ~${delta.toFixed(1)} mph by the 3rd time through (${first.toFixed(1)} → ${third.toFixed(1)} mph) — exploit in late at-bats.`;
+  }
+  return `Fastball velo actually climbs ~${Math.abs(delta).toFixed(1)} mph by the 3rd time through (${first.toFixed(1)} → ${third.toFixed(1)} mph) — late-inning adrenaline, not fatigue.`;
+});
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const BUNDLED_TEMPLATES_DIR = join(__dirname, '..', 'templates', 'reports');
 

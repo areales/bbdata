@@ -32,7 +32,15 @@
 
 ## Performance Profile
 
-*Season statistics to be populated from FanGraphs data (ERA, FIP, xFIP, SIERA, K-BB%, WAR)*
+{{#if data.pitcher-season-profile}}
+| Metric | Value |
+|--------|-------|
+{{#each data.pitcher-season-profile}}
+| {{this.Metric}} | {{this.Value}} |
+{{/each}}
+{{else}}
+*Season statistics unavailable — FanGraphs query failed or returned no data*
+{{/if}}
 
 ## Splits Analysis
 
