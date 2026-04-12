@@ -6,3 +6,14 @@ dist/
 
 # Rasterized preview artifacts from scripts/extract-report-assets.ts — regenerable, not part of fixtures
 .reports/*-chart-*.png
+
+# Claude Code local scratchpad for plan files — not shared
+.plans/
+
+# Claude Code runtime state under .claude/ — local per-machine files
+# (permission grants, scheduled-task lock files, etc). Deny-by-default with
+# explicit allows for the shared files that ARE tracked.
+.claude/*
+!.claude/hooks/
+!.claude/hooks/**
+!.claude/settings.json
