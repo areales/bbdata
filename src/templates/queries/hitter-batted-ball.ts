@@ -1,6 +1,28 @@
 import { registerTemplate, type QueryTemplate } from './registry.js';
 import type { PitchData } from '../../adapters/types.js';
 
+// Statcast event codes that denote a batted-ball event (BBE).
+// Anything in this set contributes to the EV / Hard Hit / Barrel / bb_type rollups.
+// Foul balls are *not* BBEs, so their `events` is null and they're excluded automatically.
+const BATTED_BALL_EVENTS: ReadonlySet<string> = new Set([
+  'single',
+  'double',
+  'triple',
+  'home_run',
+  'field_out',
+  'force_out',
+  'grounded_into_double_play',
+  'double_play',
+  'triple_play',
+  'sac_fly',
+  'sac_fly_double_play',
+  'sac_bunt',
+  'sac_bunt_double_play',
+  'field_error',
+  'fielders_choice',
+  'fielders_choice_out',
+]);
+
 const template: QueryTemplate = {
   id: 'hitter-batted-ball',
   name: 'Hitter Batted Ball Profile',
@@ -28,19 +50,32 @@ const template: QueryTemplate = {
 
   transform(data) {
     const pitches = data as PitchData[];
-    const batted = pitches.filter((p) => p.launch_speed !== null && p.launch_speed > 0);
+    // Filter to batted-ball events (BBE). The prior implementation used
+    // `launch_speed > 0`, which admitted foul balls (they carry tracked launch
+    // speed but are not BBEs) into the denominator and pulled averages down.
+    const batted = pitches.filter((p) => p.events != null && BATTED_BALL_EVENTS.has(p.events));
 
     if (batted.length === 0) return [];
 
-    const evs = batted.map((p) => p.launch_speed!);
-    const las = batted.map((p) => p.launch_angle!);
-    const avgEv = evs.reduce((s, v) => s + v, 0) / evs.length;
-    const avgLa = las.reduce((s, v) => s + v, 0) / las.length;
+    // Savant's public Hard Hit / Barrel / Avg EV use BBE as the denominator.
+    // Events with null launch data (rare — failed tracking) are excluded from
+    // the numerator but remain in the denominator, matching savant.com.
+    const evs = batted.filter((p) => p.launch_speed != null).map((p) => p.launch_speed!);
+    const las = batted.filter((p) => p.launch_angle != null).map((p) => p.launch_angle!);
+    const avgEv = evs.length > 0 ? evs.reduce((s, v) => s + v, 0) / evs.length : 0;
+    const avgLa = las.length > 0 ? las.reduce((s, v) => s + v, 0) / las.length : 0;
+    const maxEv = evs.length > 0 ? Math.max(...evs) : 0;
 
-    const hardHit = batted.filter((p) => p.launch_speed! >= 95).length;
-    // Barrel = EV >= 98 mph and LA between 26-30 (simplified)
+    const hardHit = batted.filter((p) => p.launch_speed != null && p.launch_speed >= 95).length;
+    // Simplified barrel rule: EV ≥ 98 mph and LA between 26°–30°.
+    // TODO(BBDATA-005-followup): replace with Savant's real EV/LA combination table.
     const barrels = batted.filter(
-      (p) => p.launch_speed! >= 98 && p.launch_angle! >= 26 && p.launch_angle! <= 30,
+      (p) =>
+        p.launch_speed != null &&
+        p.launch_angle != null &&
+        p.launch_speed >= 98 &&
+        p.launch_angle >= 26 &&
+        p.launch_angle <= 30,
     ).length;
 
     const linedrives = batted.filter((p) => p.bb_type === 'line_drive').length;
@@ -51,7 +86,7 @@ const template: QueryTemplate = {
     return [
       { Metric: 'Batted Balls', Value: batted.length },
       { Metric: 'Avg Exit Velocity', Value: avgEv.toFixed(1) + ' mph' },
-      { Metric: 'Max Exit Velocity', Value: Math.max(...evs).toFixed(1) + ' mph' },
+      { Metric: 'Max Exit Velocity', Value: maxEv.toFixed(1) + ' mph' },
       { Metric: 'Avg Launch Angle', Value: avgLa.toFixed(1) + '°' },
       { Metric: 'Hard Hit Rate (95+ mph)', Value: ((hardHit / batted.length) * 100).toFixed(1) + '%' },
       { Metric: 'Barrel Rate', Value: ((barrels / batted.length) * 100).toFixed(1) + '%' },

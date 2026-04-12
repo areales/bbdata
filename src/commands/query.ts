@@ -93,13 +93,18 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
   const adapters = resolveAdapters(preferredSources);
 
   let lastError: Error | undefined;
+  let lastErrorAdapter: string | undefined;
   let result: TemplateQueryResult | undefined;
+  // BBDATA-002: track which cases occurred so we can report a precise error.
+  const triedAdapters: string[] = [];
+  const zeroRowAdapters: string[] = [];
 
   const startTime = Date.now();
 
   // Try adapters in preference order
   for (const adapter of adapters) {
     if (!adapter.supports(adapterQuery)) continue;
+    triedAdapters.push(adapter.source);
 
     try {
       log.info(`Querying ${adapter.source}...`);
@@ -113,6 +118,7 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
       // If adapter returned data but transform produced 0 rows, try next adapter
       if (rows.length === 0) {
         log.debug(`${adapter.source} returned 0 rows. Trying next source...`);
+        zeroRowAdapters.push(adapter.source);
         continue;
       }
 
@@ -127,12 +133,38 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
       break;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
+      lastErrorAdapter = adapter.source;
       log.debug(`${adapter.source} failed: ${lastError.message}. Trying next source...`);
     }
   }
 
   if (!result) {
-    throw lastError ?? new Error(`No adapter could fulfill this query`);
+    // BBDATA-002: distinguish three failure modes instead of collapsing them
+    // into a single misleading message.
+    const paramSummary = Object.entries({
+      player: params.player,
+      team: params.team,
+      season: params.season,
+    })
+      .filter(([, v]) => v != null && v !== '')
+      .map(([k, v]) => `${k}=${v}`)
+      .join(', ');
+
+    if (triedAdapters.length === 0) {
+      const preferred = preferredSources.join(', ');
+      throw new Error(
+        `No registered adapter supports query type "${template.id}" (preferred sources: ${preferred || 'none'})`,
+      );
+    }
+    if (lastError) {
+      throw new Error(
+        `Adapter "${lastErrorAdapter}" threw while fetching "${template.id}" (${paramSummary}): ${lastError.message}`,
+      );
+    }
+    throw new Error(
+      `Adapter(s) [${zeroRowAdapters.join(', ')}] returned 0 rows for "${template.id}" (${paramSummary}). ` +
+        `Try an earlier --season or verify the player name.`,
+    );
   }
 
   const queryTimeMs = Date.now() - startTime;

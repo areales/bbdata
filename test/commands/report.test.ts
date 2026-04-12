@@ -125,4 +125,106 @@ describe('report command', () => {
     expect(parsed).toHaveProperty('content');
     expect(parsed).toHaveProperty('meta');
   });
+
+  it('propagates --team into the advance-lineup render context (BBDATA-012)', async () => {
+    const result = await report({
+      template: 'advance-lineup',
+      team: 'LAD',
+      season: 2025,
+      audience: 'coach',
+    });
+
+    // H1 title should read "# Advance Report: LAD Lineup" — no double space.
+    expect(result.content).toContain('# Advance Report: LAD Lineup');
+    expect(result.content).not.toContain('Advance Report:  Lineup');
+    // Opponent row in the header table should be populated.
+    expect(result.content).toMatch(/\|\s*Opponent\s*\|\s*LAD\s*\|/);
+  });
+
+  it('advance-lineup without --team still renders without crashing', async () => {
+    const result = await report({
+      template: 'advance-lineup',
+      season: 2025,
+      audience: 'coach',
+    });
+
+    // Missing team renders as empty (same permissive behavior as missing --player).
+    expect(result.content).toContain('Advance Report:');
+    expect(result).toHaveProperty('meta');
+  });
+
+  it('strict mode (default) throws when a required data query fails (BBDATA-001)', async () => {
+    vi.mocked(runQuery).mockRejectedValue(new Error('Adapter "savant" returned 0 rows'));
+
+    await expect(
+      report({
+        template: 'pro-pitcher-eval',
+        player: 'Corbin Burnes',
+        season: 2026,
+        audience: 'scout',
+      }),
+    ).rejects.toThrow(/required data query\(s\) failed/);
+  });
+
+  it('strict mode error message names the failed queries and suggests --no-strict', async () => {
+    vi.mocked(runQuery).mockRejectedValue(new Error('Adapter "savant" returned 0 rows for "pitcher-arsenal"'));
+
+    try {
+      await report({
+        template: 'pro-pitcher-eval',
+        player: 'Corbin Burnes',
+        season: 2026,
+      });
+      expect.fail('expected report() to throw');
+    } catch (err) {
+      const msg = (err as Error).message;
+      expect(msg).toContain('pitcher-arsenal');
+      expect(msg).toContain('--no-strict');
+    }
+  });
+
+  it('strict=false preserves the legacy lenient behavior (BBDATA-001 opt-out)', async () => {
+    vi.mocked(runQuery).mockRejectedValue(new Error('Adapter "savant" returned 0 rows'));
+
+    const result = await report({
+      template: 'pro-pitcher-eval',
+      player: 'Corbin Burnes',
+      season: 2026,
+      strict: false,
+    });
+
+    // Should return a stub-shell result, not throw.
+    expect(result).toHaveProperty('content');
+    expect(result.meta.template).toBe('pro-pitcher-eval');
+  });
+
+  it('JSON output exposes structured sections keyed by queryTemplate id (BBDATA-014)', async () => {
+    vi.mocked(runQuery).mockImplementation(async (opts: { template: string }) => ({
+      data: [{ marker: opts.template }],
+      formatted: '{}',
+      meta: { template: opts.template, source: 'savant', cached: false, rowCount: 1, season: 2025 },
+    }));
+
+    const result = await report({
+      template: 'pro-pitcher-eval',
+      player: 'Corbin Burnes',
+      season: 2025,
+      audience: 'scout',
+      format: 'json',
+    });
+
+    const parsed = JSON.parse(result.formatted);
+    expect(parsed).toHaveProperty('sections');
+    // pro-pitcher-eval has 3 data requirements; sections should hold one entry per id.
+    const sectionKeys = Object.keys(parsed.sections);
+    expect(sectionKeys.length).toBe(3);
+    // Each section's value should be the raw query data, not a markdown string.
+    for (const key of sectionKeys) {
+      expect(Array.isArray(parsed.sections[key])).toBe(true);
+      expect(parsed.sections[key][0]).toEqual({ marker: key });
+    }
+    // The markdown `content` field is preserved for back-compat.
+    expect(typeof parsed.content).toBe('string');
+    expect(parsed.content.length).toBeGreaterThan(0);
+  });
 });

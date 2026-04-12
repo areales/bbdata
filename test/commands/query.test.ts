@@ -140,4 +140,56 @@ describe('query command', () => {
       query({ template: 'pitcher-arsenal', player: 'Test', season: 2025 }),
     ).rejects.toThrow('All down');
   });
+
+  it('BBDATA-002: distinct error when no adapter supports the query', async () => {
+    const unsupportedAdapter = {
+      source: 'savant' as const,
+      description: 'Mock',
+      supports: () => false,
+      resolvePlayer: vi.fn(),
+      fetch: vi.fn(),
+    };
+    vi.mocked(resolveAdapters).mockReturnValue([unsupportedAdapter]);
+
+    await expect(
+      query({ template: 'pitcher-arsenal', player: 'Test', season: 2025 }),
+    ).rejects.toThrow(/No registered adapter supports query type/);
+  });
+
+  it('BBDATA-002: distinct error when adapters return 0 rows', async () => {
+    const zeroRowAdapter = makeMockAdapter([]);
+    vi.mocked(resolveAdapters).mockReturnValue([zeroRowAdapter]);
+
+    try {
+      await query({ template: 'pitcher-arsenal', player: 'Test', season: 2026 });
+      expect.fail('expected query() to throw');
+    } catch (err) {
+      const msg = (err as Error).message;
+      expect(msg).toContain('returned 0 rows');
+      expect(msg).toContain('savant');
+      expect(msg).toContain('season=2026');
+    }
+  });
+
+  it('BBDATA-002: thrown-adapter error includes adapter name and query params', async () => {
+    const failAdapter = {
+      source: 'savant' as const,
+      description: 'Fail',
+      supports: () => true,
+      resolvePlayer: vi.fn(),
+      fetch: vi.fn().mockRejectedValue(new Error('connection refused')),
+    };
+    vi.mocked(resolveAdapters).mockReturnValue([failAdapter]);
+
+    try {
+      await query({ template: 'pitcher-arsenal', player: 'Test Player', season: 2025 });
+      expect.fail('expected query() to throw');
+    } catch (err) {
+      const msg = (err as Error).message;
+      expect(msg).toContain('threw while fetching');
+      expect(msg).toContain('savant');
+      expect(msg).toContain('player=Test Player');
+      expect(msg).toContain('connection refused');
+    }
+  });
 });

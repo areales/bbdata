@@ -27,6 +27,13 @@ export interface ReportOptions {
   format?: 'markdown' | 'json';
   validate?: boolean;
   stdin?: boolean;
+  /**
+   * When true (default), the command throws if any data requirement marked
+   * `required: true` fails, causing the CLI to exit non-zero. Set to false to
+   * preserve the older lenient behavior of emitting a stub-shell report with
+   * placeholders for missing data. (BBDATA-001)
+   */
+  strict?: boolean;
 }
 
 export interface ReportResult {
@@ -125,10 +132,13 @@ export async function report(options: ReportOptions): Promise<ReportResult> {
 
   const season = options.season ?? new Date().getFullYear();
   const player = options.player ?? 'Unknown';
+  const team = options.team ?? '';
 
   // Gather data from required queries
   const dataResults: Record<string, unknown> = {};
   const dataSources: string[] = [];
+  // BBDATA-001: collect failures so we can exit non-zero in strict mode.
+  const failedRequired: { queryTemplate: string; message: string }[] = [];
 
   for (const req of template.dataRequirements) {
     try {
@@ -145,11 +155,26 @@ export async function report(options: ReportOptions): Promise<ReportResult> {
         dataSources.push(result.meta.source);
       }
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       if (req.required) {
-        log.warn(`Required data "${req.queryTemplate}" failed: ${error}`);
+        log.warn(`Required data "${req.queryTemplate}" failed: ${message}`);
+        failedRequired.push({ queryTemplate: req.queryTemplate, message });
       }
       dataResults[req.queryTemplate] = null;
     }
+  }
+
+  // BBDATA-001: fail loudly in strict mode (default) so scripts and CI see
+  // required-data failures as errors rather than silent stub-shell success.
+  const strict = options.strict ?? true;
+  if (strict && failedRequired.length > 0) {
+    const detail = failedRequired
+      .map((f) => `  - ${f.queryTemplate}: ${f.message}`)
+      .join('\n');
+    throw new Error(
+      `Report "${template.id}" cannot be generated — ${failedRequired.length} required data query(s) failed:\n${detail}\n` +
+        `Pass --no-strict to emit a stub-shell report with placeholders instead.`,
+    );
   }
 
   // Generate any graphs this report embeds (failures degrade gracefully to '')
@@ -168,6 +193,7 @@ export async function report(options: ReportOptions): Promise<ReportResult> {
   // Render
   const content = compiled({
     player,
+    team,
     season,
     audience,
     date: new Date().toISOString().split('T')[0],
@@ -185,7 +211,18 @@ export async function report(options: ReportOptions): Promise<ReportResult> {
   }
 
   const formatted = options.format === 'json'
-    ? JSON.stringify({ content, validation, meta: { template: template.id, player, audience, season, dataSources } }, null, 2) + '\n'
+    ? JSON.stringify(
+        {
+          content,
+          // Structured query results keyed by queryTemplate id (BBDATA-014).
+          // Agent consumers can read these directly instead of regex-parsing `content`.
+          sections: dataResults,
+          validation,
+          meta: { template: template.id, player, audience, season, dataSources },
+        },
+        null,
+        2,
+      ) + '\n'
     : content + '\n';
 
   return {
@@ -249,6 +286,7 @@ export function registerReportCommand(program: Command): void {
     .option('-a, --audience <role>', 'Target audience: coach, gm, scout, analyst')
     .option('-f, --format <fmt>', 'Output: markdown, json', 'markdown')
     .option('--validate', 'Run validation checklist on the report')
+    .option('--no-strict', 'Do not exit non-zero when required data queries fail (emit stub-shell output)')
     .option('--stdin', 'Read pre-fetched JSON data from stdin instead of fetching from APIs')
     .addHelpText('after', `
 Examples:
@@ -284,6 +322,7 @@ Available templates:
           format: opts.format,
           validate: opts.validate,
           stdin: opts.stdin,
+          strict: opts.strict,
         });
 
         log.data(result.formatted);
