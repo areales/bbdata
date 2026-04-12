@@ -56,7 +56,9 @@ describe('hitter-batted-ball template', () => {
     expect(hardHit?.Value).toBe('66.7%');
 
     const barrel = rows.find((r) => r.Metric === 'Barrel Rate');
-    // Only the home_run qualifies (110 ≥ 98, LA 28 ∈ [26,30]) → 1/3 = 33.3%
+    // Only the home_run qualifies (110 mph, LA 28° → 110-mph range is [14,43])
+    // → 1/3 = 33.3%. The single at 100/15 is outside [24,33]; field_out at 85
+    // is below the 98 mph barrel floor.
     expect(barrel?.Value).toBe('33.3%');
   });
 
@@ -119,6 +121,76 @@ describe('hitter-batted-ball template', () => {
 
     const rows = template.transform(pitches, { player: 'Judge' });
     expect(rows).toEqual([]);
+  });
+});
+
+describe('hitter-batted-ball — Savant barrel formula (BBDATA-005-followup)', () => {
+  const template = getTemplate('hitter-batted-ball')!;
+
+  // Helper: run a one-pitch dataset through transform and return barrel % as a number.
+  // A single BBE gives either 0% or 100%, which makes edge-case assertions cleaner.
+  function barrelRate(pitches: PitchData[]): number {
+    const rows = template.transform(pitches, { player: 'Test' });
+    const row = rows.find((r) => r.Metric === 'Barrel Rate');
+    return row ? parseFloat((row.Value as string).replace('%', '')) : 0;
+  }
+
+  it('EV below 98 mph is never a barrel regardless of angle', () => {
+    expect(
+      barrelRate([makePitch({ events: 'single', launch_speed: 97.9, launch_angle: 28 })]),
+    ).toBe(0);
+  });
+
+  it('at exactly 98 mph, only LA ∈ [26, 30] qualifies (inclusive bounds)', () => {
+    expect(barrelRate([makePitch({ events: 'single', launch_speed: 98, launch_angle: 25 })])).toBe(0);
+    expect(barrelRate([makePitch({ events: 'single', launch_speed: 98, launch_angle: 26 })])).toBe(100);
+    expect(barrelRate([makePitch({ events: 'single', launch_speed: 98, launch_angle: 28 })])).toBe(100);
+    expect(barrelRate([makePitch({ events: 'single', launch_speed: 98, launch_angle: 30 })])).toBe(100);
+    expect(barrelRate([makePitch({ events: 'single', launch_speed: 98, launch_angle: 31 })])).toBe(0);
+  });
+
+  it('at 100 mph the range widens to [24, 33] — the old proxy would have missed these', () => {
+    // Under the old formula these were NOT barrels because it capped LA at [26,30] regardless of EV.
+    expect(barrelRate([makePitch({ events: 'single', launch_speed: 100, launch_angle: 24 })])).toBe(100);
+    expect(barrelRate([makePitch({ events: 'single', launch_speed: 100, launch_angle: 33 })])).toBe(100);
+    // Outside the widened window still disqualifies.
+    expect(barrelRate([makePitch({ events: 'single', launch_speed: 100, launch_angle: 23 })])).toBe(0);
+    expect(barrelRate([makePitch({ events: 'single', launch_speed: 100, launch_angle: 34 })])).toBe(0);
+  });
+
+  it('at 110 mph the range is [14, 43] — a 110-mph line drive at 15° now qualifies', () => {
+    expect(barrelRate([makePitch({ events: 'single', launch_speed: 110, launch_angle: 14 })])).toBe(100);
+    expect(barrelRate([makePitch({ events: 'single', launch_speed: 110, launch_angle: 15 })])).toBe(100);
+    expect(barrelRate([makePitch({ events: 'single', launch_speed: 110, launch_angle: 43 })])).toBe(100);
+    expect(barrelRate([makePitch({ events: 'single', launch_speed: 110, launch_angle: 13 })])).toBe(0);
+    expect(barrelRate([makePitch({ events: 'single', launch_speed: 110, launch_angle: 44 })])).toBe(0);
+  });
+
+  it('at 116 mph the range caps at [8, 50] and stays there for higher EVs', () => {
+    expect(barrelRate([makePitch({ events: 'single', launch_speed: 116, launch_angle: 8 })])).toBe(100);
+    expect(barrelRate([makePitch({ events: 'single', launch_speed: 116, launch_angle: 50 })])).toBe(100);
+    expect(barrelRate([makePitch({ events: 'single', launch_speed: 116, launch_angle: 7 })])).toBe(0);
+    expect(barrelRate([makePitch({ events: 'single', launch_speed: 116, launch_angle: 51 })])).toBe(0);
+    // A 120 mph rocket at the cap edges should also qualify.
+    expect(barrelRate([makePitch({ events: 'single', launch_speed: 120, launch_angle: 8 })])).toBe(100);
+    expect(barrelRate([makePitch({ events: 'single', launch_speed: 120, launch_angle: 50 })])).toBe(100);
+    expect(barrelRate([makePitch({ events: 'single', launch_speed: 120, launch_angle: 51 })])).toBe(0);
+  });
+
+  it('fractional EV uses the floor bucket (99.7 → 99-mph range [25, 31])', () => {
+    expect(barrelRate([makePitch({ events: 'single', launch_speed: 99.7, launch_angle: 25 })])).toBe(100);
+    expect(barrelRate([makePitch({ events: 'single', launch_speed: 99.7, launch_angle: 31 })])).toBe(100);
+    // LA 24 is outside the 99-mph range [25,31] even though it would qualify at 100.
+    expect(barrelRate([makePitch({ events: 'single', launch_speed: 99.7, launch_angle: 24 })])).toBe(0);
+  });
+
+  it('null launch_speed or launch_angle never qualifies as a barrel', () => {
+    expect(
+      barrelRate([
+        makePitch({ events: 'single', launch_speed: null, launch_angle: 28 }),
+        makePitch({ events: 'single', launch_speed: 100, launch_angle: null }),
+      ]),
+    ).toBe(0);
   });
 });
 

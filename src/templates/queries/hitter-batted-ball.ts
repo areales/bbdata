@@ -23,6 +23,40 @@ const BATTED_BALL_EVENTS: ReadonlySet<string> = new Set([
   'fielders_choice_out',
 ]);
 
+// Savant barrel definition: a "perfect" combination of exit velocity and
+// launch angle. Minimum EV is 98 mph at LA 26–30°; each additional mph above
+// 98 widens the acceptable LA window. At 116 mph and above, any LA between
+// 8° and 50° qualifies. Below 98 mph, nothing qualifies regardless of angle.
+// Source: https://baseballsavant.mlb.com/glossary (Barrel)
+const BARREL_LA_RANGE_BY_EV: Readonly<Record<number, readonly [number, number]>> = {
+  98: [26, 30],
+  99: [25, 31],
+  100: [24, 33],
+  101: [23, 34],
+  102: [22, 35],
+  103: [21, 36],
+  104: [20, 37],
+  105: [19, 38],
+  106: [18, 39],
+  107: [17, 40],
+  108: [16, 41],
+  109: [15, 42],
+  110: [14, 43],
+  111: [13, 44],
+  112: [12, 45],
+  113: [11, 46],
+  114: [10, 47],
+  115: [9, 48],
+};
+const BARREL_LA_RANGE_116_PLUS: readonly [number, number] = [8, 50];
+
+function isBarrel(launchSpeed: number, launchAngle: number): boolean {
+  if (launchSpeed < 98) return false;
+  const bucket = Math.floor(launchSpeed);
+  const range = bucket >= 116 ? BARREL_LA_RANGE_116_PLUS : BARREL_LA_RANGE_BY_EV[bucket];
+  return launchAngle >= range[0] && launchAngle <= range[1];
+}
+
 const template: QueryTemplate = {
   id: 'hitter-batted-ball',
   name: 'Hitter Batted Ball Profile',
@@ -67,15 +101,11 @@ const template: QueryTemplate = {
     const maxEv = evs.length > 0 ? Math.max(...evs) : 0;
 
     const hardHit = batted.filter((p) => p.launch_speed != null && p.launch_speed >= 95).length;
-    // Simplified barrel rule: EV ≥ 98 mph and LA between 26°–30°.
-    // TODO(BBDATA-005-followup): replace with Savant's real EV/LA combination table.
     const barrels = batted.filter(
       (p) =>
         p.launch_speed != null &&
         p.launch_angle != null &&
-        p.launch_speed >= 98 &&
-        p.launch_angle >= 26 &&
-        p.launch_angle <= 30,
+        isBarrel(p.launch_speed, p.launch_angle),
     ).length;
 
     const linedrives = batted.filter((p) => p.bb_type === 'line_drive').length;
