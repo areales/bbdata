@@ -11,7 +11,12 @@ const REPORT_GRAPH_MAP: Record<
   { slot: string; type: ChartType }[]
 > = {
   'advance-sp': [
-    { slot: 'movementChart', type: 'movement' },
+    // BBDATA-010: the advance-sp template is designed for tablet use during a
+    // game, so its inline movement chart uses the binned variant (~10x smaller
+    // SVG than the per-pitch chart) to keep total report size manageable.
+    // pro-pitcher-eval stays on the unbinned chart — it's a desk document where
+    // per-pitch detail is worth the byte cost.
+    { slot: 'movementChart', type: 'movement-binned' },
   ],
   'pro-pitcher-eval': [
     { slot: 'movementChart', type: 'movement' },

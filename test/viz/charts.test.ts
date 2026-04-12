@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { movementBuilder } from '../../src/viz/charts/movement.js';
+import { movementBinnedBuilder } from '../../src/viz/charts/movement-binned.js';
 import { sprayBuilder } from '../../src/viz/charts/spray.js';
 import { zoneBuilder } from '../../src/viz/charts/zone.js';
 import { rollingBuilder } from '../../src/viz/charts/rolling.js';
@@ -41,6 +42,70 @@ describe('movementBuilder', () => {
     expect(Array.isArray(spec.layer)).toBe(true);
     expect(spec.layer.length).toBeGreaterThanOrEqual(3);
     expect(spec.config).toBeDefined();
+  });
+});
+
+describe('movementBinnedBuilder', () => {
+  it('declares the pitcher-raw-pitches requirement', () => {
+    expect(movementBinnedBuilder.id).toBe('movement-binned');
+    expect(movementBinnedBuilder.dataRequirements).toHaveLength(1);
+    expect(movementBinnedBuilder.dataRequirements[0]?.queryTemplate).toBe('pitcher-raw-pitches');
+  });
+
+  it('uses a binned rect density layer aggregated by count (not per-pitch points)', () => {
+    const rows = {
+      'pitcher-raw-pitches': [
+        { pitch_type: 'FF', pfx_x: 0.8, pfx_z: 1.2, release_speed: 95 },
+        { pitch_type: 'SL', pfx_x: -0.5, pfx_z: 0.4, release_speed: 87 },
+        { pitch_type: 'FF', pfx_x: 0.82, pfx_z: 1.18, release_speed: 95.2 },
+      ],
+    };
+    const spec = movementBinnedBuilder.buildSpec(rows, {
+      ...baseOptions,
+      type: 'movement-binned',
+    }) as {
+      layer: Array<{
+        mark: { type: string } | string;
+        encoding?: {
+          x?: { bin?: { maxbins?: number } };
+          y?: { bin?: { maxbins?: number } };
+          color?: { aggregate?: string };
+        };
+      }>;
+    };
+
+    // Layer 0 is the binned density; layer 1 is the mean-cross overlay.
+    // The two axis `rule` layers from the unbinned chart are deliberately
+    // omitted here — see the comment in movement-binned.ts for why.
+    const densityLayer = spec.layer[0]!;
+    const mark = typeof densityLayer.mark === 'string' ? densityLayer.mark : densityLayer.mark.type;
+    expect(mark).toBe('rect');
+    expect(densityLayer.encoding?.x?.bin?.maxbins).toBe(20);
+    expect(densityLayer.encoding?.y?.bin?.maxbins).toBe(20);
+    expect(densityLayer.encoding?.color?.aggregate).toBe('count');
+  });
+
+  it('keeps the per-pitch-type mean cross overlay', () => {
+    const rows = {
+      'pitcher-raw-pitches': [
+        { pitch_type: 'FF', pfx_x: 0.8, pfx_z: 1.2, release_speed: 95 },
+      ],
+    };
+    const spec = movementBinnedBuilder.buildSpec(rows, {
+      ...baseOptions,
+      type: 'movement-binned',
+    }) as {
+      layer: Array<{ mark: { type?: string; shape?: string } | string }>;
+    };
+    // Mean-cross is now layer index 1 (density is 0).
+    const crossLayer = spec.layer[1];
+    const crossMark = crossLayer?.mark;
+    if (typeof crossMark === 'object') {
+      expect(crossMark.type).toBe('point');
+      expect(crossMark.shape).toBe('cross');
+    } else {
+      throw new Error('expected cross layer to have an object mark');
+    }
   });
 });
 
@@ -180,14 +245,17 @@ describe('rollingBuilder', () => {
 });
 
 describe('chart registry', () => {
-  it('listChartTypes returns all four chart types', () => {
+  it('listChartTypes returns all five chart types', () => {
     const types = listChartTypes();
-    expect(types).toEqual(expect.arrayContaining(['movement', 'spray', 'zone', 'rolling']));
-    expect(types).toHaveLength(4);
+    expect(types).toEqual(
+      expect.arrayContaining(['movement', 'movement-binned', 'spray', 'zone', 'rolling']),
+    );
+    expect(types).toHaveLength(5);
   });
 
   it('getChartBuilder returns the correct builder for each type', () => {
     expect(getChartBuilder('movement').id).toBe('movement');
+    expect(getChartBuilder('movement-binned').id).toBe('movement-binned');
     expect(getChartBuilder('spray').id).toBe('spray');
     expect(getChartBuilder('zone').id).toBe('zone');
     expect(getChartBuilder('rolling').id).toBe('rolling');

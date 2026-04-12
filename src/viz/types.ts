@@ -1,6 +1,6 @@
 import type { Audience } from '../templates/reports/registry.js';
 
-export type ChartType = 'movement' | 'spray' | 'zone' | 'rolling';
+export type ChartType = 'movement' | 'movement-binned' | 'spray' | 'zone' | 'rolling';
 export type VizFormat = 'svg' | 'png' | 'pdf' | 'html';
 
 /**

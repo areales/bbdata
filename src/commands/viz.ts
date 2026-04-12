@@ -104,7 +104,7 @@ export function registerVizCommand(program: Command): void {
   program
     .command('viz [type]')
     .description('Generate data visualizations (SVG)')
-    .option('--type <type>', 'Chart type: movement, spray, zone, rolling')
+    .option('--type <type>', 'Chart type: movement, movement-binned, spray, zone, rolling')
     .option('-p, --player <name>', 'Player name')
     .option('--players <names>', 'Comma-separated player names (for comparisons)')
     .option('-s, --season <year>', 'Season year', String(new Date().getFullYear()))
@@ -126,10 +126,11 @@ Examples:
   bbdata viz rolling  --player "Freddie Freeman"
 
 Chart types:
-  movement  — pitch movement plot (H break vs V break, per pitch type)
-  spray     — spray chart (batted ball landing positions on a field)
-  zone      — 3x3 zone profile heatmap (xwOBA per plate region)
-  rolling   — rolling performance trend (time-series)
+  movement         — pitch movement plot (H break vs V break, per pitch type)
+  movement-binned  — binned density variant of movement for compact inline use
+  spray            — spray chart (batted ball landing positions on a field)
+  zone             — 3x3 zone profile heatmap (xwOBA per plate region)
+  rolling          — rolling performance trend (time-series)
 `)
     .action(async (typeArg, opts) => {
       const type = (typeArg ?? opts.type) as ChartType | undefined;
