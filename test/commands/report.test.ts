@@ -106,11 +106,46 @@ describe('report command', () => {
     });
 
     expect(result.validation).toBeDefined();
+    // BBDATA-008 part A: checks array is always populated when validation runs,
+    // even when issues are present.
+    expect(result.validation!.checks).toContain('section-present');
+    expect(result.validation!.checks.length).toBeGreaterThan(0);
     // Fallback template contains "Data pending"
     if (result.content.includes('Data pending')) {
       expect(result.validation!.passed).toBe(false);
       expect(result.validation!.issues.some((i) => i.message.includes('placeholder'))).toBe(true);
     }
+  });
+
+  it('validation emits positive signal on clean runs (BBDATA-008 part A)', async () => {
+    // Ensure query returns healthy data (default beforeEach mock is good)
+    const result = await report({
+      template: 'relief-pitcher-quick',
+      player: 'Edwin Diaz',
+      season: 2025,
+      validate: true,
+    });
+
+    // Structured validation is always populated when --validate is passed.
+    expect(result.validation).toBeDefined();
+    expect(result.validation!.checks).toEqual(
+      expect.arrayContaining(['section-present', 'placeholder-free', 'generic-phrases', 'length']),
+    );
+    // Markdown content begins with an HTML-comment banner naming the checks
+    // that ran — visible in raw text, invisible when rendered.
+    expect(result.content.startsWith('<!-- bbdata validation:')).toBe(true);
+    expect(result.content).toContain('section-present');
+  });
+
+  it('markdown has no validation banner when --validate is not passed', async () => {
+    const result = await report({
+      template: 'relief-pitcher-quick',
+      player: 'Edwin Diaz',
+      season: 2025,
+    });
+
+    expect(result.validation).toBeUndefined();
+    expect(result.content.startsWith('<!-- bbdata validation:')).toBe(false);
   });
 
   it('returns JSON format when requested', async () => {
@@ -196,6 +231,35 @@ describe('report command', () => {
     // Should return a stub-shell result, not throw.
     expect(result).toHaveProperty('content');
     expect(result.meta.template).toBe('pro-pitcher-eval');
+  });
+
+  it('draft-board-card-pitcher renders with pitcher tool grades (BBDATA-013)', async () => {
+    const result = await report({
+      template: 'draft-board-card-pitcher',
+      player: 'Seth Hernandez',
+      audience: 'gm',
+    });
+
+    // Pitcher tool grid should have Fastball/Breaking/Changeup/Command
+    expect(result.content).toContain('Fastball');
+    expect(result.content).toContain('Breaking Ball');
+    expect(result.content).toContain('Changeup');
+    expect(result.content).toContain('Command');
+    // Hitter-specific columns should NOT appear in this variant
+    expect(result.content).not.toMatch(/\|\s*Hit\s*\|\s*Power\s*\|\s*Speed\s*\|/);
+    expect(result.meta.template).toBe('draft-board-card-pitcher');
+  });
+
+  it('draft-board-card (hitter) remains unchanged with hitter tool grades', async () => {
+    const result = await report({
+      template: 'draft-board-card',
+      player: 'Ethan Holliday',
+      audience: 'gm',
+    });
+
+    // Original hitter tool grid is preserved — back-compat check
+    expect(result.content).toMatch(/\|\s*Hit\s*\|\s*Power\s*\|\s*Speed\s*\|\s*Field\s*\|\s*Arm\s*\|/);
+    expect(result.content).not.toContain('Fastball');
   });
 
   it('JSON output exposes structured sections keyed by queryTemplate id (BBDATA-014)', async () => {

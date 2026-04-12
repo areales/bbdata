@@ -48,9 +48,21 @@ export class SavantAdapter implements DataAdapter {
 
     // Build Savant CSV search URL
     // Note: Savant expects array-style param names (e.g., pitchers_lookup[]) for player IDs
+    //
+    // BBDATA-007: hfGT is Savant's "game type" filter. The value is a
+    // pipe-delimited set of game-type codes (R=regular, S=spring training,
+    // E=exhibition, F=wild-card, D=division series, L=LCS, W=World Series).
+    // `R|` restricts results to regular-season games only. This prevents
+    // rolling-window queries from blending spring-training at-bats into
+    // early-April windows and keeps season aggregates aligned with what fans
+    // and scouts mean by "2025 stats." The `game_type=R` param name (plain)
+    // is silently ignored by the CSV endpoint — only `hfGT=R|` actually
+    // filters. Discovered by empirical testing: game_type=R returned 317
+    // rows including S rows, hfGT=R| returned 135 rows all R.
     const params = new URLSearchParams({
       all: 'true',
       type: 'details',
+      hfGT: 'R|',
       ...(query.stat_type === 'pitching'
         ? { player_type: 'pitcher', 'pitchers_lookup[]': playerId ?? '' }
         : { player_type: 'batter', 'batters_lookup[]': playerId ?? '' }),
@@ -95,10 +107,16 @@ export class SavantAdapter implements DataAdapter {
       log.debug('Savant returned headers but no data rows');
     }
 
-    // Filter out rows with no pitch_type (intentional walks, pitchouts, automatic balls)
-    const filteredRows = rawRows.filter(
-      (row) => row.pitch_type && String(row.pitch_type).trim() !== '',
-    );
+    // Filter out rows with no pitch_type (intentional walks, pitchouts, automatic balls).
+    // BBDATA-007: also drop any row whose game_type isn't R. This is belt-and-
+    // suspenders defense against Savant silently changing the hfGT filter
+    // behavior; with it, non-regular-season rows (S/E/F/D/L/W) can't slip
+    // through even if the URL param regresses.
+    const filteredRows = rawRows.filter((row) => {
+      if (!row.pitch_type || String(row.pitch_type).trim() === '') return false;
+      if (row.game_type !== undefined && String(row.game_type) !== 'R') return false;
+      return true;
+    });
 
     const data: PitchData[] = filteredRows.map((row) => ({
       pitcher_id: String(row.pitcher ?? ''),

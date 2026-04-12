@@ -51,8 +51,23 @@ export interface ReportResult {
 
 export interface ValidationResult {
   passed: boolean;
+  /**
+   * Names of checks that ran. Always populated when validation executes, so
+   * consumers can distinguish "validator passed" from "validator skipped" even
+   * on clean runs where `issues` is empty. (BBDATA-008 part A)
+   */
+  checks: string[];
   issues: { severity: 'error' | 'warning'; message: string }[];
 }
+
+// BBDATA-008 part A: stable check identifiers. Kept terse so they can be
+// embedded in markdown comments and JSON envelopes without noise.
+const VALIDATION_CHECKS = [
+  'section-present',
+  'placeholder-free',
+  'generic-phrases',
+  'length',
+] as const;
 
 // Register Handlebars helpers
 Handlebars.registerHelper('grade', (value: number) => formatGrade(value));
@@ -191,7 +206,7 @@ export async function report(options: ReportOptions): Promise<ReportResult> {
   const compiled = Handlebars.compile(hbsSource);
 
   // Render
-  const content = compiled({
+  const rawContent = compiled({
     player,
     team,
     season,
@@ -204,11 +219,22 @@ export async function report(options: ReportOptions): Promise<ReportResult> {
     ...dataResults,
   });
 
-  // Validate if requested
+  // Validate if requested. The validator always runs on the raw rendered
+  // content (not the banner-prefixed version) so its checks aren't polluted
+  // by the banner it produces.
   let validation: ValidationResult | undefined;
   if (options.validate) {
-    validation = validateReport(content, template.requiredSections);
+    validation = validateReport(rawContent, template.requiredSections);
   }
+
+  // BBDATA-008 part A: when --validate is passed, prepend an HTML-comment
+  // banner naming the checks that ran. Invisible when the markdown is
+  // rendered, visible in raw text for diff-based validation consumers. This
+  // gives a positive signal that the validator actually executed, even on
+  // clean runs where `issues` is empty.
+  const content = validation
+    ? buildValidationBanner(validation) + rawContent
+    : rawContent;
 
   const formatted = options.format === 'json'
     ? JSON.stringify(
@@ -242,19 +268,19 @@ export async function report(options: ReportOptions): Promise<ReportResult> {
 function validateReport(content: string, requiredSections: string[]): ValidationResult {
   const issues: ValidationResult['issues'] = [];
 
-  // Check required sections are present
+  // Check required sections are present (check: section-present)
   for (const section of requiredSections) {
     if (!content.includes(section)) {
       issues.push({ severity: 'warning', message: `Missing section: "${section}"` });
     }
   }
 
-  // Check for common AI hallucination patterns
+  // Check for common AI hallucination patterns (check: placeholder-free)
   if (content.includes('Data pending') || content.includes('data goes here')) {
     issues.push({ severity: 'error', message: 'Report contains placeholder text — data was not populated' });
   }
 
-  // Check for generic language
+  // Check for generic language (check: generic-phrases)
   const genericPhrases = ['shows promise', 'solid player', 'good potential', 'talented athlete'];
   for (const phrase of genericPhrases) {
     if (content.toLowerCase().includes(phrase)) {
@@ -262,15 +288,30 @@ function validateReport(content: string, requiredSections: string[]): Validation
     }
   }
 
-  // Check minimum length
+  // Check minimum length (check: length)
   if (content.length < 200) {
     issues.push({ severity: 'warning', message: 'Report seems too short — may be missing content' });
   }
 
   return {
     passed: issues.filter((i) => i.severity === 'error').length === 0,
+    checks: [...VALIDATION_CHECKS],
     issues,
   };
+}
+
+/**
+ * BBDATA-008 part A: build the HTML comment banner prepended to markdown
+ * output when --validate is passed. Invisible when rendered, visible in raw
+ * text for diff-based validation pipelines. Emitting it unconditionally on
+ * every `--validate` run lets consumers distinguish "validator ran and
+ * passed" from "validator skipped / not requested."
+ */
+function buildValidationBanner(validation: ValidationResult): string {
+  const status = validation.passed
+    ? `passed (checks: ${validation.checks.join(', ')})`
+    : `failed (${validation.issues.length} issue${validation.issues.length === 1 ? '' : 's'}; checks: ${validation.checks.join(', ')})`;
+  return `<!-- bbdata validation: ${status} -->\n`;
 }
 
 /**
@@ -299,7 +340,7 @@ Available templates:
   Amateur:         college-pitcher-draft, college-hitter-draft, hs-prospect
   Advance:         advance-sp, advance-lineup
   Player Dev:      dev-progress, post-promotion
-  Executive:       trade-target-onepager, draft-board-card
+  Executive:       trade-target-onepager, draft-board-card, draft-board-card-pitcher
 `)
     .action(async (templateId, opts) => {
       if (!templateId) {

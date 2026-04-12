@@ -122,6 +122,46 @@ describe('SavantAdapter', () => {
     expect(result.meta.rowCount).toBe(0);
   });
 
+  it('post-parse filters out non-regular-season rows (BBDATA-007 defense-in-depth)', async () => {
+    vi.mocked(fetchJson).mockResolvedValueOnce(mlbSearchFixture);
+    // Construct a tiny CSV with both R (regular) and S (spring training) rows.
+    // Even if Savant's hfGT filter ever regresses, the adapter must still drop
+    // non-R rows before handing data to templates.
+    const mixedCsv =
+      'pitch_type,game_date,release_speed,release_spin_rate,pfx_x,pfx_z,plate_x,plate_z,player_name,pitcher,batter,batter_name,description,events,bb_type,stand,p_throws,launch_speed,launch_angle,hc_x,hc_y,estimated_ba_using_speedangle,estimated_woba_using_speedangle,game_type\n' +
+      'FF,2025-03-15,95.0,2300,0.5,1.0,0,2.5,Pitcher A,111,592450,Aaron Judge,ball,,,R,R,,,,,,,S\n' +
+      'FF,2025-04-01,96.0,2400,0.6,1.1,0,2.5,Pitcher B,222,592450,Aaron Judge,ball,,,R,R,,,,,,,R\n' +
+      'SL,2025-04-02,87.5,2500,-1.2,0.5,0.2,2.0,Pitcher C,333,592450,Aaron Judge,called_strike,,,R,R,,,,,,,R\n';
+    vi.mocked(fetchText).mockResolvedValueOnce(mixedCsv);
+
+    const result = await adapter.fetch({
+      player_name: 'Aaron Judge',
+      season: 2025,
+      stat_type: 'batting',
+    });
+
+    // Only the 2 R rows should survive; the 2025-03-15 S row must be dropped.
+    expect(result.data.length).toBe(2);
+    expect(result.data.every((p) => p.game_date !== '2025-03-15')).toBe(true);
+  });
+
+  it('restricts queries to regular-season games via hfGT=R| (BBDATA-007)', async () => {
+    vi.mocked(fetchJson).mockResolvedValueOnce(mlbSearchFixture);
+    vi.mocked(fetchText).mockResolvedValueOnce(sampleCsv);
+
+    await adapter.fetch({
+      player_name: 'Aaron Judge',
+      season: 2025,
+      stat_type: 'batting',
+    });
+
+    // The first fetchText call receives the Savant CSV search URL as its first arg.
+    // `|` URL-encodes as `%7C`, so the param appears as `hfGT=R%7C`.
+    const url = vi.mocked(fetchText).mock.calls[0]?.[0];
+    expect(url).toBeDefined();
+    expect(url).toContain('hfGT=R%7C');
+  });
+
   it('throws when player cannot be resolved', async () => {
     vi.mocked(fetchJson).mockResolvedValueOnce({ people: [] });
 

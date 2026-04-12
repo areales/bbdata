@@ -208,10 +208,25 @@ registerReportTemplate({
   id: 'draft-board-card',
   name: 'Draft Board Summary Card',
   category: 'executive',
-  description: 'Glanceable index card for draft room use',
+  description: 'Glanceable index card for draft room use (hitter tool grades)',
   audiences: ['gm', 'scout'],
   templateFile: 'draft-board-card.hbs',
   dataRequirements: [],
   requiredSections: ['Name', 'Position', 'School', 'Tool Grades', 'Projection', 'Comp', 'Round Range'],
   examples: ['bbdata report draft-board-card --player "Prospect Name"'],
+});
+
+// BBDATA-013: pitcher variant uses Fastball/Breaking/Changeup/Command tool
+// grades instead of hitter's Hit/Power/Speed/Field/Arm. Separate template so
+// the hitter card (`draft-board-card`) stays stable for existing scripts.
+registerReportTemplate({
+  id: 'draft-board-card-pitcher',
+  name: 'Draft Board Summary Card (Pitcher)',
+  category: 'executive',
+  description: 'Glanceable index card for draft room use — pitcher variant (Fastball/Breaking/Changeup/Command tool grades)',
+  audiences: ['gm', 'scout'],
+  templateFile: 'draft-board-card-pitcher.hbs',
+  dataRequirements: [],
+  requiredSections: ['Name', 'Position', 'School', 'Tool Grades', 'Projection', 'Comp', 'Round Range'],
+  examples: ['bbdata report draft-board-card-pitcher --player "Seth Hernandez"'],
 });
