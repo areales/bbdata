@@ -42,6 +42,14 @@
   ],
   "author": "AI Baseball Data Analyst",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/areales/bbdata.git"
+  },
+  "bugs": {
+    "url": "https://github.com/areales/bbdata/issues"
+  },
+  "homepage": "https://github.com/areales/bbdata#readme",
   "dependencies": {
     "chalk": "^5.4.1",
     "cli-table3": "^0.6.5",
