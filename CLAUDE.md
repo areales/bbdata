@@ -70,6 +70,8 @@ npm publish                                # prepublishOnly runs build + typeche
 npm view bbdata-cli@<version> version     # verify the publish landed
 ```
 
+**Every release also updates `TEST_PLAN.md`.** Before `npm publish`, add a new section for the version with live smoke-test rows for any new feature or flag — this catches the gaps between unit-test mocks and the real adapter/CLI surface. After `npm publish`, run the new section's rows against the live registry build to confirm nothing regressed between `prepublishOnly` and publish. Prior-version sections stay as regression baselines and are re-run whenever a later change touches the same subsystem.
+
 - **Never hand-edit the version field.** `npm version` is atomic across `package.json` and `package-lock.json` — hand edits drift the lockfile.
 - **Do not re-enable the `Stop` auto-commit hook** (removed in `cbdfddb`). It raced `npm version`'s two-file write and produced lockfile drift (0.3.0 and 0.4.0 shipped with `package-lock.json` stuck at 0.2.0). The hook script is still at `.claude/hooks/auto-commit.ps1` but is unreferenced from `.claude/settings.json`.
 - **Do not use `--ignore-scripts` on publish** unless you've already run `npm run build && npm run typecheck && npm test` manually in the same session. The only legitimate reason to skip `prepublishOnly` is to minimize the window between 2FA OTP generation and npm's registry validation.
