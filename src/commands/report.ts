@@ -16,6 +16,30 @@ import {
   listReportTemplates,
   type Audience,
 } from '../templates/reports/registry.js';
+import type { VizAudience } from '../viz/types.js';
+
+/**
+ * Harmonize the broader viz audience vocabulary onto the report's Audience
+ * type. Accepts `presentation` (→ analyst) and `frontoffice` (→ gm) so that
+ * a caller using either CLI gets the same result regardless of which side
+ * they came in through.
+ */
+function resolveReportAudience(a: Audience | VizAudience | string | undefined): Audience {
+  if (!a) return 'analyst';
+  switch (a) {
+    case 'presentation':
+      return 'analyst';
+    case 'frontoffice':
+      return 'gm';
+    case 'coach':
+    case 'gm':
+    case 'scout':
+    case 'analyst':
+      return a;
+    default:
+      return 'analyst';
+  }
+}
 import { CLI_VERSION } from '../utils/version.js';
 
 export interface ReportOptions {
@@ -23,7 +47,7 @@ export interface ReportOptions {
   player?: string;
   team?: string;
   season?: number;
-  audience?: Audience;
+  audience?: Audience | VizAudience | string;
   format?: 'markdown' | 'json';
   validate?: boolean;
   stdin?: boolean;
@@ -168,7 +192,7 @@ export async function report(options: ReportOptions): Promise<ReportResult> {
   }
 
   const config = getConfig();
-  const audience = options.audience ?? (config.defaultAudience as Audience);
+  const audience = resolveReportAudience(options.audience ?? (config.defaultAudience as Audience));
 
   const template = getReportTemplate(options.template);
   if (!template) {
@@ -355,7 +379,7 @@ export function registerReportCommand(program: Command): void {
     .option('-p, --player <name>', 'Player name')
     .option('-t, --team <code>', 'Team abbreviation')
     .option('-s, --season <year>', 'Season year', String(new Date().getFullYear()))
-    .option('-a, --audience <role>', 'Target audience: coach, gm, scout, analyst')
+    .option('-a, --audience <role>', 'Target audience: coach, gm, scout, analyst (also accepts frontoffice→gm, presentation→analyst)')
     .option('-f, --format <fmt>', 'Output: markdown, json', 'markdown')
     .option('--validate', 'Run validation checklist on the report')
     .option('--no-strict', 'Do not exit non-zero when required data queries fail (emit stub-shell output)')
@@ -390,7 +414,7 @@ Available templates:
           player: opts.player,
           team: opts.team,
           season: opts.season ? parseInt(opts.season) : undefined,
-          audience: opts.audience as Audience,
+          audience: opts.audience,
           format: opts.format,
           validate: opts.validate,
           stdin: opts.stdin,

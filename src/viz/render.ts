@@ -55,3 +55,37 @@ export function normalizeSvg(svg: string): string {
     .replace(/clip-path="url\(#[^)]+\)"/g, 'clip-path="url(#X)"')
     .replace(/xlink:href="#[^"]+"/g, 'xlink:href="#X"');
 }
+
+/**
+ * Wrap an SVG string in a minimal standalone HTML document suitable for
+ * drag-and-drop viewing in a browser or saving as `--format html`. The
+ * embedded spec JSON is included as a `<script type="application/json">`
+ * block so downstream tooling can re-extract the source spec without re-running
+ * the CLI.
+ */
+export function specToHtml(
+  svg: string,
+  spec: object,
+  options: { title?: string } = {},
+): string {
+  const title = options.title ?? 'bbdata chart';
+  const escapedTitle = title.replace(/[<&]/g, (c) => (c === '<' ? '&lt;' : '&amp;'));
+  const specJson = JSON.stringify(spec).replace(/</g, '\\u003c');
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>${escapedTitle}</title>
+<style>
+  body { margin: 0; padding: 24px; font-family: system-ui, -apple-system, sans-serif; background: #fff; }
+  .chart { max-width: 100%; }
+  .chart svg { max-width: 100%; height: auto; }
+</style>
+</head>
+<body>
+<div class="chart">${svg}</div>
+<script type="application/json" id="bbdata-spec">${specJson}</script>
+</body>
+</html>
+`;
+}

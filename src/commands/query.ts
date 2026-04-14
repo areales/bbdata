@@ -23,6 +23,8 @@ export interface QueryOptions {
   minIp?: number;
   top?: number;
   seasons?: string;
+  /** Rolling-window size (games) — only meaningful for trend-rolling-average. */
+  window?: number;
   format?: OutputFormat;
   source?: string;
   cache?: boolean;
@@ -74,6 +76,7 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
     minIp: options.minIp,
     top: options.top,
     seasons: options.seasons,
+    window: options.window,
   };
 
   // Validate required params

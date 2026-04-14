@@ -13,6 +13,8 @@ export interface QueryTemplateParams {
   minIp?: number;
   top?: number;
   seasons?: string; // "2023-2025"
+  /** Rolling-window size (games) for trend-rolling-average. Template-specific. */
+  window?: number;
 }
 
 export interface QueryResult {

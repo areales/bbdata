@@ -12,7 +12,7 @@ export type VizFormat = 'svg' | 'png' | 'pdf' | 'html';
 export type VizAudience = 'coach' | 'analyst' | 'frontoffice' | 'presentation';
 
 export interface VizOptions {
-  type: ChartType;
+  type: ChartType | string;
   player?: string;
   players?: string[];
   season?: number;
@@ -26,6 +26,10 @@ export interface VizOptions {
   stdin?: boolean;
   cache?: boolean;
   title?: string;
+  /** Rolling-window size (games) — only meaningful for the `rolling` chart. */
+  window?: number;
+  /** Target DPI for raster formats (png/pdf). Scales width proportionally. */
+  dpi?: number;
 }
 
 export interface VizResult {
@@ -54,6 +58,8 @@ export interface ResolvedVizOptions {
   colorblind: boolean;
   title: string;
   players?: string[];
+  window?: number;
+  dpi?: number;
 }
 
 export interface ChartDataRequirement {

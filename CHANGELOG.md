@@ -3,6 +3,82 @@
 All notable changes to `bbdata-cli` are documented here. This project follows
 [Semantic Versioning](https://semver.org/).
 
+## 0.7.0 — 2026-04-14
+
+Phase A of the post-audit TASKS.md backlog. Closes the gap between what the
+Baseball AI Community course's Module 04 deliverables promise and what `bbdata`
+ships on the output-format, rolling-window, chart-alias, and audience fronts.
+No breaking changes to existing CLI callers — every new behavior is opt-in via
+a new flag or an alias.
+
+### Added
+
+- **P1.1 — `--format png` on `viz`.** `@resvg/resvg-js` promoted from
+  `devDependencies` to `dependencies`; the rasterizer helper moved from
+  `test/helpers/rasterize.ts` to `src/viz/rasterize.ts` (both production
+  scripts that already used it — `render-fixtures.ts`, `extract-report-assets.ts`
+  — updated to the new import path). The `viz` command now branches on
+  `--format` at `src/commands/viz.ts` and writes a PNG binary when requested.
+  Binary output to a TTY is refused with a hint to use `--output` or a pipe.
+- **P3.2 — `--format html`.** New `specToHtml()` in `src/viz/render.ts` wraps
+  the rendered SVG in a minimal standalone HTML document and embeds the source
+  Vega-Lite spec as a `<script type="application/json" id="bbdata-spec">` block
+  so downstream tooling can re-extract it without re-running the CLI. Tags
+  inside the spec are escaped (`</script>` → `\u003c/script>`) so an
+  adversarial spec can't break out of the script block.
+- **P3.3 — `--dpi <n>` flag.** Only meaningful for raster output. Computes the
+  raster width as `round(chartWidth × dpi / 96)`, so `--dpi 300` on an 800px
+  chart produces a 2500px PNG. Falls back to 2× chart width when omitted.
+- **P1.3 — `--window <n>` flag on `viz rolling`.** Threads through
+  `VizOptions` → `QueryOptions` → `QueryTemplateParams` → the
+  `trend-rolling-average` template's `transform()`. The template now reads
+  `params.window ?? 15` at the previously hard-coded line (registry.ts
+  carries a new optional `window` field to keep the type honest). The course's
+  `--window 5` example on `Modules/04/Deliverables/Visualization Template
+  Library.md:466` now works end-to-end.
+- **P1.2(b) — Chart-type aliases.** `src/viz/charts/index.ts` adds a unidirectional
+  alias map: `pitching-movement → movement`, `hitting-spray → spray`,
+  `hitting-zones → zone`, `trend-rolling → rolling`. Resolved via new
+  `resolveChartType()` before the registry lookup. `listChartAliases()`
+  exposes the map so the CLI help text and `viz` sans-args listing show
+  both canonical and aliased names. Chose this over the course rewrite
+  because it unblocks existing course commands without touching the course.
+- **`src/viz/rasterize.ts`** (promoted from `test/helpers/`). Same surface,
+  same defaults (`width: 1600`, `background: '#ffffff'`, system fonts
+  loaded). Tuned for the assistant's PNG-via-Read-tool workflow.
+
+### Changed
+
+- **P4.3 — `--audience` enum harmonized across `viz` and `report`.** The two
+  commands used disjoint vocabularies (`coach|gm|scout|analyst` for report;
+  `coach|analyst|frontoffice|presentation` for viz). New
+  `resolveReportAudience()` in `src/commands/report.ts` accepts the superset
+  at the CLI boundary and normalizes `presentation → analyst`,
+  `frontoffice → gm` before the template resolution. `ReportOptions.audience`
+  widened to `Audience | VizAudience | string` with a safe fallback to
+  `analyst` for typos. The report-template `audiences: Audience[]` arrays
+  are untouched — the harmonization is a CLI-boundary normalizer, not a type
+  widening, to keep the blast radius small.
+- **`viz` command help text** rewritten to surface chart aliases and the new
+  `--format`, `--dpi`, `--window` flags. `bbdata viz` with no type argument
+  now prints both the canonical chart list and the alias map.
+
+### Developer notes
+
+- **No breaking changes.** Every new flag is optional with a back-compatible
+  default. Programmatic callers of `viz()` / `report()` that don't pass the
+  new options see identical behavior to 0.6.1.
+- **Test coverage.** 6 new cases in `test/commands/viz.test.ts` (PNG branch,
+  HTML branch, DPI scaling, `--window` thread-through, alias resolution,
+  unsupported-format rejection) + 3 new cases in `test/viz/render.test.ts`
+  for `specToHtml` + a new `test/viz/rasterize.test.ts` smoke suite. `npm test`
+  green at 213 tests (was 207).
+- **`test/helpers/rasterize.ts` deleted.** No test imports it; the two
+  production scripts that did are updated to `src/viz/rasterize.js`.
+- **package.json dependency move** is the one change that touches the
+  release-sensitive surface. Run `npm install` once before `npm version`
+  to re-sort `package-lock.json` — `npm version` itself won't reorder deps.
+
 ## 0.4.0 — 2026-04-10
 
 ### Added

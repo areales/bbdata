@@ -1,9 +1,11 @@
 import { Resvg } from '@resvg/resvg-js';
 
 /**
- * Rasterize an SVG string to a PNG buffer. Thin wrapper around `@resvg/resvg-js`
- * used by the visual test harness and `scripts/render-fixtures.ts` to produce
- * human-inspectable PNGs of our four chart types.
+ * Rasterize an SVG string to a PNG buffer. Thin wrapper around `@resvg/resvg-js`.
+ *
+ * Used by the CLI (`viz --format png`), `scripts/render-fixtures.ts`, and
+ * `scripts/extract-report-assets.ts` to produce human-inspectable PNGs of
+ * shipped chart types.
  *
  * Defaults are tuned for the assistant's workflow of reading the PNGs back
  * via the Read tool:

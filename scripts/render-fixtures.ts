@@ -28,7 +28,7 @@ import { zoneBuilder } from '../src/viz/charts/zone.js';
 import { rollingBuilder } from '../src/viz/charts/rolling.js';
 import { specToSvg } from '../src/viz/render.js';
 import type { ChartBuilder, ResolvedVizOptions } from '../src/viz/types.js';
-import { rasterizeSvg } from '../test/helpers/rasterize.js';
+import { rasterizeSvg } from '../src/viz/rasterize.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

@@ -22,7 +22,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { rasterizeSvg } from '../test/helpers/rasterize.js';
+import { rasterizeSvg } from '../src/viz/rasterize.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

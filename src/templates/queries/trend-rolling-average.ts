@@ -25,7 +25,7 @@ const template: QueryTemplate = {
     return ['Window', 'Window End', 'Games', 'AVG', 'SLG', 'K %', 'Avg EV', 'Hard Hit %'];
   },
 
-  transform(data) {
+  transform(data, params) {
     const pitches = data as PitchData[];
     if (pitches.length === 0) return [];
 
@@ -38,7 +38,7 @@ const template: QueryTemplate = {
     }
 
     const dates = Array.from(byDate.keys()).sort();
-    const windowSize = 15;
+    const windowSize = params?.window && params.window > 0 ? params.window : 15;
 
     if (dates.length < windowSize) {
       return [{

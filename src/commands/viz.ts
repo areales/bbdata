@@ -6,17 +6,26 @@ import { query as runQuery } from './query.js';
 import { getStdinAdapter } from '../adapters/index.js';
 import { readStdin } from '../utils/stdin.js';
 import { getConfig } from '../config/config.js';
-import { getChartBuilder, listChartTypes } from '../viz/charts/index.js';
-import { specToSvg } from '../viz/render.js';
+import {
+  getChartBuilder,
+  listChartTypes,
+  listChartAliases,
+  resolveChartType,
+} from '../viz/charts/index.js';
+import { specToSvg, specToHtml } from '../viz/render.js';
+import { rasterizeSvg } from '../viz/rasterize.js';
 import { AUDIENCE_DEFAULTS } from '../viz/audience.js';
 import {
   resolveVizAudience,
   type VizOptions,
   type VizResult,
   type ChartType,
+  type VizFormat,
   type ResolvedVizOptions,
 } from '../viz/types.js';
 import type { Audience } from '../templates/reports/registry.js';
+
+const SUPPORTED_FORMATS: VizFormat[] = ['svg', 'png', 'html'];
 
 /**
  * Programmatic API — skills and agents call this directly.
@@ -33,11 +42,29 @@ export async function viz(options: VizOptions): Promise<VizResult> {
   );
   const defaults = AUDIENCE_DEFAULTS[audience];
 
+  // Resolve alias → canonical chart type before anything else depends on it.
+  // getChartBuilder throws for unknown types; we also keep the canonical id
+  // on ResolvedVizOptions / meta so downstream consumers see a stable value.
+  const canonicalType = resolveChartType(options.type);
+  if (!canonicalType) {
+    // Delegate to getChartBuilder for the error message to stay consistent
+    // with other callers that don't pre-resolve.
+    getChartBuilder(options.type);
+  }
   const builder = getChartBuilder(options.type);
+  const chartType = canonicalType ?? (options.type as ChartType);
+
   const season = options.season ?? new Date().getFullYear();
   const player = options.player ?? 'Unknown';
   const width = options.width ?? defaults.width;
   const height = options.height ?? defaults.height;
+  const format = (options.format ?? 'svg') as VizFormat;
+
+  if (!SUPPORTED_FORMATS.includes(format)) {
+    throw new Error(
+      `Unsupported --format "${format}". Supported in this release: ${SUPPORTED_FORMATS.join(', ')}. (pdf ships in v0.7.1)`,
+    );
+  }
 
   // Fetch rows for each data requirement via runQuery
   const rows: Record<string, Record<string, unknown>[]> = {};
@@ -49,6 +76,7 @@ export async function viz(options: VizOptions): Promise<VizResult> {
         player: options.player,
         season,
         format: 'json',
+        ...(options.window != null ? { window: options.window } : {}),
         ...(options.stdin ? { source: 'stdin' } : {}),
         ...(options.source && !options.stdin ? { source: options.source } : {}),
       });
@@ -61,23 +89,34 @@ export async function viz(options: VizOptions): Promise<VizResult> {
   }
 
   const resolved: ResolvedVizOptions = {
-    type: options.type,
+    type: chartType,
     player,
     season,
     audience,
-    format: options.format ?? 'svg',
+    format,
     width,
     height,
     colorblind: options.colorblind ?? false,
     title: options.title ?? builder.defaultTitle({ player, season }),
     players: options.players,
+    ...(options.window != null ? { window: options.window } : {}),
+    ...(options.dpi != null ? { dpi: options.dpi } : {}),
   };
 
   const spec = builder.buildSpec(rows, resolved);
   const svg = await specToSvg(spec);
 
   if (options.output) {
-    writeFileSync(resolvePath(options.output), svg, 'utf-8');
+    const outputPath = resolvePath(options.output);
+    if (format === 'png') {
+      const rasterWidth = options.dpi ? Math.round(width * (options.dpi / 96)) : width * 2;
+      const png = rasterizeSvg(svg, { width: rasterWidth });
+      writeFileSync(outputPath, png);
+    } else if (format === 'html') {
+      writeFileSync(outputPath, specToHtml(svg, spec, { title: resolved.title }), 'utf-8');
+    } else {
+      writeFileSync(outputPath, svg, 'utf-8');
+    }
     log.success(`Wrote ${options.output}`);
   }
 
@@ -85,7 +124,7 @@ export async function viz(options: VizOptions): Promise<VizResult> {
     svg,
     spec,
     meta: {
-      chartType: options.type,
+      chartType,
       player,
       season,
       audience,
@@ -103,8 +142,8 @@ export async function viz(options: VizOptions): Promise<VizResult> {
 export function registerVizCommand(program: Command): void {
   program
     .command('viz [type]')
-    .description('Generate data visualizations (SVG)')
-    .option('--type <type>', 'Chart type: movement, movement-binned, spray, zone, rolling')
+    .description('Generate data visualizations (SVG, PNG, HTML)')
+    .option('--type <type>', 'Chart type (see list below)')
     .option('-p, --player <name>', 'Player name')
     .option('--players <names>', 'Comma-separated player names (for comparisons)')
     .option('-s, --season <year>', 'Season year', String(new Date().getFullYear()))
@@ -112,32 +151,44 @@ export function registerVizCommand(program: Command): void {
       '-a, --audience <role>',
       'Audience: coach, analyst, frontoffice, presentation, gm, scout',
     )
-    .option('-f, --format <fmt>', 'Output format (svg only in v1)', 'svg')
+    .option('-f, --format <fmt>', 'Output format: svg, png, html', 'svg')
+    .option('--dpi <n>', 'Target DPI for raster output (png). Scales width.', (v) => parseInt(v, 10))
+    .option('--window <n>', 'Rolling window size in games (rolling chart only)', (v) => parseInt(v, 10))
     .option('--size <WxH>', 'Chart dimensions, e.g. 800x600')
     .option('--colorblind', 'Use a colorblind-safe palette (viridis)')
-    .option('-o, --output <path>', 'Write SVG to a file (otherwise prints to stdout)')
+    .option('-o, --output <path>', 'Write chart to a file (otherwise prints to stdout)')
     .option('--source <src>', 'Force a data source (savant, fangraphs, ...)')
     .option('--stdin', 'Read pre-fetched JSON data from stdin')
     .addHelpText('after', `
 Examples:
   bbdata viz movement --player "Corbin Burnes" --season 2025 -o burnes_movement.svg
-  bbdata viz spray    --player "Aaron Judge" --audience coach
-  bbdata viz zone     --player "Shohei Ohtani" --colorblind
-  bbdata viz rolling  --player "Freddie Freeman"
+  bbdata viz spray    --player "Aaron Judge" --audience coach --format png -o judge_spray.png
+  bbdata viz zone     --player "Shohei Ohtani" --colorblind --format html -o ohtani.html
+  bbdata viz rolling  --player "Freddie Freeman" --window 5
 
-Chart types:
-  movement         — pitch movement plot (H break vs V break, per pitch type)
-  movement-binned  — binned density variant of movement for compact inline use
-  spray            — spray chart (batted ball landing positions on a field)
-  zone             — 3x3 zone profile heatmap (xwOBA per plate region)
-  rolling          — rolling performance trend (time-series)
+Chart types (canonical + aliases):
+  movement              — pitch movement plot (H break vs V break, per pitch type)
+  movement-binned       — binned density variant of movement for compact inline use
+  spray                 — spray chart (batted ball landing positions on a field)
+  zone                  — 3x3 zone profile heatmap (xwOBA per plate region)
+  rolling               — rolling performance trend (time-series)
+
+Aliases:
+  pitching-movement  →  movement
+  hitting-spray      →  spray
+  hitting-zones      →  zone
+  trend-rolling      →  rolling
 `)
     .action(async (typeArg, opts) => {
-      const type = (typeArg ?? opts.type) as ChartType | undefined;
+      const type = (typeArg ?? opts.type) as string | undefined;
       if (!type) {
         log.data('\nAvailable chart types:\n\n');
         for (const t of listChartTypes()) {
           log.data(`  ${t}\n`);
+        }
+        log.data('\nAliases:\n');
+        for (const [alias, canonical] of Object.entries(listChartAliases())) {
+          log.data(`  ${alias.padEnd(20)} → ${canonical}\n`);
         }
         log.data('\nUsage: bbdata viz <type> --player "Name" [options]\n\n');
         return;
@@ -153,6 +204,8 @@ Chart types:
         }
       }
 
+      const format = (opts.format ?? 'svg') as VizFormat;
+
       try {
         const result = await viz({
           type,
@@ -162,15 +215,34 @@ Chart types:
             : undefined,
           season: opts.season ? parseInt(opts.season) : undefined,
           audience: opts.audience,
-          format: opts.format,
+          format,
           width,
           height,
           colorblind: opts.colorblind,
           output: opts.output,
           source: opts.source,
           stdin: opts.stdin,
+          ...(Number.isFinite(opts.window) ? { window: opts.window } : {}),
+          ...(Number.isFinite(opts.dpi) ? { dpi: opts.dpi } : {}),
         });
-        if (!opts.output) log.data(result.svg + '\n');
+        if (!opts.output) {
+          if (format === 'png') {
+            // Binary to a TTY would corrupt the terminal. Refuse early with a
+            // hint rather than dumping bytes.
+            if (process.stdout.isTTY) {
+              log.error('Refusing to write binary PNG to a TTY. Use --output <path> or pipe stdout.');
+              process.exitCode = 1;
+              return;
+            }
+            const rasterWidth = opts.dpi ? Math.round((width ?? result.meta.width) * (opts.dpi / 96)) : (width ?? result.meta.width) * 2;
+            const png = rasterizeSvg(result.svg, { width: rasterWidth });
+            process.stdout.write(png);
+          } else if (format === 'html') {
+            log.data(specToHtml(result.svg, result.spec, { title: (result.spec as { title?: string }).title ?? `${result.meta.player} — ${result.meta.chartType}` }));
+          } else {
+            log.data(result.svg + '\n');
+          }
+        }
       } catch (error) {
         log.error(error instanceof Error ? error.message : String(error));
         process.exitCode = 1;

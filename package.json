@@ -40,7 +40,7 @@
     "cli",
     "ai"
   ],
-  "author": "AI Baseball Data Analyst",
+  "author": "Aaron Reales",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -51,6 +51,7 @@
   },
   "homepage": "https://github.com/areales/bbdata#readme",
   "dependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "chalk": "^5.4.1",
     "cli-table3": "^0.6.5",
     "commander": "^13.1.0",
@@ -63,7 +64,6 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@resvg/resvg-js": "^2.6.2",
     "@types/node": "^22.13.0",
     "tsup": "^8.4.0",
     "tsx": "^4.19.2",

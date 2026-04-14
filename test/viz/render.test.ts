@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { specToSvg, normalizeSvg, ensureTextPaintOrder } from '../../src/viz/render.js';
+import { specToSvg, specToHtml, normalizeSvg, ensureTextPaintOrder } from '../../src/viz/render.js';
 
 describe('specToSvg', () => {
   it('compiles a trivial Vega-Lite spec to SVG', async () => {
@@ -82,6 +82,30 @@ describe('ensureTextPaintOrder', () => {
     const out = ensureTextPaintOrder(input);
     const matches = out.match(/paint-order="stroke"/g) ?? [];
     expect(matches.length).toBe(2);
+  });
+});
+
+describe('specToHtml', () => {
+  it('wraps the svg in a standalone HTML document with the spec embedded', () => {
+    const svg = '<svg data-test="demo"></svg>';
+    const spec = { $schema: 'foo', data: { values: [] } };
+    const html = specToHtml(svg, spec, { title: 'Demo' });
+    expect(html).toMatch(/^<!doctype html>/);
+    expect(html).toContain('<title>Demo</title>');
+    expect(html).toContain('<svg data-test="demo"></svg>');
+    expect(html).toContain('<script type="application/json" id="bbdata-spec">');
+    expect(html).toContain('"$schema":"foo"');
+  });
+
+  it('escapes tags inside embedded spec JSON', () => {
+    const html = specToHtml('<svg/>', { danger: '</script><script>x()' });
+    expect(html).not.toContain('</script><script>x()');
+    expect(html).toContain('\\u003c/script');
+  });
+
+  it('uses a default title when none provided', () => {
+    const html = specToHtml('<svg/>', {});
+    expect(html).toContain('<title>bbdata chart</title>');
   });
 });
 
