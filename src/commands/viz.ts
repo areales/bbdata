@@ -5,6 +5,7 @@ import { log } from '../utils/logger.js';
 import { query as runQuery } from './query.js';
 import { getStdinAdapter } from '../adapters/index.js';
 import { readStdin } from '../utils/stdin.js';
+import { loadDataFile } from '../utils/data-input.js';
 import { getConfig } from '../config/config.js';
 import {
   getChartBuilder,
@@ -31,9 +32,14 @@ const SUPPORTED_FORMATS: VizFormat[] = ['svg', 'png', 'html', 'pdf'];
  * Programmatic API — skills and agents call this directly.
  */
 export async function viz(options: VizOptions): Promise<VizResult> {
+  if (options.stdin && options.data) {
+    throw new Error('Pass only one of --stdin or --data <path>, not both.');
+  }
   if (options.stdin) {
     const raw = await readStdin();
     getStdinAdapter().load(raw);
+  } else if (options.data) {
+    loadDataFile(options.data);
   }
 
   const config = getConfig();
@@ -77,8 +83,8 @@ export async function viz(options: VizOptions): Promise<VizResult> {
         season,
         format: 'json',
         ...(options.window != null ? { window: options.window } : {}),
-        ...(options.stdin ? { source: 'stdin' } : {}),
-        ...(options.source && !options.stdin ? { source: options.source } : {}),
+        ...(options.stdin || options.data ? { source: 'stdin' } : {}),
+        ...(options.source && !options.stdin && !options.data ? { source: options.source } : {}),
       });
       rows[req.queryTemplate] = result.data;
       if (result.meta.source) source = result.meta.source;
@@ -170,6 +176,7 @@ export function registerVizCommand(program: Command): void {
     .option('-o, --output <path>', 'Write chart to a file (otherwise prints to stdout)')
     .option('--source <src>', 'Force a data source (savant, fangraphs, ...)')
     .option('--stdin', 'Read pre-fetched JSON data from stdin')
+    .option('--data <path>', 'Load data from a local .json or .csv file (Savant CSV schema) instead of fetching')
     .addHelpText('after', `
 Examples:
   bbdata viz movement --player "Corbin Burnes" --season 2025 -o burnes_movement.svg
@@ -234,6 +241,7 @@ Aliases:
           output: opts.output,
           source: opts.source,
           stdin: opts.stdin,
+          data: opts.data,
           ...(Number.isFinite(opts.window) ? { window: opts.window } : {}),
           ...(Number.isFinite(opts.dpi) ? { dpi: opts.dpi } : {}),
           ...(opts.pdfMode ? { pdfMode: opts.pdfMode as 'vector' | 'raster' } : {}),

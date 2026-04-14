@@ -60,6 +60,18 @@ export class StdinAdapter implements DataAdapter {
     }
   }
 
+  /**
+   * Load pre-parsed records directly (skips JSON.parse).
+   * Used by the `--data <path>.csv` input path, where the CSV parser has
+   * already produced typed records.
+   */
+  loadRecords(data: (PitchData | PlayerStats)[], player?: PlayerId): void {
+    this.data = data;
+    if (player) this.player = player;
+    this.loaded = true;
+    log.info(`Stdin adapter loaded ${this.data.length} records`);
+  }
+
   supports(_query: AdapterQuery): boolean {
     return this.loaded && this.data.length > 0;
   }

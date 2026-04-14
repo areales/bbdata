@@ -4,6 +4,7 @@ import { format, type OutputFormat, type FormattedOutput } from '../formatters/i
 import { getConfig } from '../config/config.js';
 import { log } from '../utils/logger.js';
 import { readStdin } from '../utils/stdin.js';
+import { loadDataFile } from '../utils/data-input.js';
 import {
   getTemplate,
   listTemplates,
@@ -29,6 +30,8 @@ export interface QueryOptions {
   source?: string;
   cache?: boolean;
   stdin?: boolean;
+  /** Path to a local .json or .csv file to use instead of fetching. */
+  data?: string;
 }
 
 export interface QueryResult {
@@ -47,11 +50,17 @@ export interface QueryResult {
  * Programmatic API — skills and agents call this directly.
  */
 export async function query(options: QueryOptions): Promise<QueryResult> {
-  // If --stdin, load data into the stdin adapter and force source
+  if (options.stdin && options.data) {
+    throw new Error('Pass only one of --stdin or --data <path>, not both.');
+  }
+  // If --stdin or --data, load data into the stdin adapter and force source
   if (options.stdin) {
     const raw = await readStdin();
     const adapter = getStdinAdapter();
     adapter.load(raw);
+    options.source = 'stdin';
+  } else if (options.data) {
+    loadDataFile(options.data);
     options.source = 'stdin';
   }
 
@@ -214,6 +223,7 @@ export function registerQueryCommand(program: Command): void {
     .option('--seasons <range>', 'Season range (e.g., 2023-2025)')
     .option('--no-cache', 'Bypass cache')
     .option('--stdin', 'Read pre-fetched JSON data from stdin instead of fetching from APIs')
+    .option('--data <path>', 'Load data from a local .json or .csv file (Savant CSV schema) instead of fetching')
     .addHelpText('after', `
 Examples:
   bbdata query pitcher-arsenal --player "Corbin Burnes" --season 2025
@@ -257,6 +267,7 @@ Available templates:
           source: opts.source,
           cache: opts.cache,
           stdin: opts.stdin,
+          data: opts.data,
         });
 
         log.data(result.formatted);

@@ -10,6 +10,7 @@ import { pitchTypeName } from '../adapters/types.js';
 import { query as runQuery } from './query.js';
 import { getStdinAdapter } from '../adapters/index.js';
 import { readStdin } from '../utils/stdin.js';
+import { loadDataFile } from '../utils/data-input.js';
 import { generateReportGraphs } from '../viz/embed.js';
 import {
   getReportTemplate,
@@ -51,6 +52,8 @@ export interface ReportOptions {
   format?: 'markdown' | 'json';
   validate?: boolean;
   stdin?: boolean;
+  /** Path to a local .json or .csv file to use instead of fetching. */
+  data?: string;
   /**
    * When true (default), the command throws if any data requirement marked
    * `required: true` fails, causing the CLI to exit non-zero. Set to false to
@@ -184,11 +187,16 @@ function generateFallbackTemplate(templateFile: string): string {
  * Programmatic API — skills and agents call this directly.
  */
 export async function report(options: ReportOptions): Promise<ReportResult> {
+  if (options.stdin && options.data) {
+    throw new Error('Pass only one of --stdin or --data <path>, not both.');
+  }
   // Pre-load stdin data once for all sub-queries
   if (options.stdin) {
     const raw = await readStdin();
     const adapter = getStdinAdapter();
     adapter.load(raw);
+  } else if (options.data) {
+    loadDataFile(options.data);
   }
 
   const config = getConfig();
@@ -218,7 +226,7 @@ export async function report(options: ReportOptions): Promise<ReportResult> {
         team: options.team,
         season,
         format: 'json',
-        ...(options.stdin ? { source: 'stdin' } : {}),
+        ...(options.stdin || options.data ? { source: 'stdin' } : {}),
       });
       dataResults[req.queryTemplate] = result.data;
       if (!dataSources.includes(result.meta.source)) {
@@ -384,6 +392,7 @@ export function registerReportCommand(program: Command): void {
     .option('--validate', 'Run validation checklist on the report')
     .option('--no-strict', 'Do not exit non-zero when required data queries fail (emit stub-shell output)')
     .option('--stdin', 'Read pre-fetched JSON data from stdin instead of fetching from APIs')
+    .option('--data <path>', 'Load data from a local .json or .csv file (Savant CSV schema) instead of fetching')
     .addHelpText('after', `
 Examples:
   bbdata report pro-pitcher-eval --player "Corbin Burnes"
@@ -418,6 +427,7 @@ Available templates:
           format: opts.format,
           validate: opts.validate,
           stdin: opts.stdin,
+          data: opts.data,
           strict: opts.strict,
         });
 

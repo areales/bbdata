@@ -3,6 +3,47 @@
 All notable changes to `bbdata-cli` are documented here. This project follows
 [Semantic Versioning](https://semver.org/).
 
+## 0.7.2 — 2026-04-14
+
+Phase C of the TASKS.md backlog. Ships P3.4 — `--data <path>` file input.
+
+### Added
+
+- **`--data <path>` on `query`, `report`, and `viz`.** Loads a local `.json`
+  or `.csv` file into the stdin adapter instead of fetching from the live
+  APIs. Dispatches by extension — `.json` uses the same shape as piped
+  `--stdin` (raw array or `{ data: [...], player?: {...} }`); `.csv` is
+  parsed with the Savant search-CSV schema, so any CSV exported from
+  Savant's search tool round-trips cleanly. Useful for students iterating
+  on the same dataset repeatedly and for offline / sandboxed environments.
+- **Shared Savant CSV parser — `src/adapters/savant-csv.ts`.** Exports
+  `parseSavantCsv(csvText): PitchData[]`. Now used by both the Savant HTTP
+  adapter (previously inlined the map) and the `--data *.csv` path, so
+  the field map stays field-for-field in sync.
+- **`StdinAdapter.loadRecords(data, player?)`.** Skips JSON.parse when the
+  caller already has typed records — the CSV path doesn't round-trip
+  through serialization.
+
+### Changed
+
+- **`src/adapters/savant.ts` refactored** to call `parseSavantCsv`. No
+  behavior change; the CSV filter (empty `pitch_type`, non-`R` `game_type`)
+  and column map are identical to the prior inline implementation.
+- **`--stdin` and `--data` are mutually exclusive.** Passing both exits
+  with `Pass only one of --stdin or --data <path>, not both.`
+- **Unsupported file extensions** (anything other than `.json` / `.csv`)
+  produce `Unsupported --data extension "<ext>". Use .json or .csv.` —
+  no silent guessing.
+
+### Developer notes
+
+- **Test coverage.** +7 cases in `test/utils/data-input.test.ts`: CSV→
+  PitchData map including zero-preservation on count fields; `.json`
+  wrapper + raw-array shapes; `.csv` end-to-end through the adapter;
+  unsupported-extension error; case-insensitive extension match. Vitest
+  runs 228/228 green (was 221).
+- **README.md** adds `--data <path>` to the query flag table.
+
 ## 0.7.1 — 2026-04-14
 
 Phase B of the TASKS.md backlog. Ships P3.1 — `--format pdf`.

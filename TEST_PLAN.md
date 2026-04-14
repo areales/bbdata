@@ -24,6 +24,52 @@ binary outputs, adapter round-trips — that mocks can't validate.
 
 ---
 
+## v0.7.2 — Phase C (2026-04-14)
+
+Items: P3.4 (`--data <path>` for `.json` and `.csv` file input).
+
+### Prereqs
+
+```powershell
+mkdir -Force .tmp
+npm run build
+```
+
+### P3.4 — `--data <path>`
+
+| # | Command | Expected | ✓ |
+|---|---|---|---|
+| C.1a | `npm run dev -- query pitcher-arsenal --player "Burnes Corbin" --data test/fixtures/savant-csv-sample.csv --format json` | Exits 0. JSON output has `meta.source === "stdin"` and `data.length > 0`. No network I/O. | ☐ |
+| C.1b | `npm run dev -- viz movement --player "Burnes Corbin" --season 2025 --data test/fixtures/savant-csv-sample.csv -o .tmp/csv_viz.svg` | `.tmp/csv_viz.svg` written. Open in VS Code preview — movement chart renders. | ☐ |
+| C.1c | Export a Savant search CSV (any pitcher, any season ≥ 2023) to `.tmp/real_savant.csv`, then `npm run dev -- query pitcher-arsenal --player "<that pitcher>" --data .tmp/real_savant.csv --format table` | Table renders with pitch-type rows. No "0 rows" error. Validates that the schema the course sends students to actually round-trips. | ☐ |
+| C.1d | Write `[{"pitcher_id":"1","pitch_type":"FF","release_speed":95}]` to `.tmp/arr.json`, then `npm run dev -- query pitcher-arsenal --player "Test" --data .tmp/arr.json --format json` | Exits 0 with `meta.source === "stdin"`. Confirms raw-array JSON shape still works. | ☐ |
+| C.1e | `npm run dev -- query pitcher-arsenal --player "X" --stdin --data test/fixtures/savant-csv-sample.csv` (with any piped stdin) | Errors with `Pass only one of --stdin or --data <path>, not both.` Exit 1. | ☐ |
+| C.1f | `npm run dev -- query pitcher-arsenal --player "X" --data .tmp/bad.xml` (any non-empty `.xml` file) | Errors with `Unsupported --data extension ".xml". Use .json or .csv.` Exit 1. | ☐ |
+| C.1g | `npm run dev -- query pitcher-arsenal --player "X" --data .tmp/does-not-exist.csv` | Errors with an ENOENT / "no such file" message. Exit non-zero. | ☐ |
+| C.1h | `npm run dev -- report relief-pitcher-quick --player "Burnes Corbin" --data test/fixtures/savant-csv-sample.csv --format json` (report path, all sub-queries should inherit `source: 'stdin'`) | Exits 0. No network calls (watch stderr — no "Fetching from Baseball Savant" line). | ☐ |
+
+### Regression re-run (v0.7.0 + v0.7.1 features, spot check)
+
+| # | Command | Expected | ✓ |
+|---|---|---|---|
+| C.R1 | v0.7.0 row 1.1a (`viz movement --format png`) | Still works — Savant adapter still fetches after the `parseSavantCsv` extraction. | ☐ |
+| C.R2 | v0.7.1 row B.1a (`viz movement --format pdf`) | Still works. | ☐ |
+| C.R3 | `npm run dev -- query pitcher-arsenal --player "Corbin Burnes" --season 2025 --format json \| node dist/bin/bbdata.js query pitcher-arsenal --player "Corbin Burnes" --stdin --format table` (pipe JSON through `--stdin`) | Exits 0. `--stdin` path still works — the refactor didn't break the original stdin entry point. | ☐ |
+
+### Cross-project verification
+
+| # | Check | Expected | ✓ |
+|---|---|---|---|
+| C.X1 | 1–2 course examples that use `--data ./foo.csv` from `../ai-baseball-data-analyst/Modules/` (once the course is updated to use this flag) | Works as advertised. Deferred until the course adopts the flag. | ☐ |
+
+### Known gaps / deferred
+
+- Multi-file `--data` (e.g., `--data pitches.csv --data stats.json` for report sub-queries that want different inputs) — out of scope; one file per invocation.
+- Non-Savant CSV schemas (e.g., custom student exports with different column names) — not auto-detected. The schema is explicitly Savant's. Users with other CSVs must rename columns or convert to JSON first.
+- The stdin adapter's `resolvePlayer` still relies on the first record having `pitcher_id`/`player_id` — a CSV with only batter columns will fail player resolution. Acceptable until someone files a bug.
+
+---
+
 ## v0.7.1 — Phase B (2026-04-14)
 
 Items: P3.1 (`--format pdf` with vector + raster modes).

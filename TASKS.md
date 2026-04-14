@@ -1,34 +1,27 @@
 # bbdata TASKS — post-audit backlog
 
-Source: `../ai-baseball-data-analyst/course-audit.md` (2026-04-13). These are the CLI-side items that, if shipped, close gaps between what the Baseball AI Community course promises and what `bbdata` v0.6.1 actually does.
+Source: `../ai-baseball-data-analyst/course-audit.md` (2026-04-13). These are the CLI-side items that, if shipped, close gaps between what the Baseball AI Community course promises and what `bbdata` actually does.
 
-**Important trade-off:** every item below is an *alternative* to a course-content fix in the audit. If the course rewrites Module 04's Visualization Template Library deliverable (~4h edit), most of Priority 2 becomes optional. Decide on the course vs. CLI direction first, then pick from this list.
+**Important trade-off:** every pending item below is an *alternative* to a course-content fix in the audit. If the course rewrites Module 04's Visualization Template Library deliverable (~4h edit), most of Priority 2 becomes optional. Decide on the course vs. CLI direction first, then pick from this list.
 
 Status legend: **Ship** = do it / **Decide** = design question first / **Later** = roadmap.
 
 ---
 
-## Priority 1 — Small, high-leverage
+## Shipped in v0.7.x
 
-### P1.1 — Add `--format png` to `viz` — **Ship**
-- **Why:** Course's `Module 04/Deliverables/Visualization Template Library.md` uses `--format png` in all 12 examples. CLI currently accepts `svg` only. `@resvg/resvg-js` is already in `devDependencies` and is already used by `scripts/render-fixtures.ts` and `scripts/extract-report-assets.ts`, so the rasterizer is proven.
-- **Change:** Move `@resvg/resvg-js` to `dependencies`; extend `viz` command's `--format` enum to `svg|png`; wire the SVG → PNG pipeline via the existing `rasterizeSvg` helper.
-- **Effort:** M (~2h including tests + fixture PNGs)
-- **Files:** `src/commands/viz.ts:115`, `src/viz/render.ts`, `package.json`
-
-### P1.2 — Decide naming strategy for viz types — **Decide**
-- **Why:** Course deliverable uses domain-prefixed names (`pitching-heatmap`, `hitting-barrel`, `trend-rolling`, `team-dashboard`) while CLI uses bare names (`movement`, `spray`, `zone`, `rolling`). Options:
-  - **(a) Keep bare names, rewrite course** — zero CLI work, ~4h course rewrite.
-  - **(b) Add aliases** — register `pitching-movement` → `movement`, `hitting-spray` → `spray`, `hitting-zones` → `zone`, `trend-rolling` → `rolling` in `src/viz/charts/index.ts`. Lets the course's existing `bbdata viz <prefixed-name>` lines work. ~30m.
-  - **(c) Rename the shipped types and add legacy aliases for backward-compat** — more invasive, unnecessary unless (b) feels like tech debt.
-- **Recommendation:** (a) if Aaron is rewriting Module 04 anyway; (b) if he wants a cheap CLI-side fix that unblocks the course without touching it.
-- **Effort:** S for (b), ~30m
-
-### P1.3 — Add `--window N` flag on `rolling` chart — **Ship**
-- **Why:** Course example in `Modules/04/Deliverables/Visualization Template Library.md:466` uses `--window 5`. Currently the rolling window is hard-coded (5 for pitchers, 15 for hitters — see `trend-rolling-average` query template description).
-- **Change:** Add optional `--window <n>` to `viz rolling` that overrides the default.
-- **Effort:** S (~30m)
-- **Files:** `src/commands/viz.ts`, `src/viz/charts/rolling.ts`
+| Item | Version | Evidence |
+|---|---|---|
+| P1.1 — `--format png` on `viz` | v0.7.0 | `src/commands/viz.ts:28` (format enum), `package.json:54` (`@resvg/resvg-js` in `dependencies`), `src/viz/rasterize.ts` |
+| P1.2 — viz-type aliases (option b) | v0.7.0 | `src/viz/charts/index.ts:23–28` registers `pitching-movement`, `hitting-spray`, `hitting-zones`, `trend-rolling` |
+| P1.3 — `--window N` on `rolling` | v0.7.0 | `src/commands/viz.ts:167`, consumed in `src/viz/charts/rolling.ts` |
+| P3.1 — `--format pdf` | v0.7.1 | `src/viz/render.ts` `specToPdf()`, commit `c504e0c` |
+| P3.2 — `--format html` | v0.7.0 | `src/viz/render.ts` `specToHtml()` |
+| P3.4 — `--data <path>` (JSON + CSV file input) | v0.7.2 | `src/utils/data-input.ts`, `src/adapters/savant-csv.ts` (shared with Savant adapter), wired in `src/commands/{query,report,viz}.ts` |
+| P3.3 — `--dpi <n>` flag | v0.7.0 | `src/commands/viz.ts:165` (propagates to PNG rasterization and PDF render) |
+| P4.1 — query-template docs | v0.7.0 | `README.md:56–64` lists all 21 templates, including the 9 previously-undocumented |
+| P4.2 — `draft-board-card-pitcher` doc | v0.7.0 | `README.md:95` |
+| P4.3 — `--audience` harmonization | v0.7.0 | `src/commands/report.ts:85–106` (`resolveReportAudience()` normalizer), documented at `:382` |
 
 ---
 
@@ -71,43 +64,11 @@ Each of these is referenced in `Modules/04/Deliverables/Visualization Template L
 
 ## Priority 3 — Output / input format expansion
 
-### P3.1 — Add `--format pdf` — **Decide**
-- **Why:** Course uses `--format pdf` in `Modules/04/Lessons/05:119` and `Deliverables/Personal Visualization Pipeline.md:459`. Only meaningful after P1.1 ships PNG, since PDF wraps raster.
-- **Effort:** M (~2h — add `pdfkit` or render SVG → PDF via resvg's Cairo path)
-- **Dependency:** P1.1
-
-### P3.2 — Add `--format html` — **Decide**
-- **Why:** Course references `html` in `Modules/04/Deliverables/Personal Visualization Pipeline.md:91`. `vega-lite` is already a dep and supports native HTML embed output.
-- **Effort:** M (~2h)
-
-### P3.3 — Add `--dpi <n>` flag — **Decide**
-- **Why:** Course uses `--dpi 300` in `Modules/04/Outlines/05:179`. Only meaningful for raster output (PNG/PDF).
-- **Effort:** S (~30m)
-- **Dependency:** P1.1
-
-### P3.4 — Add `--data <csv>` flag for user-supplied data — **Decide**
-- **Why:** Course uses `--data ./ohtani-pitches-2025.csv` to override adapter-fetched data. Extends the existing `stdin` adapter pattern into a file-path convenience. Useful for students iterating on the same CSV repeatedly.
-- **Effort:** M (~2h)
-- **Files:** `src/adapters/stdin.ts` (add file-read path), affected commands
+*(P3.4 shipped in v0.7.2 — see Shipped table above.)*
 
 ---
 
 ## Priority 4 — Documentation / discoverability (bbdata side)
-
-### P4.1 — Surface shipped-but-undocumented query templates — **Ship**
-- **Why:** CLI ships 21 query templates; skill docs only name 12. Course mentions 12. The 9 unnamed ones: `pitcher-raw-pitches`, `pitcher-recent-form`, `pitcher-by-count`, `pitcher-tto`, `pitcher-season-profile`, `hitter-zone-grid`, `hitter-raw-bip`, `hitter-season-profile`, `hitter-handedness-splits`.
-- **Change:** Expand `README.md` "Commands" section with the full query template table; mention in CHANGELOG 0.5.0.
-- **Effort:** S (~30m)
-- **Files:** `README.md`
-
-### P4.2 — Surface `draft-board-card-pitcher` report template — **Ship**
-- **Why:** Shipped but not in README examples or skill docs.
-- **Effort:** S (~10m)
-
-### P4.3 — Document `--audience` value divergence — **Ship**
-- **Why:** `report` accepts `coach|gm|scout|analyst`; `viz` accepts `coach|analyst|frontoffice|presentation`. README doesn't call this out. Surprise waiting for anyone who tries `--audience gm` on a viz.
-- **Fix:** Either harmonize (add `gm` alias for `frontoffice` on viz, `presentation` handler on report) OR document the divergence explicitly in README.
-- **Effort:** S (~15m docs) or M (~1h harmonize + tests)
 
 ### P4.4 — Decide fix path for `/build-model equivalent` fake query names in Module 05 Deliverable — **Decide**
 - **Why:** Course file `ai-baseball-data-analyst/Modules/05 - Code & Model Building/Deliverables/Model Template Library.md` has 8 `/build-model equivalent` callouts (lines 89, 152, 216, 279, 358, 423, 490) with `bbdata-cli query <name>` invocations that reference 6 template IDs not present in `src/templates/queries/`: `pitcher-stats`, `statcast-pitches`, `hitter-stats`, `hitter-splits`, `pitcher-game-logs`, `hitter-statcast`. Verified 2026-04-14 via direct grep over every `id: '...'` line in the queries registry. Students copying these bash lines hit "template not found". The course shipped with the wrong names; bbdata didn't drift. Analogous to P1.2 for viz types.
@@ -136,16 +97,11 @@ All of these are course-side fixes and do **not** involve bbdata:
 
 ## Suggested sequencing
 
-**If Module 04 is being rewritten (cheapest path):**
-1. P1.1 (PNG output) — still worthwhile on its own
-2. P1.3 (`--window` on rolling)
-3. P4.1, P4.2, P4.3 (docs cleanup)
-4. Defer Priority 2 entirely; revisit Priority 3 based on student feedback
+Phase A (P1.1, P1.2b, P1.3, P3.2, P3.3, P4.1, P4.2, P4.3) shipped in v0.7.0; Phase B (P3.1) shipped in v0.7.1; Phase C (P3.4) shipped in v0.7.2.
 
-**If Aaron wants to preserve the course content as written:**
-1. P1.2 option (b) — register viz-type aliases (unblocks most of the broken deliverable)
-2. P1.1 (PNG) + P3.3 (dpi)
-3. P2.1 → P2.5 in whatever order survey signal favors (heatmap likely first — Module 04 Lesson 3 leads with it)
-4. P3.1 (PDF) after P1.1 stabilizes
+Remaining backlog, in rough order:
+1. P2.1 (`pitching-heatmap`) — Module 04 Lesson 3 leads with it, so highest student-visibility of the Priority 2 set
+2. Remaining P2.x in whatever order survey signal favors
+3. P4.4 — course-side decision; pick option (c) unless callouts turn out to be load-bearing
 
 Effort estimates assume one focused half-day per M item.

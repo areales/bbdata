@@ -48,6 +48,7 @@ Query baseball data using pre-built templates. Returns structured data in your c
 | `--source <src>` | Force data source: `savant`, `fangraphs`, `mlb-stats-api` |
 | `--no-cache` | Bypass cache |
 | `--stdin` | Read pre-fetched JSON from stdin |
+| `--data <path>` | Load data from a local `.json` or `.csv` file (Savant CSV schema) |
 
 Run `bbdata query --help` for the full option list.
 

@@ -24,6 +24,8 @@ export interface VizOptions {
   output?: string;
   source?: string;
   stdin?: boolean;
+  /** Path to a local .json or .csv file to use instead of fetching. */
+  data?: string;
   cache?: boolean;
   title?: string;
   /** Rolling-window size (games) — only meaningful for the `rolling` chart. */
