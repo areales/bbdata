@@ -1,6 +1,6 @@
 {
   "name": "bbdata",
-  "version": "0.7.2",
+  "version": "0.8.0",
   "description": "Baseball data CLI for querying, scouting reports, and analytics — built for humans and AI agents",
   "type": "module",
   "bin": {
