@@ -1,8 +1,8 @@
-# bbdata-cli
+# bbdata
 
-[![npm version](https://img.shields.io/npm/v/bbdata-cli)](https://www.npmjs.com/package/bbdata-cli)
-[![node](https://img.shields.io/node/v/bbdata-cli)](https://nodejs.org)
-[![license](https://img.shields.io/npm/l/bbdata-cli)](./LICENSE)
+[![npm version](https://img.shields.io/npm/v/bbdata)](https://www.npmjs.com/package/bbdata)
+[![node](https://img.shields.io/node/v/bbdata)](https://nodejs.org)
+[![license](https://img.shields.io/npm/l/bbdata)](./LICENSE)
 
 Baseball data CLI for querying stats, generating scouting reports, and building analytics pipelines — built for humans and AI agents.
 
@@ -10,10 +10,10 @@ Baseball data CLI for querying stats, generating scouting reports, and building 
 
 ```sh
 # Global (CLI usage)
-npm install -g bbdata-cli
+npm install -g bbdata
 
 # Local (programmatic API)
-npm install bbdata-cli
+npm install bbdata
 ```
 
 Requires Node.js 18+.
@@ -135,7 +135,7 @@ Decorative output (progress, warnings) goes to stderr. Data goes to stdout. Ever
 ## Programmatic API
 
 ```ts
-import { query, report, viz, getConfig, setConfig } from 'bbdata-cli';
+import { query, report, viz, getConfig, setConfig } from 'bbdata';
 
 const result = await query({
   template: 'pitcher-arsenal',

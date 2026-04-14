@@ -67,7 +67,7 @@ Tests use vitest with aggressive mocking. Adapters mock HTTP layers; commands mo
 npm version patch                         # or minor/major — bumps package.json + package-lock.json, commits, tags (one step)
 git push --follow-tags origin main        # ship commit and tag together
 npm publish                                # prepublishOnly runs build + typecheck + test
-npm view bbdata-cli@<version> version     # verify the publish landed
+npm view bbdata@<version> version         # verify the publish landed
 ```
 
 **Every release also updates `TEST_PLAN.md`.** Before `npm publish`, add a new section for the version with live smoke-test rows for any new feature or flag — this catches the gaps between unit-test mocks and the real adapter/CLI surface. After `npm publish`, run the new section's rows against the live registry build to confirm nothing regressed between `prepublishOnly` and publish. Prior-version sections stay as regression baselines and are re-run whenever a later change touches the same subsystem.

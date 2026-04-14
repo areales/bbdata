@@ -9,8 +9,8 @@ import { fileURLToPath } from 'node:url';
  * `cli.ts` is inlined into `dist/bin/bbdata.js` at build time, so
  * `import.meta.url` resolves to a different depth than at dev time (where
  * `tsx` runs `src/cli.ts` directly). Walking up until we find a `package.json`
- * whose `name === 'bbdata-cli'` handles both layouts and also avoids
- * accidentally picking up a consumer's package.json if bbdata-cli is ever
+ * whose `name === 'bbdata'` handles both layouts and also avoids
+ * accidentally picking up a consumer's package.json if bbdata is ever
  * bundled inside another app.
  */
 function resolveCliVersion(): string {
@@ -19,7 +19,7 @@ function resolveCliVersion(): string {
     try {
       const raw = readFileSync(join(dir, 'package.json'), 'utf8');
       const parsed = JSON.parse(raw) as { name?: string; version?: string };
-      if (parsed.name === 'bbdata-cli' && parsed.version) {
+      if (parsed.name === 'bbdata' && parsed.version) {
         return parsed.version;
       }
     } catch {

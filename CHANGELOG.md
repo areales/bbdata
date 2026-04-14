@@ -1,7 +1,45 @@
 # Changelog
 
-All notable changes to `bbdata-cli` are documented here. This project follows
+All notable changes to `bbdata` are documented here. This project follows
 [Semantic Versioning](https://semver.org/).
+
+## 0.8.0 — 2026-04-14
+
+**Package renamed from `bbdata-cli` to `bbdata`.** The binary name is unchanged
+(`bbdata`) — this is purely an npm package-name rename so the install command,
+the import specifier, and the binary finally match.
+
+### Migration
+
+```sh
+npm uninstall bbdata-cli
+npm install bbdata          # or: npm install -g bbdata
+```
+
+Programmatic consumers update their import specifier:
+
+```diff
+- import { query, report, viz } from 'bbdata-cli';
++ import { query, report, viz } from 'bbdata';
+```
+
+The old `bbdata-cli@0.7.2` package remains installable indefinitely — pinned
+consumers (including historical scout-app builds in Vercel's immutable deploy
+cache) will keep working. `bbdata-cli` will be `npm deprecate`d ~3 weeks after
+0.8.0 ships; it will **not** be unpublished.
+
+### Changed
+
+- `package.json` `name` field: `bbdata-cli` → `bbdata`.
+- `src/utils/version.ts` walk-up sentinel updated to match the new name.
+- README, badges, and install/import examples updated to `bbdata`.
+
+### Developer notes
+
+- **No functional changes.** Every CLI flag, output schema, exported type,
+  and adapter behavior is identical to 0.7.2. If you pin to `bbdata@0.8.0`
+  today and later pin a fresh app to `bbdata-cli@0.7.2`, they will behave
+  identically.
 
 ## 0.7.2 — 2026-04-14
 
