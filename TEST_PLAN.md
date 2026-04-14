@@ -35,6 +35,42 @@ binary outputs, adapter round-trips — that mocks can't validate.
 
 ---
 
+## v0.8.0 — package rename (2026-04-14)
+
+The npm package renamed from `bbdata-cli` to `bbdata`. Binary name
+unchanged. No functional changes — every flag, output schema, and
+adapter behavior is identical to 0.7.2. Smoke focus: confirm the new
+package resolves on the registry, the new import specifier works, and
+pinned `bbdata-cli@0.7.2` consumers continue to work.
+
+### Registry + install
+
+| # | Who | Command | Expected | ✓ |
+|---|---|---|---|---|
+| R.1 | C | `npm view bbdata version` | Outputs `0.8.0`. | ✓ |
+| R.1b | C | `(Invoke-WebRequest -Uri "https://registry.npmjs.org/bbdata").Content.Substring(0, 500)` | Contains `"dist-tags":{"latest":"0.8.0"}`. Confirms the registry + CDN have caught up. | ✓ |
+| R.2 | A | `npm install -g bbdata@0.8.0 && bbdata --version` | Outputs `0.8.0`. Validates the global-install path + `CLI_VERSION` walk-up wiring post-rename. | ☐ |
+
+### Programmatic API
+
+| # | Who | Command | Expected | ✓ |
+|---|---|---|---|---|
+| R.3 | C | In a fresh `.tmp/import-smoke/` npm project: `npm install bbdata@0.8.0`, then run a Node script with `import { query, report, viz } from 'bbdata'; console.log(typeof query, typeof report, typeof viz);` | Prints `function function function`. Confirms the ESM `main`/`exports` resolve on the renamed package. | ✓ |
+
+### Cross-project regression
+
+| # | Who | Check | Expected | ✓ |
+|---|---|---|---|---|
+| R.4 | A | `scout-app` still works on pinned `bbdata-cli@0.7.2`. Hit `localhost:3000/chat` with a known player, confirm the prefetch path succeeds. | Pinned consumers of the old package name keep working — that's the whole point of not unpublishing `bbdata-cli`. Full migration to `bbdata` happens in `RENAME_PLAN.md` phase 3. | ☐ |
+
+### Notes
+
+- **`test/utils/version.test.ts` (3/3 green during `prepublishOnly`) implicitly validates the walk-up sentinel in `src/utils/version.ts`:** if the `parsed.name === 'bbdata'` check fails post-rename, `CLI_VERSION` falls back to `'0.0.0'` and both the "matches package.json version" and "not the 0.0.0 fallback" assertions would fail loudly.
+- **Rollback window:** `npm unpublish bbdata@0.8.0` is available for 72h from publish. After that, bump to 0.8.1.
+- **`bbdata-cli@0.7.2` is intentionally NOT unpublished** and will remain installable indefinitely. It will be `npm deprecate`d (but not unpublished) ~3 weeks post-0.8.0 per `RENAME_PLAN.md` phase 5.
+
+---
+
 ## v0.7.2 — Phase C (2026-04-14)
 
 Items: P3.4 (`--data <path>` for `.json` and `.csv` file input).

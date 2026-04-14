@@ -33,6 +33,18 @@ Source: `../ai-baseball-data-analyst/course-audit.md` (2026-04-13). CLI-side ite
 
 ---
 
+## Shipped in v0.8.0
+
+Package rename only — **no P-items closed**. `bbdata-cli` → `bbdata` on
+npm. Binary name unchanged. See `CHANGELOG.md` for the migration
+instructions and `RENAME_PLAN.md` for the full 5-phase plan.
+
+- **Phase 1 (rename source edits):** commit `e5e1f1d` — `package.json` name, `src/utils/version.ts` walk-up sentinel, README/badges/import example, `CHANGELOG.md` 0.8.0 section.
+- **Phase 2 (publish):** commit `166478c`, tag `v0.8.0`, published 2026-04-14. Verified: `npm view bbdata version` → `0.8.0`; fresh-project `import { query, report, viz } from 'bbdata'` → all three `function`.
+- **Phase 3** (scout-app migration), **phase 4** (course + skill docs sweep), **phase 5** (`npm deprecate bbdata-cli`) are tracked in `RENAME_PLAN.md` and deferred to separate sessions.
+
+---
+
 ## Pending — details
 
 ### P2.1 — `pitching-heatmap`
