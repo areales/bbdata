@@ -1,6 +1,9 @@
 import { parse as vegaParse, View, Warn } from 'vega';
 import { compile } from 'vega-lite';
 import type { TopLevelSpec } from 'vega-lite';
+import PDFDocument from 'pdfkit';
+import SVGtoPDF from 'svg-to-pdfkit';
+import { rasterizeSvg } from './rasterize.js';
 
 /**
  * Render a Vega-Lite spec to an SVG string using pure Node.js
@@ -54,6 +57,58 @@ export function normalizeSvg(svg: string): string {
     .replace(/id="[^"]*"/g, 'id="X"')
     .replace(/clip-path="url\(#[^)]+\)"/g, 'clip-path="url(#X)"')
     .replace(/xlink:href="#[^"]+"/g, 'xlink:href="#X"');
+}
+
+/**
+ * Render an SVG string into a single-page PDF buffer.
+ *
+ * Two modes:
+ *  - `mode: 'vector'` (default) — embed the SVG directly via `svg-to-pdfkit`,
+ *    producing a scalable vector PDF. Fastest, smallest file, prints crisp at
+ *    any size. **Caveats:** `svg-to-pdfkit` has occasional rendering quirks
+ *    with some Vega-Lite output (complex gradients used by our zone/heatmap
+ *    color scales, `paint-order` on text halos, nested `clipPath`s). If a
+ *    chart renders blank or misaligned, flip to `mode: 'raster'`.
+ *  - `mode: 'raster'` — rasterize via `@resvg/resvg-js`, then wrap the PNG as
+ *    a PDF image. Always visually correct (same pixels the PNG output uses),
+ *    but the PDF is a raster image — zooming in blurs. `dpi` scales the
+ *    intermediate raster (default 192 → 2× baseline, crisp on screen).
+ *
+ * Page size is the chart's declared SVG dimensions. PDF uses 72pt/inch, so
+ * an 800×500 CSS-px SVG becomes an 800pt × 500pt page (~11"×7"). Dimensions
+ * must be provided; we don't parse them out of the SVG string because
+ * Vega-Lite occasionally emits CSS units we'd have to normalize.
+ */
+export async function specToPdf(
+  svg: string,
+  options: { width: number; height: number; mode?: 'vector' | 'raster'; dpi?: number },
+): Promise<Buffer> {
+  const { width, height, mode = 'vector', dpi = 192 } = options;
+
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ size: [width, height], margin: 0 });
+    const chunks: Buffer[] = [];
+    doc.on('data', (c: Buffer) => chunks.push(c));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+
+    try {
+      if (mode === 'raster') {
+        // Render SVG → PNG at the requested dpi, then embed as a full-page image.
+        // dpi/96 is the CSS→raster ratio (resvg treats CSS pixels as 96dpi).
+        const rasterWidth = Math.max(1, Math.round(width * (dpi / 96)));
+        const png = rasterizeSvg(svg, { width: rasterWidth });
+        doc.image(png, 0, 0, { width, height });
+      } else {
+        // Vector embed. svg-to-pdfkit honors the width/height options by
+        // scaling the SVG viewBox to fit the PDF page.
+        SVGtoPDF(doc, svg, 0, 0, { width, height });
+      }
+      doc.end();
+    } catch (err) {
+      reject(err instanceof Error ? err : new Error(String(err)));
+    }
+  });
 }
 
 /**

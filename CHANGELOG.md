@@ -3,6 +3,52 @@
 All notable changes to `bbdata-cli` are documented here. This project follows
 [Semantic Versioning](https://semver.org/).
 
+## 0.7.1 — 2026-04-14
+
+Phase B of the TASKS.md backlog. Ships P3.1 — `--format pdf`.
+
+### Added
+
+- **P3.1 — `--format pdf` on `viz`.** New `specToPdf(svg, { width, height, mode, dpi })`
+  in `src/viz/render.ts`. Two modes:
+  - **`vector` (default)** — embeds the SVG natively via `svg-to-pdfkit`.
+    Scalable, small file, crisp at any zoom. Pages are sized to chart
+    dimensions (PDF points 1:1 with CSS pixels → an 800×500 chart becomes an
+    ~11"×7" page).
+  - **`raster`** — rasterizes via `@resvg/resvg-js`, then wraps the PNG as a
+    full-page PDF image. Visually identical to the PNG output. Use when
+    `svg-to-pdfkit` misrenders complex Vega output (gradients, paint-order
+    halos, nested clipPaths). `--dpi` scales the intermediate raster;
+    default 192 (2× baseline).
+- **`--pdf-mode <vector|raster>` flag** on the viz command, paired with
+  `--dpi` for the raster path.
+- **Dependencies:** `pdfkit ^0.18.0`, `svg-to-pdfkit ^0.1.8`, plus the
+  matching `@types/*` in dev.
+
+### Changed
+
+- **TTY binary guard extended to PDF.** The existing PNG guard at the
+  stdout-to-terminal boundary (`viz.ts`) now also catches PDF, with a
+  format-specific error message.
+- **`viz` command help text** lists `pdf` in the `--format` enum and shows
+  a `--format pdf` example.
+
+### Developer notes
+
+- **Test coverage.** +6 new cases in `test/viz/pdf.test.ts`: each of the 4
+  shipped chart types through the vector path, plus two raster cases
+  (default dpi and dpi-scales-up-file). Vitest runs 221/221 green (was 213).
+  The raster suite has a 30s timeout because resvg's first-call font init
+  on Windows can take 5–10s.
+- **No breaking changes.** `--format pdf` is additive; all prior flags and
+  defaults are unchanged.
+- **Fallback rationale.** Vega-Lite emits SVG with features (complex
+  gradients used by zone/heatmap color scales, `paint-order` on text halos
+  post-processed in by `ensureTextPaintOrder`, nested clipPaths on
+  faceted panels) that `svg-to-pdfkit` handles imperfectly in some cases.
+  Shipping both paths avoids the trap of discovering per-chart breakage
+  late. Vector is the default because it preserves scalability.
+
 ## 0.7.0 — 2026-04-14
 
 Phase A of the post-audit TASKS.md backlog. Closes the gap between what the

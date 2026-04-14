@@ -13,6 +13,7 @@ vi.mock('../../src/viz/render.js', () => ({
     (svg: string, _spec: object, opts?: { title?: string }) =>
       `<!doctype html><html><title>${opts?.title ?? 'x'}</title>${svg}</html>`,
   ),
+  specToPdf: vi.fn(async () => Buffer.from('%PDF-1.7\n%%EOF\n')),
   normalizeSvg: vi.fn((s: string) => s),
 }));
 
@@ -55,7 +56,7 @@ vi.mock('../../src/config/config.js', () => ({
 
 import { viz } from '../../src/commands/viz.js';
 import { query as runQuery } from '../../src/commands/query.js';
-import { specToSvg } from '../../src/viz/render.js';
+import { specToSvg, specToPdf } from '../../src/viz/render.js';
 import { rasterizeSvg } from '../../src/viz/rasterize.js';
 import { writeFileSync } from 'node:fs';
 
@@ -138,10 +139,39 @@ describe('viz command', () => {
     expect(result.meta.chartType).toBe('movement');
   });
 
-  it('throws a clear error for unsupported formats in this release (pdf)', async () => {
+  it('writes a PDF binary when format=pdf with --output (vector default)', async () => {
+    await viz({
+      type: 'movement',
+      player: 'Test',
+      format: 'pdf',
+      output: '/tmp/test.pdf',
+    });
+    expect(specToPdf).toHaveBeenCalledTimes(1);
+    const call = vi.mocked(specToPdf).mock.calls[0]!;
+    expect(call[1].mode).toBe('vector');
+    const writeCall = vi.mocked(writeFileSync).mock.calls.find((c) => Buffer.isBuffer(c[1]));
+    expect(writeCall).toBeDefined();
+  });
+
+  it('threads --pdf-mode raster through to specToPdf', async () => {
+    await viz({
+      type: 'movement',
+      player: 'Test',
+      format: 'pdf',
+      pdfMode: 'raster',
+      dpi: 300,
+      output: '/tmp/test.pdf',
+    });
+    const call = vi.mocked(specToPdf).mock.calls[0]!;
+    expect(call[1].mode).toBe('raster');
+    expect(call[1].dpi).toBe(300);
+  });
+
+  it('throws a clear error for unknown formats', async () => {
     await expect(
-      viz({ type: 'movement', player: 'Test', format: 'pdf' }),
-    ).rejects.toThrow(/Unsupported --format "pdf"/);
+      // @ts-expect-error — deliberately invalid
+      viz({ type: 'movement', player: 'Test', format: 'gif' }),
+    ).rejects.toThrow(/Unsupported --format "gif"/);
   });
 
   it('threads --window into the query options for the rolling chart', async () => {

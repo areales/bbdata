@@ -12,7 +12,7 @@ import {
   listChartAliases,
   resolveChartType,
 } from '../viz/charts/index.js';
-import { specToSvg, specToHtml } from '../viz/render.js';
+import { specToSvg, specToHtml, specToPdf } from '../viz/render.js';
 import { rasterizeSvg } from '../viz/rasterize.js';
 import { AUDIENCE_DEFAULTS } from '../viz/audience.js';
 import {
@@ -25,7 +25,7 @@ import {
 } from '../viz/types.js';
 import type { Audience } from '../templates/reports/registry.js';
 
-const SUPPORTED_FORMATS: VizFormat[] = ['svg', 'png', 'html'];
+const SUPPORTED_FORMATS: VizFormat[] = ['svg', 'png', 'html', 'pdf'];
 
 /**
  * Programmatic API — skills and agents call this directly.
@@ -62,7 +62,7 @@ export async function viz(options: VizOptions): Promise<VizResult> {
 
   if (!SUPPORTED_FORMATS.includes(format)) {
     throw new Error(
-      `Unsupported --format "${format}". Supported in this release: ${SUPPORTED_FORMATS.join(', ')}. (pdf ships in v0.7.1)`,
+      `Unsupported --format "${format}". Supported: ${SUPPORTED_FORMATS.join(', ')}.`,
     );
   }
 
@@ -112,6 +112,16 @@ export async function viz(options: VizOptions): Promise<VizResult> {
       const rasterWidth = options.dpi ? Math.round(width * (options.dpi / 96)) : width * 2;
       const png = rasterizeSvg(svg, { width: rasterWidth });
       writeFileSync(outputPath, png);
+    } else if (format === 'pdf') {
+      // DPI applies only when a caller opts into the raster fallback via
+      // VizOptions.pdfMode; default is the vector path where dpi is meaningless.
+      const pdf = await specToPdf(svg, {
+        width,
+        height,
+        mode: options.pdfMode ?? 'vector',
+        ...(options.dpi != null ? { dpi: options.dpi } : {}),
+      });
+      writeFileSync(outputPath, pdf);
     } else if (format === 'html') {
       writeFileSync(outputPath, specToHtml(svg, spec, { title: resolved.title }), 'utf-8');
     } else {
@@ -151,8 +161,9 @@ export function registerVizCommand(program: Command): void {
       '-a, --audience <role>',
       'Audience: coach, analyst, frontoffice, presentation, gm, scout',
     )
-    .option('-f, --format <fmt>', 'Output format: svg, png, html', 'svg')
-    .option('--dpi <n>', 'Target DPI for raster output (png). Scales width.', (v) => parseInt(v, 10))
+    .option('-f, --format <fmt>', 'Output format: svg, png, html, pdf', 'svg')
+    .option('--dpi <n>', 'Target DPI for raster output (png, or pdf with --pdf-mode raster)', (v) => parseInt(v, 10))
+    .option('--pdf-mode <mode>', 'PDF rendering: vector (default) or raster (fallback for complex Vega output)')
     .option('--window <n>', 'Rolling window size in games (rolling chart only)', (v) => parseInt(v, 10))
     .option('--size <WxH>', 'Chart dimensions, e.g. 800x600')
     .option('--colorblind', 'Use a colorblind-safe palette (viridis)')
@@ -165,6 +176,7 @@ Examples:
   bbdata viz spray    --player "Aaron Judge" --audience coach --format png -o judge_spray.png
   bbdata viz zone     --player "Shohei Ohtani" --colorblind --format html -o ohtani.html
   bbdata viz rolling  --player "Freddie Freeman" --window 5
+  bbdata viz spray    --player "Aaron Judge" --format pdf -o judge_spray.pdf
 
 Chart types (canonical + aliases):
   movement              — pitch movement plot (H break vs V break, per pitch type)
@@ -224,19 +236,32 @@ Aliases:
           stdin: opts.stdin,
           ...(Number.isFinite(opts.window) ? { window: opts.window } : {}),
           ...(Number.isFinite(opts.dpi) ? { dpi: opts.dpi } : {}),
+          ...(opts.pdfMode ? { pdfMode: opts.pdfMode as 'vector' | 'raster' } : {}),
         });
         if (!opts.output) {
-          if (format === 'png') {
+          if (format === 'png' || format === 'pdf') {
             // Binary to a TTY would corrupt the terminal. Refuse early with a
             // hint rather than dumping bytes.
             if (process.stdout.isTTY) {
-              log.error('Refusing to write binary PNG to a TTY. Use --output <path> or pipe stdout.');
+              log.error(`Refusing to write binary ${format.toUpperCase()} to a TTY. Use --output <path> or pipe stdout.`);
               process.exitCode = 1;
               return;
             }
-            const rasterWidth = opts.dpi ? Math.round((width ?? result.meta.width) * (opts.dpi / 96)) : (width ?? result.meta.width) * 2;
-            const png = rasterizeSvg(result.svg, { width: rasterWidth });
-            process.stdout.write(png);
+            const effectiveWidth = width ?? result.meta.width;
+            const effectiveHeight = height ?? result.meta.height;
+            if (format === 'png') {
+              const rasterWidth = opts.dpi ? Math.round(effectiveWidth * (opts.dpi / 96)) : effectiveWidth * 2;
+              const png = rasterizeSvg(result.svg, { width: rasterWidth });
+              process.stdout.write(png);
+            } else {
+              const pdf = await specToPdf(result.svg, {
+                width: effectiveWidth,
+                height: effectiveHeight,
+                mode: (opts.pdfMode as 'vector' | 'raster' | undefined) ?? 'vector',
+                ...(Number.isFinite(opts.dpi) ? { dpi: opts.dpi } : {}),
+              });
+              process.stdout.write(pdf);
+            }
           } else if (format === 'html') {
             log.data(specToHtml(result.svg, result.spec, { title: (result.spec as { title?: string }).title ?? `${result.meta.player} — ${result.meta.chartType}` }));
           } else {

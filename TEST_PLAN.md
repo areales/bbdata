@@ -24,6 +24,49 @@ binary outputs, adapter round-trips — that mocks can't validate.
 
 ---
 
+## v0.7.1 — Phase B (2026-04-14)
+
+Items: P3.1 (`--format pdf` with vector + raster modes).
+
+### Prereqs
+
+```powershell
+mkdir -Force .tmp
+npm run build
+```
+
+### P3.1 — `--format pdf`
+
+| # | Command | Expected | ✓ |
+|---|---|---|---|
+| B.1a | `npm run dev -- viz movement --player "Corbin Burnes" --season 2025 --format pdf -o .tmp/burnes.pdf` | `.tmp/burnes.pdf` exists, opens in a PDF viewer, chart renders as vector (zoom stays crisp). | ☐ |
+| B.1b | `npm run dev -- viz spray --player "Aaron Judge" --season 2025 --format pdf -o .tmp/judge.pdf` | PDF renders. Spray chart fills the page. | ☐ |
+| B.1c | `npm run dev -- viz zone --player "Shohei Ohtani" --season 2025 --format pdf -o .tmp/ohtani_zone.pdf` | PDF renders. Cell labels readable (regression check — zone has text with `paint-order` halos). If vector path renders labels incorrectly, retry with `--pdf-mode raster`. | ☐ |
+| B.1d | `npm run dev -- viz rolling --player "Freddie Freeman" --season 2025 --format pdf -o .tmp/freddie.pdf` | Faceted small multiples render; each panel's y-axis independent. | ☐ |
+| B.1e | `npm run dev -- viz movement --player "Corbin Burnes" --season 2025 --format pdf --pdf-mode raster --dpi 300 -o .tmp/burnes_raster.pdf` | PDF renders. Visually identical to PNG at equivalent DPI. Zooming reveals pixel grid (raster). File noticeably larger than B.1a. | ☐ |
+| B.1f | `npm run dev -- viz movement --player "Corbin Burnes" --season 2025 --format pdf` (in a TTY) | Errors with `Refusing to write binary PDF to a TTY. Use --output <path> or pipe stdout.` | ☐ |
+| B.1g | `npm run dev -- viz movement --player "Corbin Burnes" --season 2025 --format gif -o .tmp/bad.gif` | Errors with `Unsupported --format "gif"`. | ☐ |
+
+### Regression re-run (v0.7.0 features, spot check)
+
+| # | Command | Expected | ✓ |
+|---|---|---|---|
+| B.R1 | v0.7.0 row 1.1a (PNG output) | Still works unchanged. | ☐ |
+| B.R2 | v0.7.0 row 1.2a (`pitching-movement` alias) | Still resolves. | ☐ |
+
+### Cross-project verification
+
+| # | Check | Expected | ✓ |
+|---|---|---|---|
+| B.X1 | 2–3 `bbdata viz … --format pdf` commands from `../ai-baseball-data-analyst/Modules/04/Deliverables/Visualization Template Library.md` and `Modules/04/Lessons/05:119` | PDFs written, no errors. | ☐ |
+
+### Known gaps / deferred
+
+- CSV input (`--data <path>`) — ships in v0.7.2 (Phase C).
+- Multi-page PDF for very tall rolling charts — not in scope; current impl is always single-page sized to chart dimensions.
+
+---
+
 ## v0.7.0 — Phase A (2026-04-14)
 
 Items: P1.1 (PNG), P3.2 (HTML), P3.3 (--dpi), P1.3 (--window), P1.2b (aliases),

@@ -28,8 +28,14 @@ export interface VizOptions {
   title?: string;
   /** Rolling-window size (games) — only meaningful for the `rolling` chart. */
   window?: number;
-  /** Target DPI for raster formats (png/pdf). Scales width proportionally. */
+  /** Target DPI for raster formats (png, or pdf with pdfMode='raster'). */
   dpi?: number;
+  /**
+   * PDF rendering strategy. `vector` (default) embeds the SVG natively via
+   * svg-to-pdfkit; `raster` rasterizes to PNG via resvg first. Switch to
+   * `raster` for Vega specs that svg-to-pdfkit renders imperfectly.
+   */
+  pdfMode?: 'vector' | 'raster';
 }
 
 export interface VizResult {
