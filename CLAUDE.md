@@ -6,6 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Baseball data CLI (`bbdata`) for querying stats, generating scouting reports, and building analytics pipelines. Serves both human users (table/markdown output) and AI agents (JSON envelope output). Built with Commander.js, TypeScript, ESM-only.
 
+## Workspace context
+
+`bbdata` is the **shared data layer** across a four-project ecosystem (full map in `../CLAUDE.md`). It is the only project consumed by both the education side and the product side:
+
+- **`../ai-baseball-data-analyst/`** — Skool course. Its Agent Skills (`.claude/skills/query-data/SKILL.md`, `.claude/skills/scout-report/SKILL.md`) invoke `bbdata` on student machines. CLI flag and template names are mirrored in those skill files — rename a template here and both skills drift.
+- **`../scout-app/`** — Production SaaS. Invokes `bbdata` server-side via `src/lib/prefetch.ts` before handing off to a Claude Managed Agent. The `{ data, meta }` JSON envelope is part of its contract.
+- **`../baseball-analyst-wiki/`** — Student "starter pack" wiki. Not a runtime consumer, but its templates assume analysts are feeding it `bbdata` output.
+
+Because both a course and a paid SaaS depend on this CLI, treat the command surface, flag names, and JSON envelope as a public contract. Breaking changes ripple in two directions simultaneously.
+
 ## Commands
 
 ```powershell
@@ -81,6 +91,10 @@ npm view bbdata@<version> version         # verify the publish landed
 - **Do not use `--ignore-scripts` on publish** unless you've already run `npm run build && npm run typecheck && npm test` manually in the same session. The only legitimate reason to skip `prepublishOnly` is to minimize the window between 2FA OTP generation and npm's registry validation.
 - **Version string wiring:** `src/utils/version.ts` walks up to find `package.json` at load time; `src/cli.ts` and `src/commands/report.ts` import `CLI_VERSION` from it. `test/utils/version.test.ts` asserts `CLI_VERSION` and `program.version()` match `package.json` — don't hardcode version strings anywhere.
 - **npm refuses to overwrite published versions.** If publish fails after `npm version` has already bumped, either `npm unpublish` within 72 hours or bump again (e.g., 0.4.1 → 0.4.2).
+
+## Task tracking
+
+Open work lives in `TASKS.md`. `HANDOVER.md` (created by `/handover` at session end) is a session retrospective — it references TASKS.md items by priority/number and does not duplicate them. If you finish a next-step surfaced in a HANDOVER, mark the corresponding TASKS.md item Shipped; don't maintain a parallel list.
 
 ## Shell
 
