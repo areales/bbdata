@@ -145,7 +145,7 @@ const result = await query({
 });
 
 console.log(result.data);   // Array of row objects
-console.log(result.meta);   // { template, source, cached, rowCount, season }
+console.log(result.meta);   // { template, source, cached, sampleSize, season, queryTimeMs }
 ```
 
 All TypeScript types are exported — see `QueryOptions`, `ReportOptions`, `VizOptions`, `QueryResult`, `ReportResult`, `VizResult`, and more.
