@@ -41,8 +41,9 @@ export interface QueryResult {
     template: string;
     source: string;
     cached: boolean;
-    rowCount: number;
+    sampleSize: number;
     season: number;
+    queryTimeMs: number;
   };
 }
 
@@ -197,8 +198,9 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
       template: template.id,
       source: result.source,
       cached: result.cached,
-      rowCount: result.rows.length,
+      sampleSize: result.rows.length,
       season: params.season ?? new Date().getFullYear(),
+      queryTimeMs,
     },
   };
 }

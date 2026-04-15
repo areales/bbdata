@@ -100,6 +100,8 @@ describe('query command', () => {
     expect(result).toHaveProperty('meta');
     expect(result.meta.template).toBe('pitcher-arsenal');
     expect(result.meta.source).toBe('savant');
+    expect(result.meta.sampleSize).toBeGreaterThanOrEqual(0);
+    expect(typeof result.meta.queryTimeMs).toBe('number');
   });
 
   it('tries next adapter when first fails', async () => {

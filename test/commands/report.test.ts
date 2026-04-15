@@ -40,7 +40,7 @@ describe('report command', () => {
     vi.mocked(runQuery).mockResolvedValue({
       data: [{ 'Pitch Type': 'FF', 'Usage %': '50%' }],
       formatted: '{}',
-      meta: { template: 'pitcher-arsenal', source: 'savant', cached: false, rowCount: 1, season: 2025 },
+      meta: { template: 'pitcher-arsenal', source: 'savant', cached: false, sampleSize: 1, season: 2025, queryTimeMs: 0 },
     });
   });
 
@@ -136,7 +136,7 @@ describe('report command', () => {
       return {
         data: shapes[opts.template] ?? [],
         formatted: '{}',
-        meta: { template: opts.template, source: 'savant', cached: false, rowCount: 1, season: 2024 },
+        meta: { template: opts.template, source: 'savant', cached: false, sampleSize: 1, season: 2024, queryTimeMs: 0 },
       };
     });
 
@@ -172,7 +172,7 @@ describe('report command', () => {
     vi.mocked(runQuery).mockResolvedValue({
       data: [],
       formatted: '{}',
-      meta: { template: 'pitcher-arsenal', source: 'savant', cached: false, rowCount: 0, season: 2025 },
+      meta: { template: 'pitcher-arsenal', source: 'savant', cached: false, sampleSize: 0, season: 2025, queryTimeMs: 0 },
     });
 
     const result = await report({
@@ -343,7 +343,7 @@ describe('report command', () => {
     vi.mocked(runQuery).mockImplementation(async (opts: { template: string }) => ({
       data: [{ marker: opts.template }],
       formatted: '{}',
-      meta: { template: opts.template, source: 'savant', cached: false, rowCount: 1, season: 2025 },
+      meta: { template: opts.template, source: 'savant', cached: false, sampleSize: 1, season: 2025, queryTimeMs: 0 },
     }));
 
     const result = await report({
