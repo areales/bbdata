@@ -3,7 +3,7 @@ import Handlebars from 'handlebars';
 import { readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getConfig, getTemplatesDir } from '../config/config.js';
+import { getTemplatesDir } from '../config/config.js';
 import { log } from '../utils/logger.js';
 import { gradeLabel, formatGrade } from '../utils/grading.js';
 import { pitchTypeName } from '../adapters/types.js';

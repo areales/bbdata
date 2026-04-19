@@ -2,7 +2,6 @@ import { Command } from 'commander';
 import { ExecutionContext } from '../context/execution.js';
 import type { StdinAdapter } from '../adapters/stdin.js';
 import { format, type OutputFormat } from '../formatters/index.js';
-import { getConfigDir } from '../config/config.js';
 import { log } from '../utils/logger.js';
 import {
   getTemplate,
@@ -95,27 +94,7 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
   // Build adapter query
   const adapterQuery = template.buildQuery(params);
 
-  let adapters;
-  try {
-    adapters = context.resolveAdaptersFor(template.preferredSources);
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    if (msg.includes('no enabled sources')) {
-      const disabled = template.preferredSources.join(', ');
-      throw new Error(
-        `Template "${template.id}" has no enabled sources. Its preferred sources ` +
-          `(${disabled}) are all disabled in ${getConfigDir()}/config.json. ` +
-          `Enable at least one under sources.*.enabled, or pass --source <name>.`,
-      );
-    } else if (msg.includes('disabled in config')) {
-      const req = options.source;
-      throw new Error(
-        `Source "${req}" is disabled in config. Edit ${getConfigDir()}/config.json — ` +
-          `set sources.*.enabled = true, or omit --source to fall through to enabled sources.`,
-      );
-    }
-    throw error;
-  }
+  const adapters = context.resolveAdaptersFor(template.preferredSources);
 
   let lastError: Error | undefined;
   let lastErrorAdapter: string | undefined;

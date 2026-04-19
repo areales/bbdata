@@ -1,8 +1,7 @@
 import { getConfig, isSourceEnabled, sourceConfigKey } from '../config/config.js';
-import type { Config } from '../config/types.js';
+import type { BbdataConfig } from '../config/defaults.js';
 import { resolveAdapters, createStdinAdapter } from '../adapters/index.js';
-import type { StdinAdapter, DataAdapter } from '../adapters/types.js';
-import type { DataSource } from '../adapters/types.js';
+import type { DataAdapter, DataSource } from '../adapters/types.js';
 import { loadDataFile } from '../utils/data-input.js';
 import { readStdin } from '../utils/stdin.js';
 import type { CachePolicy } from '../cache/fetch-with-cache.js';
@@ -16,7 +15,7 @@ export interface ExecutionContextOptions {
 }
 
 export class ExecutionContext {
-  public config: Config;
+  public config: BbdataConfig;
   public stdinAdapter?: import('../adapters/stdin.js').StdinAdapter;
   public cachePolicy: CachePolicy;
   private requestedSource?: string;

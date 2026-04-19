@@ -2,7 +2,6 @@ import { Command } from 'commander';
 import { writeFileSync } from 'node:fs';
 import { resolve as resolvePath } from 'node:path';
 import { ExecutionContext } from '../context/execution.js';
-import type { StdinAdapter } from '../adapters/stdin.js';
 import { log } from '../utils/logger.js';
 import { query as runQuery } from './query.js';
 import {
