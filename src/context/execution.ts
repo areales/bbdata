@@ -50,7 +50,7 @@ export class ExecutionContext {
     }
   }
 
-  resolveAdaptersFor(preferredSources: DataSource[]): DataAdapter[] {
+  resolveAdaptersFor(preferredSources: DataSource[], templateId?: string): DataAdapter[] {
     let sources: DataSource[];
     const configPath = `${getConfigDir()}/config.json`;
     
@@ -67,8 +67,9 @@ export class ExecutionContext {
     } else {
       sources = preferredSources.filter((s) => isSourceEnabled(this.config, s));
       if (sources.length === 0) {
+        const templateLabel = templateId ? `Template "${templateId}"` : 'Template';
         throw new Error(
-          `Template has no enabled sources. Its preferred sources ` +
+          `${templateLabel} has no enabled sources. Its preferred sources ` +
             `(${preferredSources.join(', ')}) are all disabled in ${configPath}. ` +
             `Enable at least one under sources.*.enabled, or pass --source <name>.`,
         );

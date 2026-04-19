@@ -94,7 +94,7 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
   // Build adapter query
   const adapterQuery = template.buildQuery(params);
 
-  const adapters = context.resolveAdaptersFor(template.preferredSources);
+  const adapters = context.resolveAdaptersFor(template.preferredSources, template.id);
 
   let lastError: Error | undefined;
   let lastErrorAdapter: string | undefined;
