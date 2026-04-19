@@ -208,11 +208,12 @@ export async function report(options: ReportOptions): Promise<ReportResult> {
 
   for (const req of template.dataRequirements) {
     try {
-      const result = await runQuery({
-        template: req.queryTemplate,
-        player: options.player,
-        team: options.team,
-        season,
+        const result = await runQuery({
+          template: req.queryTemplate,
+          resolveTemplateId: req.queryTemplate,
+          player: options.player,
+          team: options.team,
+          season,
         format: 'json',
         ...(context.stdinAdapter ? { source: 'stdin', stdinAdapter: context.stdinAdapter } : {}),
       });

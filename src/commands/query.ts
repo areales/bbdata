@@ -39,6 +39,8 @@ export interface QueryOptions {
    * directly typically don't set this — use `stdin` or `data` instead.
    */
   stdinAdapter?: StdinAdapter;
+  /** Internal override for source-resolution error context. */
+  resolveTemplateId?: string;
 }
 
 export interface QueryResult {
@@ -94,7 +96,10 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
   // Build adapter query
   const adapterQuery = template.buildQuery(params);
 
-  const adapters = context.resolveAdaptersFor(template.preferredSources, template.id);
+  const adapters = context.resolveAdaptersFor(
+    template.preferredSources,
+    options.resolveTemplateId ?? template.id,
+  );
 
   let lastError: Error | undefined;
   let lastErrorAdapter: string | undefined;

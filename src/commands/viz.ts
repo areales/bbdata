@@ -68,6 +68,7 @@ export async function viz(options: VizOptions): Promise<VizResult> {
     try {
       const result = await runQuery({
         template: req.queryTemplate,
+        resolveTemplateId: req.queryTemplate,
         player: options.player,
         season,
         format: 'json',
