@@ -48,8 +48,8 @@ confirm no singleton leaks back in under future edits.
 
 | # | Who | Command | Expected | ✓ |
 |---|---|---|---|---|
-| R.1 | C | `npm view bbdata version` | Outputs `0.9.0`. | ☐ |
-| R.1b | C | `(Invoke-WebRequest -Uri "https://registry.npmjs.org/bbdata").Content.Substring(0, 500)` | Contains `"dist-tags":{"latest":"0.9.0"}`. Confirms registry + CDN caught up. | ☐ |
+| R.1 | C | `npm view bbdata version` | Outputs `0.9.0`. | ✓ |
+| R.1b | C | `(Invoke-WebRequest -Uri "https://registry.npmjs.org/bbdata").Content.Substring(0, 500)` | Contains `"dist-tags":{"latest":"0.9.0"}`. Confirms registry + CDN caught up. | ✓ |
 | R.2 | A | `npm install -g bbdata@0.9.0 && bbdata --version` | Outputs `0.9.0`. Validates global-install path + `CLI_VERSION` walk-up. | ☐ |
 
 ### CLI — `query` (no functional regression)
@@ -60,7 +60,7 @@ confirm no singleton leaks back in under future edits.
 | Q.2 | A | `bbdata query pitcher-arsenal --data fixtures\burnes-2025.json --format json` | Exit 0. Same shape as Q.1. | ☐ |
 | Q.3 | A | `bbdata query pitcher-arsenal --data fixtures\burnes-2025.csv --format json` | Exit 0. Savant CSV parsed through `loadDataFile`'s CSV branch; `meta.source === 'stdin'`. | ☐ |
 | Q.4 | A | `'not-json' \| bbdata query pitcher-arsenal --stdin` | Exit non-zero. Stderr matches `/Failed to parse stdin data/`. Confirms the error path in `StdinAdapter.load` survives the refactor. | ☐ |
-| Q.5 | C | `bbdata query pitcher-arsenal --stdin --data foo.json` | Exit non-zero. Stderr matches `/Pass only one of --stdin or --data/`. | ☐ |
+| Q.5 | C | `bbdata query pitcher-arsenal --stdin --data foo.json` | Exit non-zero. Stderr matches `/Pass only one of --stdin or --data/`. | ✓ |
 
 ### CLI — `report` (stdin consumed once across sub-queries + embedded graphs)
 
@@ -81,8 +81,8 @@ confirm no singleton leaks back in under future edits.
 |---|---|---|---|---|
 | P.1 | C | `npx vitest run test/utils/data-input.test.ts` | 8 / 8 pass, including the new `returns independent adapter instances across calls (no singleton state leak)` test. | ✓ |
 | P.2 | A | In a fresh Node script: `import { createStdinAdapter } from 'bbdata'; const a = createStdinAdapter(); a.load('[{"pitcher_id":"1","pitch_type":"FF"}]'); const b = createStdinAdapter(); console.log(b.supports({}));` | Prints `false`. `b` is empty even though `a` is loaded — confirms no shared state. | ☐ |
-| P.3 | C | `grep -rc "new StdinAdapter" dist/` | Returns exactly 1 (the factory's single construction site), not multiple module-scope instantiations. Guards against a future edit that reintroduces a singleton. | ☐ |
-| P.4 | C | `grep -c "getStdinAdapter" dist/` | Returns 0. The removed export must not leak into the bundle. | ☐ |
+| P.3 | C | `grep -rc "new StdinAdapter" dist/` | Returns exactly 1 (the factory's single construction site), not multiple module-scope instantiations. Guards against a future edit that reintroduces a singleton. | ✓ |
+| P.4 | C | `grep -c "getStdinAdapter" dist/` | Returns 0. The removed export must not leak into the bundle. | ✓ |
 
 ### Source enable/disable config (R2.1)
 
@@ -118,7 +118,8 @@ Before 0.9.0 the cache was a no-op despite `--no-cache`, `cache.enabled`, and `c
 
 - **Breaking for `getStdinAdapter` / `loadDataFile` direct importers only.** Migration examples live in `CHANGELOG.md 0.9.0 § Migration`. scout-app's `prefetch.ts` does not import either of these directly, so it's non-breaking for scout-app once the dep bump lands.
 - **Rollback window:** `npm unpublish bbdata@0.9.0` is available for 72h from publish. After that, bump to 0.9.1.
-- **Pre-existing Vega SVG snapshot drift** in `test/viz/snapshots.test.ts > rolling chart` persists on `main` before this change — confirmed via `git stash` + re-run on 2026-04-19. Unrelated; tracked separately.
+- **Rolling-chart SVG snapshot** used to drift on non-UTC developer machines because Vega time-scale axis labels renders in local TZ. Fixed in the pre-release commit for this version via `test/setup-tz.ts` (pins vitest worker to `TZ=UTC` at worker boot). No production behavior change — chart output in the CLI still renders in the user's local TZ; only tests are pinned.
+- **P.3 `grep -rc "new StdinAdapter" dist/`** returns 1 *per bundle file* (2 bundles — `dist/bin/bbdata.js` CLI entry + `dist/src/index.js` programmatic entry), not 1 total. Both are inside `createStdinAdapter()`; neither is module-scope. Intent of the check (no singleton reintroduction) is met. Source-map files also match on the same identifier — ignore those.
 
 ---
 
