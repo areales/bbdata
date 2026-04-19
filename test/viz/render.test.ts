@@ -4,7 +4,7 @@ import { specToSvg, specToHtml, normalizeSvg, ensureTextPaintOrder } from '../..
 describe('specToSvg', () => {
   it('compiles a trivial Vega-Lite spec to SVG', async () => {
     const spec = {
-      $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+      $schema: 'https://vega.github.io/schema/vega-lite/v6.json',
       data: { values: [{ x: 1, y: 2 }, { x: 2, y: 3 }, { x: 3, y: 5 }] },
       mark: 'point',
       encoding: {
@@ -20,7 +20,7 @@ describe('specToSvg', () => {
 
   it('handles an empty data array without crashing', async () => {
     const spec = {
-      $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+      $schema: 'https://vega.github.io/schema/vega-lite/v6.json',
       data: { values: [] },
       mark: 'point',
       encoding: {
@@ -112,7 +112,7 @@ describe('specToHtml', () => {
 describe('specToSvg end-to-end paint-order fix', () => {
   it('emits paint-order="stroke" on a text mark that sets paintOrder', async () => {
     const spec = {
-      $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+      $schema: 'https://vega.github.io/schema/vega-lite/v6.json',
       data: { values: [{ x: 1, y: 1, label: '0.524' }] },
       mark: {
         type: 'text',

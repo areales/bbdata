@@ -76,7 +76,7 @@ export const rollingBuilder: ChartBuilder = {
     // Emit a single text mark explaining why instead of a blank chart.
     if (tidy.length === 0) {
       return {
-        $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+        $schema: 'https://vega.github.io/schema/vega-lite/v6.json',
         title: options.title,
         width: options.width,
         height: options.height,
@@ -94,7 +94,7 @@ export const rollingBuilder: ChartBuilder = {
     const panelHeight = Math.max(80, Math.floor(options.height / metricOrder.length) - 30);
 
     return {
-      $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+      $schema: 'https://vega.github.io/schema/vega-lite/v6.json',
       title: options.title,
       data: { values: tidy },
       facet: {

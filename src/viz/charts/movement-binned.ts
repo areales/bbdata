@@ -49,7 +49,7 @@ export const movementBinnedBuilder: ChartBuilder = {
     }));
 
     return {
-      $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+      $schema: 'https://vega.github.io/schema/vega-lite/v6.json',
       title: options.title,
       width: options.width,
       height: options.height,

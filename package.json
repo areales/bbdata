@@ -61,8 +61,8 @@
     "pdfkit": "^0.18.0",
     "sql.js": "^1.12.0",
     "svg-to-pdfkit": "^0.1.8",
-    "vega": "^5.30.0",
-    "vega-lite": "^5.21.0",
+    "vega": "^6.2.0",
+    "vega-lite": "^6.4.2",
     "zod": "^3.24.2"
   },
   "devDependencies": {
