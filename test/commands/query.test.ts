@@ -9,6 +9,11 @@ vi.mock('../../src/adapters/index.js', () => ({
   getAllAdapters: vi.fn(),
 }));
 
+vi.mock('../../src/cache/store.js', () => ({
+  getCached: vi.fn(),
+  setCache: vi.fn(),
+}));
+
 vi.mock('../../src/utils/logger.js', () => ({
   log: { info: vi.fn(), debug: vi.fn(), warn: vi.fn(), success: vi.fn(), error: vi.fn(), data: vi.fn() },
 }));
@@ -34,6 +39,7 @@ vi.mock('../../src/config/config.js', () => ({
 
 import { query } from '../../src/commands/query.js';
 import { resolveAdapters } from '../../src/adapters/index.js';
+import { getCached, setCache } from '../../src/cache/store.js';
 
 const MOCK_PITCH: Record<string, unknown> = {
   pitch_type: 'FF',
@@ -176,6 +182,67 @@ describe('query command', () => {
       expect(msg).toContain('savant');
       expect(msg).toContain('season=2026');
     }
+  });
+
+  describe('caching (R1.1)', () => {
+    // Use `mockResolvedValueOnce` in every test so the queued return doesn't
+    // bleed into sibling tests (vi.clearAllMocks clears call history but not
+    // mock implementations).
+
+    it('checks the cache and writes the adapter result back on a cold miss', async () => {
+      vi.mocked(getCached).mockResolvedValueOnce(null);
+      const mockAdapter = makeMockAdapter();
+      vi.mocked(resolveAdapters).mockReturnValue([mockAdapter]);
+
+      await query({
+        template: 'pitcher-arsenal',
+        player: 'Test Player',
+        season: 2025,
+      });
+
+      expect(getCached).toHaveBeenCalledWith('savant', expect.any(Object));
+      expect(mockAdapter.fetch).toHaveBeenCalledTimes(1);
+      expect(setCache).toHaveBeenCalledWith('savant', expect.any(Object), expect.any(String), 30);
+    });
+
+    it('returns cached data without calling adapter.fetch on a warm hit', async () => {
+      const mockAdapter = makeMockAdapter();
+      const cachedPayload = JSON.stringify({
+        data: [MOCK_PITCH],
+        source: 'savant',
+        cached: false,
+        fetchedAt: '2026-04-18T00:00:00Z',
+        meta: { rowCount: 1, season: 2025, query: {} },
+      });
+      vi.mocked(getCached).mockResolvedValueOnce(cachedPayload);
+      vi.mocked(resolveAdapters).mockReturnValue([mockAdapter]);
+
+      const result = await query({
+        template: 'pitcher-arsenal',
+        player: 'Test Player',
+        season: 2025,
+      });
+
+      expect(mockAdapter.fetch).not.toHaveBeenCalled();
+      expect(setCache).not.toHaveBeenCalled();
+      expect(result.meta.cached).toBe(true);
+    });
+
+    it('bypasses cache when options.cache === false (--no-cache)', async () => {
+      const mockAdapter = makeMockAdapter();
+      vi.mocked(resolveAdapters).mockReturnValue([mockAdapter]);
+
+      await query({
+        template: 'pitcher-arsenal',
+        player: 'Test Player',
+        season: 2025,
+        cache: false,
+      });
+
+      expect(getCached).not.toHaveBeenCalled();
+      expect(setCache).not.toHaveBeenCalled();
+      expect(mockAdapter.fetch).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('BBDATA-002: thrown-adapter error includes adapter name and query params', async () => {

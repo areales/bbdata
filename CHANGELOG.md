@@ -139,6 +139,33 @@ process died after every invocation.
   `cause:` chain added to the rethrown parse error in
   `src/adapters/stdin.ts`.
 
+- **R1.1 (caching is unimplemented despite public contract).** Before
+  0.9.0, `query()` accepted `bypassCache` but adapters never consulted
+  the cache, so `--no-cache`, `config.cache.enabled`, and
+  `config.cache.maxAgeDays` were silent no-ops — every invocation hit
+  upstream fresh despite the README (`README.md:187`) promising SQLite
+  response caching. Now `query()` builds a per-invocation
+  `CachePolicy { enabled, maxAgeDays }` and routes each adapter call
+  through a new `fetchWithCache(adapter, query, policy)` wrapper
+  (`src/cache/fetch-with-cache.ts`). On a cache hit the wrapper returns
+  the stored `AdapterResult` with `cached: true` without calling
+  the adapter; on a miss it calls the adapter with `bypassCache: true`
+  (so adapters can't double-cache) and persists the serialized result
+  via `setCache`. `stdin` is unconditionally excluded — it's a local
+  in-memory path. Corrupt cache entries fall through to a fresh fetch;
+  failed cache writes are swallowed as non-critical. Adapter `fetch()`
+  contracts are unchanged — the cache is a per-invocation concern
+  owned by the caller, mirroring the R1.3 `overrides` and R2.1
+  `isSourceEnabled` patterns (groundwork for the R5.0
+  `ExecutionContext`).
+
+  Covered by 13 new wrapper tests (`test/cache/fetch-with-cache.test.ts`)
+  for cold miss + write, warm hit, `fetchedAt` preservation, corrupt-
+  JSON fallthrough, disabled policy, `stdin` exclusion, error
+  propagation, and tolerance of a failing `setCache`; plus 3 integration
+  tests in `test/commands/query.test.ts` proving the wiring honors
+  `--no-cache`. Full suite: 251 / 251 green.
+
 ---
 
 ## 0.8.0 — 2026-04-14

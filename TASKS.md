@@ -114,7 +114,7 @@ Source: Codex CLI rescue, job `task-mo52xq64-55apez`, session `019da353-7cd8-704
 
 | ID   | Title                                                 | Status   | Priority | Effort   | Notes                                                        |
 |------|-------------------------------------------------------|----------|----------|----------|--------------------------------------------------------------|
-| R1.1 | Caching is unimplemented despite public contract      | Pending  | P1       | L (1–2d) | `--no-cache`, `cache.enabled`, `cache.maxAgeDays` are no-ops |
+| R1.1 | Caching is unimplemented despite public contract      | Shipped  | P1       | —        | 2026-04-19 — new `fetchWithCache(adapter, query, policy)` wrapper in `src/cache/fetch-with-cache.ts`; `query()` builds a per-invocation `CachePolicy` from `config.cache.enabled && !options.cache===false` and `config.cache.maxAgeDays`; wrapper routes through `getCached` / `setCache`, honors `--no-cache`, and skips `stdin` |
 | R1.2 | `report --data` still triggers network fetches        | Shipped  | P1       | —        | 2026-04-19 — resolved as side effect of R1.3; both `--stdin` and `--data` populate the same `stdinAdapter`, threaded through `generateReportGraphs` |
 | R1.3 | Global stdin adapter leaks state across calls         | Shipped  | P1       | —        | 2026-04-19 — singleton removed, `resolveAdapters(overrides)` + `createStdinAdapter()` per invocation; `loadDataFile` now returns an adapter; threaded through `query` / `report` / `viz` / `generateReportGraphs` |
 | R2.1 | Source enable/disable config is ignored               | Shipped  | P2       | —        | 2026-04-19 — `isSourceEnabled` / `sourceConfigKey` helpers in `src/config/config.ts`, kebab↔camel map in `SOURCE_CONFIG_KEYS`; `query()` filters `template.preferredSources` through config + errors loudly when `--source` names a disabled source |
@@ -123,15 +123,24 @@ Source: Codex CLI rescue, job `task-mo52xq64-55apez`, session `019da353-7cd8-704
 
 ---
 
-### R1.1 — Caching is unimplemented despite public contract
+### R1.1 — Caching is unimplemented despite public contract — **Shipped 2026-04-19**
 
-**Issue:** `query()` accepts `bypassCache`, but adapters never read/write cache, and `src/cache/store.ts` APIs are unused in the live data flow.
+**Issue (resolved):** `query()` accepted `bypassCache` but adapters never read or wrote cache, and `src/cache/store.ts`'s `getCached` / `setCache` were dead code. `--no-cache`, `config.cache.enabled`, and `config.cache.maxAgeDays` — all documented in README — were silent no-ops. Every invocation hit upstream fresh.
 
-**Files:** `src/commands/query.ts:124`, `src/adapters/savant.ts:35`, `src/cache/store.ts:88`, `README.md:185`
+**What shipped:**
+- **New wrapper** `src/cache/fetch-with-cache.ts` — `fetchWithCache(adapter, query, policy: { enabled, maxAgeDays })`. On a hit: returns the cached `AdapterResult` with `cached: true` (no adapter call). On a miss: calls `adapter.fetch(query, { bypassCache: true })` so adapters don't double-cache, then stores the JSON-serialized result. Corrupt cache entries fall through to a fresh fetch. `stdin` is unconditionally skipped — it's a local in-memory path. Failed cache writes are swallowed (non-critical).
+- **`src/commands/query.ts`** — builds one `CachePolicy` per invocation (`enabled: config.cache.enabled && options.cache !== false`, `maxAgeDays: config.cache.maxAgeDays`) and routes every adapter call through `fetchWithCache`. Replaces the old direct `adapter.fetch(adapterQuery, { bypassCache: options.cache === false })`.
+- **Cache key** reuses the existing `queryHash(source, params)` in `store.ts` (16-char SHA256 prefix of `source:sorted(params)`), so on-disk entries from prior experimentation remain schema-compatible. Fallback chain still works — one cache slot per (adapter, query).
 
-**Why it matters:** `--no-cache`, `cache.enabled`, and `cache.maxAgeDays` are all no-ops. Behavior diverges from README docs. Reproducibility and perf are both degraded — every invocation hits upstream fresh.
+**Why at `query.ts`, not adapter-level:** adapter `fetch()` stays pure (network in, typed data out) — the cache is a per-invocation concern carried by the caller. This matches the R1.3 `overrides` pattern and sets up R5.0's `ExecutionContext` cleanly.
 
-**Fix:** add a shared cache layer in query execution (or in an adapter base class) that wraps fetch with `getCached` / `setCache`. Add integration tests for cold hit, warm hit, and `bypassCache` modes.
+**Tests (16 new, 251 / 251 total green):**
+- `test/cache/fetch-with-cache.test.ts` — 13 wrapper tests covering cold miss + write, warm hit + `cached: true`, `fetchedAt` preservation, corrupt JSON fallthrough, bypass policy (skip both read and write), `stdin` exclusion, error propagation without stale cache writes, and tolerance of a failing `setCache`.
+- `test/commands/query.test.ts` — 3 integration tests: cold-miss wiring, warm-hit short-circuit (adapter.fetch not called), and `--no-cache` bypass.
+
+**Semver impact:** not a breaking change per the public API — the CLI flags and programmatic signatures are unchanged. But "cache is a no-op" → "cache actually works" is a semantically large behavior change, so it gets the 0.9.0 minor bump (already planned).
+
+**Future groundwork:** the `CachePolicy` object is the natural next parameter to gather into an R5.0 `ExecutionContext { adapters, cache, config, sourcePolicy }` alongside the `overrides` map from R1.3 and `isSourceEnabled` from R2.1.
 
 ### R1.2 — `report --data` can still trigger network fetches for embedded graphs — **Shipped 2026-04-19 (via R1.3)**
 

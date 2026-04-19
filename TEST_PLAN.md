@@ -94,6 +94,19 @@ confirm no singleton leaks back in under future edits.
 | S.4 | A | Disable every network source (`savant`, `fangraphs`, `mlbStatsApi`, `baseballReference`), then run any non-stdin query (e.g. `bbdata query pitcher-arsenal --player "Corbin Burnes"`). | Exits non-zero. Stderr: `Template "pitcher-arsenal" has no enabled sources…`. | ☐ |
 | S.5 | A | Restore defaults, then run any query normally (no `--source`). | Exit 0. Confirms the enable-filter is pass-through for the default config. | ☐ |
 
+### Caching — R1.1
+
+Before 0.9.0 the cache was a no-op despite `--no-cache`, `cache.enabled`, and `cache.maxAgeDays` being documented. These rows confirm the cache now round-trips through `~/.bbdata/cache/bbdata.sqlite`.
+
+| # | Who | Command | Expected | ✓ |
+|---|---|---|---|---|
+| CA.1 | A | `rm -rf ~/.bbdata/cache` to start clean, then run `npm run dev -- query pitcher-arsenal --player "Corbin Burnes" --season 2025` twice. Time both runs with PowerShell `Measure-Command`. | Second run is clearly faster than the first (typically 10× — cache hit avoids the upstream fetch). `~/.bbdata/cache/bbdata.sqlite` exists after run 1. | ☐ |
+| CA.2 | C | After CA.1, inspect the `{ data, meta }` envelope from run 2 via `--format json`. | `meta.cached === true` on run 2. `meta.source` matches run 1's source. | ☐ |
+| CA.3 | A | Run the same query again with `--no-cache`. Time it. | As slow as run 1 (bypass works). `meta.cached === false`. | ☐ |
+| CA.4 | A | Set `~/.bbdata/config.json → cache.enabled = false`, re-run the query. | Every invocation hits upstream fresh; no cache reads or writes. `meta.cached === false`. Restore to `true` when done. | ☐ |
+| CA.5 | A | Set `cache.maxAgeDays = 0`, re-run after a warm cache. | Existing entries are treated as expired; invocation hits upstream fresh and overwrites. `meta.cached === false`. Restore to `30` when done. | ☐ |
+| CA.6 | C | Confirm `query --stdin` and `query --data <file>` never touch the cache (grep `bbdata.sqlite` mtime before/after). | mtime unchanged — stdin paths bypass cache. | ☐ |
+
 ### Cross-project regression — scout-app
 
 | # | Who | Check | Expected | ✓ |

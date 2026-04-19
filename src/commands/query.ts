@@ -13,6 +13,7 @@ import {
   type QueryTemplateParams,
   type QueryResult as TemplateQueryResult,
 } from '../templates/queries/index.js';
+import { fetchWithCache, type CachePolicy } from '../cache/fetch-with-cache.js';
 
 export interface QueryOptions {
   template: string;
@@ -147,6 +148,14 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
     stdinAdapter ? { stdin: stdinAdapter } : undefined,
   );
 
+  // R1.1: build the per-invocation cache policy once. The wrapper skips
+  // the store when either the config toggle is off or the caller passed
+  // `cache: false` (i.e. `--no-cache`).
+  const cachePolicy: CachePolicy = {
+    enabled: config.cache.enabled && options.cache !== false,
+    maxAgeDays: config.cache.maxAgeDays,
+  };
+
   let lastError: Error | undefined;
   let lastErrorAdapter: string | undefined;
   let result: TemplateQueryResult | undefined;
@@ -163,9 +172,7 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
 
     try {
       log.info(`Querying ${adapter.source}...`);
-      const adapterResult = await adapter.fetch(adapterQuery, {
-        bypassCache: options.cache === false,
-      });
+      const adapterResult = await fetchWithCache(adapter, adapterQuery, cachePolicy);
 
       const rows = template.transform(adapterResult.data, params);
       const columns = template.columns(params);
