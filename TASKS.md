@@ -142,7 +142,7 @@ Source: Codex CLI rescue, job `task-mo52xq64-55apez`, session `019da353-7cd8-704
 | R1.3 | Global stdin adapter leaks state across calls         | Shipped  | P1       | —        | v0.9.0 — 2026-04-19 — singleton removed, `resolveAdapters(overrides)` + `createStdinAdapter()` per invocation; `loadDataFile` now returns an adapter; threaded through `query` / `report` / `viz` / `generateReportGraphs` |
 | R2.1 | Source enable/disable config is ignored               | Shipped  | P2       | —        | v0.9.0 — 2026-04-19 — `isSourceEnabled` / `sourceConfigKey` helpers in `src/config/config.ts`, kebab↔camel map in `SOURCE_CONFIG_KEYS`; `query()` filters `template.preferredSources` through config + errors loudly when `--source` names a disabled source |
 | R4.1 | Lint/release hygiene broken (eslint missing)          | Shipped  | P4       | —        | v0.9.0 — 2026-04-19 — added `eslint@^10` + `@eslint/js` + `typescript-eslint@^8` to `devDependencies`; new flat-config `eslint.config.js`; `lint` wired into `prepublishOnly`; 18 surfaced issues cleaned (unused imports, adapter-interface args prefixed `_`, `require()` → import in cache, escape / `cause` cleanup) |
-| R5.0 | Strategic: adopt `ExecutionContext` per command       | Decide   | —        | XL       | Routes `query` / `report` / `viz` through one context object |
+| R5.0 | Strategic: adopt `ExecutionContext` per command       | Shipped  | —        | XL       | v0.9.0 — 2026-04-19 — implemented `ExecutionContext` class in `src/context/execution.ts`; replaced redundant config, cache, and stdin adapter loading logic in `query.ts`, `report.ts`, and `viz.ts` |
 
 ---
 
@@ -232,15 +232,18 @@ Source: Codex CLI rescue, job `task-mo52xq64-55apez`, session `019da353-7cd8-704
 
 **Verification:** `npm run lint` → clean. `npm run typecheck` → clean. `npm test` → 235 / 235 green. `npm run prepublishOnly` end-to-end → green.
 
-### R5.0 — Strategic: `ExecutionContext` per command invocation — **Decide**
+### R5.0 — Strategic: `ExecutionContext` per command invocation — **Shipped 2026-04-19**
 
 **What:** Route `query`, `report`, and `viz` through a single `ExecutionContext` object that carries config, source policy, cache policy, input payload, and adapters for the life of the invocation.
 
 **Why:** R1.1 (caching), R1.3 (stdin state), and R2.1 (source toggles) are all symptoms of the same pattern — per-concern plumbing duplicated across commands, drifting out of sync. One context object + consistent wiring fixes all three in one refactor and prevents future divergence.
 
-**Risk:** touches every command entry point. Best landed alongside R1.x fixes, not before. Could also be deferred indefinitely if R1.x are fixed locally and the duplication stays manageable.
+**What shipped:**
+- Created `src/context/execution.ts` with `ExecutionContext` class to handle common configuration parsing, caching, and stdin adapters logic.
+- Updated `src/commands/query.ts`, `src/commands/report.ts`, and `src/commands/viz.ts` to instantiate and use `ExecutionContext`.
 
-**Files (exploratory):** `src/commands/query.ts`, `src/commands/report.ts`, `src/commands/viz.ts`, `src/index.ts`, new `src/context/execution.ts`.
+**Verification:**
+- `npm run test` passed with 253/253 tests across the entire suite.
 
 ---
 

@@ -1,13 +1,10 @@
 import { Command } from 'commander';
 import { writeFileSync } from 'node:fs';
 import { resolve as resolvePath } from 'node:path';
+import { ExecutionContext } from '../context/execution.js';
+import type { StdinAdapter } from '../adapters/stdin.js';
 import { log } from '../utils/logger.js';
 import { query as runQuery } from './query.js';
-import { createStdinAdapter } from '../adapters/index.js';
-import type { StdinAdapter } from '../adapters/stdin.js';
-import { readStdin } from '../utils/stdin.js';
-import { loadDataFile } from '../utils/data-input.js';
-import { getConfig } from '../config/config.js';
 import {
   getChartBuilder,
   listChartTypes,
@@ -33,24 +30,11 @@ const SUPPORTED_FORMATS: VizFormat[] = ['svg', 'png', 'html', 'pdf'];
  * Programmatic API — skills and agents call this directly.
  */
 export async function viz(options: VizOptions): Promise<VizResult> {
-  if (options.stdin && options.data) {
-    throw new Error('Pass only one of --stdin or --data <path>, not both.');
-  }
-  // Build a per-invocation stdin adapter. A parent command (e.g. report())
-  // can pass one in via options.stdinAdapter so embedded viz calls share the
-  // same payload without re-reading stdin.
-  let stdinAdapter: StdinAdapter | undefined = options.stdinAdapter;
-  if (options.stdin) {
-    const raw = await readStdin();
-    stdinAdapter = createStdinAdapter();
-    stdinAdapter.load(raw);
-  } else if (options.data) {
-    stdinAdapter = loadDataFile(options.data);
-  }
+  const context = new ExecutionContext(options);
+  await context.loadStdinAdapter();
 
-  const config = getConfig();
   const audience = resolveVizAudience(
-    options.audience ?? (config.defaultAudience as Audience),
+    options.audience ?? (context.config.defaultAudience as Audience),
   );
   const defaults = AUDIENCE_DEFAULTS[audience];
 
@@ -89,8 +73,8 @@ export async function viz(options: VizOptions): Promise<VizResult> {
         season,
         format: 'json',
         ...(options.window != null ? { window: options.window } : {}),
-        ...(stdinAdapter ? { source: 'stdin', stdinAdapter } : {}),
-        ...(options.source && !stdinAdapter ? { source: options.source } : {}),
+        ...(context.stdinAdapter ? { source: 'stdin', stdinAdapter: context.stdinAdapter } : {}),
+        ...(options.source && !context.stdinAdapter ? { source: options.source } : {}),
       });
       rows[req.queryTemplate] = result.data;
       if (result.meta.source) source = result.meta.source;

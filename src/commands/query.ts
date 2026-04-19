@@ -1,19 +1,16 @@
 import { Command } from 'commander';
-import { resolveAdapters, createStdinAdapter } from '../adapters/index.js';
+import { ExecutionContext } from '../context/execution.js';
 import type { StdinAdapter } from '../adapters/stdin.js';
-import type { DataSource } from '../adapters/types.js';
 import { format, type OutputFormat } from '../formatters/index.js';
-import { getConfig, getConfigDir, isSourceEnabled, sourceConfigKey } from '../config/config.js';
+import { getConfigDir } from '../config/config.js';
 import { log } from '../utils/logger.js';
-import { readStdin } from '../utils/stdin.js';
-import { loadDataFile } from '../utils/data-input.js';
 import {
   getTemplate,
   listTemplates,
   type QueryTemplateParams,
   type QueryResult as TemplateQueryResult,
 } from '../templates/queries/index.js';
-import { fetchWithCache, type CachePolicy } from '../cache/fetch-with-cache.js';
+import { fetchWithCache } from '../cache/fetch-with-cache.js';
 
 export interface QueryOptions {
   template: string;
@@ -62,28 +59,10 @@ export interface QueryResult {
  * Programmatic API — skills and agents call this directly.
  */
 export async function query(options: QueryOptions): Promise<QueryResult> {
-  if (options.stdin && options.data) {
-    throw new Error('Pass only one of --stdin or --data <path>, not both.');
-  }
-  // Build a per-invocation stdin adapter. If a parent command supplied one
-  // via `options.stdinAdapter`, reuse it so sibling sub-queries share payload.
-  // Otherwise, create one locally when --stdin or --data is set.
-  let stdinAdapter: StdinAdapter | undefined = options.stdinAdapter;
-  if (options.stdin) {
-    const raw = await readStdin();
-    stdinAdapter = createStdinAdapter();
-    stdinAdapter.load(raw);
-    options.source = 'stdin';
-  } else if (options.data) {
-    stdinAdapter = loadDataFile(options.data);
-    options.source = 'stdin';
-  } else if (stdinAdapter) {
-    // Parent command already loaded an adapter; ensure source is routed to it.
-    options.source = 'stdin';
-  }
+  const context = new ExecutionContext(options);
+  await context.loadStdinAdapter();
 
-  const config = getConfig();
-  const outputFormat = options.format ?? (config.defaultFormat as OutputFormat);
+  const outputFormat = options.format ?? (context.config.defaultFormat as OutputFormat);
 
   const template = getTemplate(options.template);
   if (!template) {
@@ -116,45 +95,27 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
   // Build adapter query
   const adapterQuery = template.buildQuery(params);
 
-  // Get adapters in preference order
-  // Filter preferred sources through config so operators can disable sources
-  // (e.g. a rate-limited or compliance-blocked adapter). `stdin` bypasses this
-  // — it's a local data path, not a network source, and `isSourceEnabled`
-  // always returns true for it.
-  let preferredSources: DataSource[];
-  if (options.source) {
-    const requested = options.source as DataSource;
-    if (!isSourceEnabled(config, requested)) {
-      const key = sourceConfigKey(requested);
-      throw new Error(
-        `Source "${requested}" is disabled in config. Edit ${getConfigDir()}/config.json — ` +
-          `set sources.${key}.enabled = true, or omit --source to fall through to enabled sources.`,
-      );
-    }
-    preferredSources = [requested];
-  } else {
-    preferredSources = template.preferredSources.filter((s) => isSourceEnabled(config, s));
-    if (preferredSources.length === 0) {
+  let adapters;
+  try {
+    adapters = context.resolveAdaptersFor(template.preferredSources);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg.includes('no enabled sources')) {
       const disabled = template.preferredSources.join(', ');
       throw new Error(
         `Template "${template.id}" has no enabled sources. Its preferred sources ` +
           `(${disabled}) are all disabled in ${getConfigDir()}/config.json. ` +
           `Enable at least one under sources.*.enabled, or pass --source <name>.`,
       );
+    } else if (msg.includes('disabled in config')) {
+      const req = options.source;
+      throw new Error(
+        `Source "${req}" is disabled in config. Edit ${getConfigDir()}/config.json — ` +
+          `set sources.*.enabled = true, or omit --source to fall through to enabled sources.`,
+      );
     }
+    throw error;
   }
-  const adapters = resolveAdapters(
-    preferredSources,
-    stdinAdapter ? { stdin: stdinAdapter } : undefined,
-  );
-
-  // R1.1: build the per-invocation cache policy once. The wrapper skips
-  // the store when either the config toggle is off or the caller passed
-  // `cache: false` (i.e. `--no-cache`).
-  const cachePolicy: CachePolicy = {
-    enabled: config.cache.enabled && options.cache !== false,
-    maxAgeDays: config.cache.maxAgeDays,
-  };
 
   let lastError: Error | undefined;
   let lastErrorAdapter: string | undefined;
@@ -172,7 +133,7 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
 
     try {
       log.info(`Querying ${adapter.source}...`);
-      const adapterResult = await fetchWithCache(adapter, adapterQuery, cachePolicy);
+      const adapterResult = await fetchWithCache(adapter, adapterQuery, context.cachePolicy);
 
       const rows = template.transform(adapterResult.data, params);
       const columns = template.columns(params);
@@ -213,7 +174,7 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
       .join(', ');
 
     if (triedAdapters.length === 0) {
-      const preferred = preferredSources.join(', ');
+      const preferred = template.preferredSources.join(', ');
       throw new Error(
         `No registered adapter supports query type "${template.id}" (preferred sources: ${preferred || 'none'})`,
       );
