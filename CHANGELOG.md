@@ -3,6 +3,49 @@
 All notable changes to `bbdata` are documented here. This project follows
 [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+No CLI flag / output-schema changes since 0.9.0. The vega/vega-lite major
+bump is the largest item but is transparent to CLI users — emitted SVG /
+PNG / PDF is byte-identical for the 5 canonical chart types that ship
+today.
+
+### Changed
+
+- **vega `^5.30.0 → ^6.2.0`, vega-lite `^5.21.0 → ^6.4.2`** — major-version
+  bump of the render pipeline. bbdata's Vega / Vega-Lite surface is small
+  (`parse`, `View`, `Warn`, `toSVG`, `finalize` from `vega`; `compile` and
+  the `TopLevelSpec` type from `vega-lite`) and all calls remained
+  compatible. `$schema` URLs in all 6 canonical chart builders
+  (`movement`, `movement-binned`, `zone`, `spray`, `rolling` — two branches)
+  updated from `schema/vega-lite/v5.json` → `v6.json` so emitted specs
+  match the compiler's major version.
+
+### Fixed
+
+- **`assertFields` retrofit across 9 query templates.** The P4.5 helper
+  shipped in 0.9.0 on `pitcher-arsenal` is now applied to the nine other
+  templates that dereference optional-in-stdin fields via `.includes()` or
+  direct comparison — `hitter-handedness-splits`, `hitter-hot-cold-zones`,
+  `hitter-vs-pitch-type`, `leaderboard-comparison`, `leaderboard-custom`,
+  `matchup-pitcher-vs-hitter`, `pitcher-handedness-splits`,
+  `pitcher-velocity-trend`, `trend-rolling-average`. Missing-field errors
+  now name the template and every absent field in a single message
+  pointing at the `PitchData` / `PlayerStats` schema, instead of the prior
+  `TypeError: Cannot read properties of undefined (reading 'includes')`
+  or a silent cascade of empty / NaN rows.
+
+### Admin
+
+- **Course-audit P2.x items cancelled.** The six CLI-side
+  viz-type alternatives (`pitching-heatmap`, `hitting-barrel`,
+  `percentile-chart`, `comparison-table`, `team-dashboard`,
+  `release-point`) are no longer planned — `ai-baseball-data-analyst`
+  commit `2046dd5` (2026-04-14) rewrote Module 04's Visualization Template
+  Library to mark those 8 course templates as AI-prompt-only and document
+  the five canonical `bbdata viz` chart types in a new appendix, closing
+  the course-vs-CLI gap from the course side.
+
 ## 0.9.0 — 2026-04-19
 
 **Breaking:** removes the module-singleton `stdinAdapter` to eliminate
