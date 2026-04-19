@@ -1,4 +1,4 @@
-import { getConfig, isSourceEnabled, sourceConfigKey } from '../config/config.js';
+import { getConfig, getConfigDir, isSourceEnabled, sourceConfigKey } from '../config/config.js';
 import type { BbdataConfig } from '../config/defaults.js';
 import { resolveAdapters, createStdinAdapter } from '../adapters/index.js';
 import type { DataAdapter, DataSource } from '../adapters/types.js';
@@ -52,13 +52,14 @@ export class ExecutionContext {
 
   resolveAdaptersFor(preferredSources: DataSource[]): DataAdapter[] {
     let sources: DataSource[];
+    const configPath = `${getConfigDir()}/config.json`;
     
     if (this.requestedSource) {
       const requested = this.requestedSource as DataSource;
       if (!isSourceEnabled(this.config, requested)) {
         const key = sourceConfigKey(requested);
         throw new Error(
-          `Source "${requested}" is disabled in config. Edit config.json — ` +
+          `Source "${requested}" is disabled in config. Edit ${configPath} — ` +
             `set sources.${key}.enabled = true, or omit --source to fall through to enabled sources.`,
         );
       }
@@ -68,7 +69,7 @@ export class ExecutionContext {
       if (sources.length === 0) {
         throw new Error(
           `Template has no enabled sources. Its preferred sources ` +
-            `(${preferredSources.join(', ')}) are all disabled in config. ` +
+            `(${preferredSources.join(', ')}) are all disabled in ${configPath}. ` +
             `Enable at least one under sources.*.enabled, or pass --source <name>.`,
         );
       }
