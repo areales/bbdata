@@ -115,7 +115,7 @@ Source: Codex CLI rescue, job `task-mo52xq64-55apez`, session `019da353-7cd8-704
 | ID   | Title                                                 | Status   | Priority | Effort   | Notes                                                        |
 |------|-------------------------------------------------------|----------|----------|----------|--------------------------------------------------------------|
 | R1.1 | Caching is unimplemented despite public contract      | Pending  | P1       | L (1–2d) | `--no-cache`, `cache.enabled`, `cache.maxAgeDays` are no-ops |
-| R1.2 | `report --data` still triggers network fetches        | Pending  | P1       | M (~3h)  | Breaks offline/sandbox reports; nondeterministic output      |
+| R1.2 | `report --data` still triggers network fetches        | Shipped  | P1       | —        | 2026-04-19 — resolved as side effect of R1.3; both `--stdin` and `--data` populate the same `stdinAdapter`, threaded through `generateReportGraphs` |
 | R1.3 | Global stdin adapter leaks state across calls         | Shipped  | P1       | —        | 2026-04-19 — singleton removed, `resolveAdapters(overrides)` + `createStdinAdapter()` per invocation; `loadDataFile` now returns an adapter; threaded through `query` / `report` / `viz` / `generateReportGraphs` |
 | R2.1 | Source enable/disable config is ignored               | Pending  | P2       | S (~1h)  | Per-source toggles defined but never consulted               |
 | R4.1 | Lint/release hygiene broken (eslint missing)          | Pending  | P4       | S (~1h)  | `npm run lint` fails on clean install                        |
@@ -133,15 +133,15 @@ Source: Codex CLI rescue, job `task-mo52xq64-55apez`, session `019da353-7cd8-704
 
 **Fix:** add a shared cache layer in query execution (or in an adapter base class) that wraps fetch with `getCached` / `setCache`. Add integration tests for cold hit, warm hit, and `bypassCache` modes.
 
-### R1.2 — `report --data` can still trigger network fetches for embedded graphs
+### R1.2 — `report --data` can still trigger network fetches for embedded graphs — **Shipped 2026-04-19 (via R1.3)**
 
-**Issue:** Report query sections use the `stdin`/data path, but graph generation only forwards `stdin`, not `data`. So a `report --data foo.json` run still fires network calls inside embedded viz.
+**Issue (resolved):** Report query sections used the stdin/data path, but `generateReportGraphs` only forwarded `stdin`, not `data`. So `report --data foo.json` still fired network calls inside embedded viz.
 
-**Files:** `src/commands/report.ts:258`, `src/viz/embed.ts:49`, `src/viz/embed.ts:60`
+**How R1.3 closed it:** The R1.3 refactor unified both `--stdin` and `--data` onto a single per-invocation `stdinAdapter` instance — populated by either path in `report()` and threaded through `generateReportGraphs({ stdinAdapter })`. Inside `embed.ts`, `viz()` is invoked with `{ source: 'stdin', stdinAdapter }` whenever the parent loaded either flag, so the embedded graph's fetch loop resolves to the same in-memory adapter rather than the network adapters. Verified by grep: the only stdin/data discriminator left in `src/viz/` is `opts.stdinAdapter`, which is populated identically for either option.
 
-**Why it matters:** Mixed data provenance (local + live network) produces nondeterministic reports and breaks the offline/sandbox workflow that `--data` implies.
+**Codex had flagged this separately** with a narrower suggested fix ("force `source: 'stdin'` when either is set"). Fixing the underlying pattern (R1.3) turned the symptom into a non-issue without needing the narrower patch — a reminder that R5.0's strategic refactor direction is well-aimed.
 
-**Fix:** propagate a unified "local data mode" (`stdin` OR `data`) into `generateReportGraphs()` and force `source: 'stdin'` for the viz layer when either is set.
+**TEST_PLAN coverage:** v0.9.0 row RP.2 (`report --data` end-to-end with embedded graphs) validates this scenario.
 
 ### R1.3 — Global mutable stdin adapter introduces cross-call state leakage — **Shipped 2026-04-19**
 

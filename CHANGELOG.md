@@ -96,6 +96,16 @@ process died after every invocation.
   side because it calls `query()` / `report()` rather than importing
   `getStdinAdapter` directly).
 
+### Also fixed
+
+- **R1.2 (`report --data` still triggers network fetches for embedded
+  graphs)** — closed as a side effect of this refactor. Both `--stdin`
+  and `--data` now populate the same per-invocation `stdinAdapter` in
+  `report()`, which is threaded through `generateReportGraphs` and
+  every embedded `viz()` call. The prior bug was narrow (only `stdin`
+  was forwarded to graph embedding); unifying both paths onto the
+  adapter handle dissolved it.
+
 ---
 
 ## 0.8.0 — 2026-04-14
