@@ -2,7 +2,7 @@
 
 Source: `../ai-baseball-data-analyst/course-audit.md` (2026-04-13). CLI-side items that close gaps between what the Baseball AI Community course promises and what `bbdata` actually does.
 
-**Important trade-off:** every pending item below is an *alternative* to a course-content fix in the audit. If the course rewrites Module 04's Visualization Template Library deliverable (~4h edit), most of Priority 2 becomes optional. Decide on the course vs. CLI direction first, then pick from this list.
+**Resolved 2026-04-14:** course-side rewrite shipped (audit recommendation #1). `ai-baseball-data-analyst/Modules/04 .../Deliverables/Visualization Template Library.md` now explicitly marks 8 of 12 templates as AI-prompt-only and adds a canonical-types appendix. Commit `2046dd5` in `ai-baseball-data-analyst`. All P2.x items are cancelled — see the "Cancelled" section below.
 
 ---
 
@@ -20,16 +20,16 @@ Source: `../ai-baseball-data-analyst/course-audit.md` (2026-04-13). CLI-side ite
 | P4.1 | query-template docs                          | Shipped  | P4       | —         | v0.7.0 — `README.md:56–64`                                              |
 | P4.2 | `draft-board-card-pitcher` doc               | Shipped  | P4       | —         | v0.7.0 — `README.md:95`                                                 |
 | P4.3 | `--audience` harmonization                   | Shipped  | P4       | —         | v0.7.0 — `src/commands/report.ts:85–106`                                |
-| P2.1 | `pitching-heatmap` viz type                  | Pending  | P2       | L (4–6h)  | Highest student-visibility of P2 set — leads Module 04 Lesson 3         |
-| P2.2 | `hitting-barrel` viz type                    | Pending  | P2       | L (4–6h)  | EV vs LA scatter with barrel/hard-hit overlay                           |
-| P2.3 | `percentile-chart` viz type                  | Pending  | P2       | L (~6h)   | Needs new `player-percentiles` query template                           |
-| P2.4 | `comparison-table` viz type                  | Pending  | P2       | L (4–6h)  | SVG/PNG color-coded — distinct from existing markdown leaderboard       |
-| P2.5 | `team-dashboard` viz type                    | Pending  | P2       | XL (1–2d) | Also adds `--team`, `--unit pitching\|hitting` flags                    |
-| P2.6 | `release-point` chart variant                | Pending  | P2       | M (~3h)   | `pitcher-raw-pitches` already has `release_pos_x/z`                     |
+| P2.1 | `pitching-heatmap` viz type                  | Cancelled | P2      | —         | 2026-04-14 — course rewrite marked template #1 AI-prompt-only           |
+| P2.2 | `hitting-barrel` viz type                    | Cancelled | P2      | —         | 2026-04-14 — course rewrite marked template #6 AI-prompt-only           |
+| P2.3 | `percentile-chart` viz type                  | Cancelled | P2      | —         | 2026-04-14 — course rewrite marked template #11 AI-prompt-only          |
+| P2.4 | `comparison-table` viz type                  | Cancelled | P2      | —         | 2026-04-14 — course rewrite marked template #9 AI-prompt-only           |
+| P2.5 | `team-dashboard` viz type                    | Cancelled | P2      | —         | 2026-04-14 — course rewrite marked template #12 AI-prompt-only          |
+| P2.6 | `release-point` chart variant                | Cancelled | P2      | —         | 2026-04-14 — course rewrite marked template #4 AI-prompt-only           |
 | P4.4 | Fix `/build-model equivalent` fake query IDs | Decide   | P4       | S–M       | 3 options below; leaning (c) remove callouts                            |
 | P4.5 | Friendly error for minimal-field stdin JSON  | Shipped  | P4       | —         | v0.9.0 — 2026-04-19 — new `assertFields()` helper in `src/utils/validate-records.ts`; applied to `pitcher-arsenal.transform()` with the fields it dereferences; error names every missing field + points at the PitchData schema |
 
-**All P2.x items are conditional.** If Aaron rewrites `Modules/04/Deliverables/Visualization Template Library.md` (audit recommendation #1), skip the entire P2 section.
+**P2.x are cancelled, not pending.** The course-side rewrite (2026-04-14) is the resolution the conditional was waiting on. Detail lives in the "Cancelled" section below.
 
 ---
 
@@ -64,33 +64,24 @@ instructions and `RENAME_PLAN.md` for the full 5-phase plan.
 
 ---
 
+## Cancelled — course-side rewrite shipped 2026-04-14
+
+P2.1 through P2.6 were alternatives to a course-content fix (audit recommendation #1). On 2026-04-14 the course deliverable was rewritten (`ai-baseball-data-analyst` commit `2046dd5`): 8 of the 12 templates in `Modules/04 .../Deliverables/Visualization Template Library.md` now carry an explicit `> [!info]- AI-prompt only` callout, and a new appendix enumerates the 5 canonical `bbdata viz` chart types (`movement`, `movement-binned`, `spray`, `zone`, `rolling`) plus 4 course aliases. The course-vs-CLI gap is closed on the course side — no CLI work required.
+
+| ID   | Would have shipped              | Course template it maps to           |
+|------|---------------------------------|--------------------------------------|
+| P2.1 | `pitching-heatmap` viz type     | #1 Pitch Location Heatmap            |
+| P2.2 | `hitting-barrel` viz type       | #6 Barrel Chart                      |
+| P2.3 | `percentile-chart` viz type     | #11 Percentile Chart                 |
+| P2.4 | `comparison-table` viz type     | #9 Player Comparison Table           |
+| P2.5 | `team-dashboard` viz type       | #12 Team Dashboard                   |
+| P2.6 | `release-point` chart variant   | #4 Release Point Plot                |
+
+If student survey signal later justifies promoting any of these into `bbdata viz`, re-open from `git log` — the prior detail sections (data requirements, file targets) are recoverable from this file's history before 2026-04-19.
+
+---
+
 ## Pending — details
-
-### P2.1 — `pitching-heatmap`
-- **What:** KDE density plot of pitch locations in the zone.
-- **Data:** `pitcher-raw-pitches` supplies `plate_x`, `plate_z` per pitch.
-- **Files:** `src/viz/charts/pitching-heatmap.ts` (new), `src/viz/charts/index.ts`, `test/fixtures/viz/`
-
-### P2.2 — `hitting-barrel`
-- **What:** Exit velocity vs. launch angle scatter with barrel/hard-hit zones overlaid.
-- **Data:** `hitter-raw-bip` supplies `launch_speed`, `launch_angle`.
-- **Files:** `src/viz/charts/hitting-barrel.ts` (new), `src/viz/charts/index.ts`
-
-### P2.3 — `percentile-chart`
-- **What:** Savant-style horizontal percentile bars (e.g., xwOBA 92nd percentile).
-- **Data:** needs a new `player-percentiles` query template upstream, or can derive from FanGraphs season data.
-- **Note:** effort includes both new query template and new chart.
-
-### P2.4 — `comparison-table`
-- **What:** Color-coded multi-player stat comparison table, rendered as SVG/PNG (not the existing `leaderboard-comparison` markdown output).
-
-### P2.5 — `team-dashboard`
-- **What:** Multi-chart composite for a team. Course uses `--team NYY --unit pitching|hitting`.
-- **Blocks:** also introduces `--unit pitching|hitting` flag and `--team` on viz command.
-
-### P2.6 — `release-point`
-- **What:** Release point consistency scatter. Referenced in Module 04 Lesson 3:95.
-- **Data:** `pitcher-raw-pitches` has `release_pos_x`, `release_pos_z`.
 
 ### P4.4 — `/build-model equivalent` fake query names — **Decide**
 - **Why:** `ai-baseball-data-analyst/Modules/05 - Code & Model Building/Deliverables/Model Template Library.md` has 8 `/build-model equivalent` callouts (lines 89, 152, 216, 279, 358, 423, 490) with `bbdata-cli query <name>` invocations that reference 6 template IDs not present in `src/templates/queries/`: `pitcher-stats`, `statcast-pitches`, `hitter-stats`, `hitter-splits`, `pitcher-game-logs`, `hitter-statcast`. Verified 2026-04-14 via direct grep over every `id: '...'` line in the queries registry. Students copying these bash lines hit "template not found". The course shipped with the wrong names; bbdata didn't drift. Analogous to P1.2 for viz types.
@@ -249,15 +240,8 @@ Source: Codex CLI rescue, job `task-mo52xq64-55apez`, session `019da353-7cd8-704
 
 ## Suggested sequencing
 
-Phase A (P1.1, P1.2b, P1.3, P3.2, P3.3, P4.1, P4.2, P4.3) shipped in v0.7.0; Phase B (P3.1) in v0.7.1; Phase C (P3.4) in v0.7.2.
+Phase A (P1.1, P1.2b, P1.3, P3.2, P3.3, P4.1, P4.2, P4.3) shipped in v0.7.0; Phase B (P3.1) in v0.7.1; Phase C (P3.4) in v0.7.2. Phase D (R1.1, R1.2, R1.3, R2.1, R4.1, R5.0, P4.5) shipped in v0.9.0 on 2026-04-19. P2.x cancelled 2026-04-14 via course-side rewrite.
 
 Remaining, in rough order:
-1. **R1.1, R1.2, R1.3** — correctness bugs from Codex review; R1.1 is the biggest silent-failure and blocks any caching-dependent feature. R1.3 directly affects scout-app's server-side invocation of bbdata via `prefetch.ts`.
-2. **R2.1, R4.1** — small hygiene items, can drop in opportunistically.
-3. **P2.1** (`pitching-heatmap`) — Module 04 Lesson 3 leads with it, highest student visibility.
-4. Remaining P2.x in whatever order survey signal favors.
-5. **P4.4** — course-side decision; pick option (c) unless callouts turn out to be load-bearing.
-6. **P4.5** — one-hour polish, drop in alongside any stdin-adapter or arsenal-template touch.
-7. **R5.0** — consider after R1.x lands and the duplication picture is concrete.
-
-Effort estimates assume one focused half-day per M item.
+1. **P4.4** — course-side edit only. Pick option (c) (drop the 8 `/build-model equivalent` callouts in Module 05) unless they turn out to be load-bearing, in which case option (a) (remap to real template IDs). No bbdata work either way.
+2. **Opportunistic:** adopt `assertFields` (shipped in v0.9.0 as P4.5's helper) in the 9 other templates that use `.includes()` on optional stdin fields — listed in the P4.5 "Other templates with the same pattern" note above. Drop-in when those templates next get touched.
