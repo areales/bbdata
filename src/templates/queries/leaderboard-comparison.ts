@@ -1,5 +1,9 @@
 import { registerTemplate, type QueryTemplate } from './registry.js';
+import { assertFields } from '../../utils/validate-records.js';
 import type { PlayerStats } from '../../adapters/types.js';
+
+
+const REQUIRED_FIELDS = ['player_name'];
 
 const template: QueryTemplate = {
   id: 'leaderboard-comparison',
@@ -26,6 +30,9 @@ const template: QueryTemplate = {
 
   transform(data, params) {
     const allStats = data as PlayerStats[];
+    if (allStats.length === 0) return [];
+    assertFields(allStats, REQUIRED_FIELDS, 'leaderboard-comparison');
+    
     const playerNames = params.players ?? [];
 
     // Match players by name (case-insensitive partial match)

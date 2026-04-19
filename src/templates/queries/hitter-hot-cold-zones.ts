@@ -1,4 +1,5 @@
 import { registerTemplate, type QueryTemplate } from './registry.js';
+import { assertFields } from '../../utils/validate-records.js';
 import type { PitchData } from '../../adapters/types.js';
 
 // 3x3 strike zone grid
@@ -13,6 +14,9 @@ const ZONES = {
   'Low-Mid':    { xMin: -0.28, xMax: 0.28,  zMin: 1.5,  zMax: 2.17 },
   'Low-Out':    { xMin: 0.28,  xMax: 0.83,  zMin: 1.5,  zMax: 2.17 },
 } as const;
+
+
+const REQUIRED_FIELDS = ['description'];
 
 const template: QueryTemplate = {
   id: 'hitter-hot-cold-zones',
@@ -41,6 +45,8 @@ const template: QueryTemplate = {
   transform(data) {
     const pitches = data as PitchData[];
     if (pitches.length === 0) return [];
+    assertFields(pitches, REQUIRED_FIELDS, 'hitter-hot-cold-zones');
+
 
     return Object.entries(ZONES).map(([zoneName, bounds]) => {
       const inZone = pitches.filter(

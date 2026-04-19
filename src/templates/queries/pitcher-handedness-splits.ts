@@ -1,5 +1,9 @@
 import { registerTemplate, type QueryTemplate } from './registry.js';
+import { assertFields } from '../../utils/validate-records.js';
 import type { PitchData } from '../../adapters/types.js';
+
+
+const REQUIRED_FIELDS = ['description', 'stand'];
 
 const template: QueryTemplate = {
   id: 'pitcher-handedness-splits',
@@ -28,6 +32,8 @@ const template: QueryTemplate = {
   transform(data) {
     const pitches = data as PitchData[];
     if (pitches.length === 0) return [];
+    assertFields(pitches, REQUIRED_FIELDS, 'pitcher-handedness-splits');
+
 
     return (['L', 'R'] as const).map((hand) => {
       const group = pitches.filter((p) => p.stand === hand);

@@ -1,5 +1,9 @@
 import { registerTemplate, type QueryTemplate } from './registry.js';
+import { assertFields } from '../../utils/validate-records.js';
 import type { PitchData } from '../../adapters/types.js';
+
+
+const REQUIRED_FIELDS = ['game_date'];
 
 const template: QueryTemplate = {
   id: 'trend-rolling-average',
@@ -28,6 +32,8 @@ const template: QueryTemplate = {
   transform(data, params) {
     const pitches = data as PitchData[];
     if (pitches.length === 0) return [];
+    assertFields(pitches, REQUIRED_FIELDS, 'trend-rolling-average');
+
 
     // Group by game date
     const byDate = new Map<string, PitchData[]>();

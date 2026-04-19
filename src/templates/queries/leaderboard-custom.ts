@@ -1,5 +1,9 @@
 import { registerTemplate, type QueryTemplate } from './registry.js';
+import { assertFields } from '../../utils/validate-records.js';
 import type { PlayerStats } from '../../adapters/types.js';
+
+
+const REQUIRED_FIELDS = ['player_name'];
 
 const template: QueryTemplate = {
   id: 'leaderboard-custom',
@@ -33,6 +37,8 @@ const template: QueryTemplate = {
   transform(data, params) {
     const stats = data as PlayerStats[];
     if (stats.length === 0) return [];
+    assertFields(stats, REQUIRED_FIELDS, 'leaderboard-custom');
+
 
     const statKey = params.stat ?? '';
     const top = params.top ?? 20;

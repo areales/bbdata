@@ -1,6 +1,10 @@
 import { registerTemplate, type QueryTemplate } from './registry.js';
+import { assertFields } from '../../utils/validate-records.js';
 import type { PitchData } from '../../adapters/types.js';
 import { pitchTypeName } from '../../adapters/types.js';
+
+
+const REQUIRED_FIELDS = ['batter_name'];
 
 const template: QueryTemplate = {
   id: 'matchup-pitcher-vs-hitter',
@@ -29,6 +33,9 @@ const template: QueryTemplate = {
 
   transform(data, params) {
     const pitches = data as PitchData[];
+    if (pitches.length === 0) return [];
+    assertFields(pitches, REQUIRED_FIELDS, 'matchup-pitcher-vs-hitter');
+
     const hitterName = (params.players?.[1] ?? '').toLowerCase();
 
     // Filter to only PAs against the target hitter

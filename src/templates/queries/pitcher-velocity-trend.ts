@@ -1,5 +1,9 @@
 import { registerTemplate, type QueryTemplate } from './registry.js';
+import { assertFields } from '../../utils/validate-records.js';
 import type { PitchData } from '../../adapters/types.js';
+
+
+const REQUIRED_FIELDS = ['pitch_type', 'release_speed'];
 
 const template: QueryTemplate = {
   id: 'pitcher-velocity-trend',
@@ -31,6 +35,8 @@ const template: QueryTemplate = {
     );
 
     if (pitches.length === 0) return [];
+    assertFields(pitches, REQUIRED_FIELDS, 'pitcher-velocity-trend');
+
 
     // Group by month
     const byMonth = new Map<string, PitchData[]>();
