@@ -118,7 +118,7 @@ Source: Codex CLI rescue, job `task-mo52xq64-55apez`, session `019da353-7cd8-704
 | R1.2 | `report --data` still triggers network fetches        | Shipped  | P1       | —        | 2026-04-19 — resolved as side effect of R1.3; both `--stdin` and `--data` populate the same `stdinAdapter`, threaded through `generateReportGraphs` |
 | R1.3 | Global stdin adapter leaks state across calls         | Shipped  | P1       | —        | 2026-04-19 — singleton removed, `resolveAdapters(overrides)` + `createStdinAdapter()` per invocation; `loadDataFile` now returns an adapter; threaded through `query` / `report` / `viz` / `generateReportGraphs` |
 | R2.1 | Source enable/disable config is ignored               | Shipped  | P2       | —        | 2026-04-19 — `isSourceEnabled` / `sourceConfigKey` helpers in `src/config/config.ts`, kebab↔camel map in `SOURCE_CONFIG_KEYS`; `query()` filters `template.preferredSources` through config + errors loudly when `--source` names a disabled source |
-| R4.1 | Lint/release hygiene broken (eslint missing)          | Pending  | P4       | S (~1h)  | `npm run lint` fails on clean install                        |
+| R4.1 | Lint/release hygiene broken (eslint missing)          | Shipped  | P4       | —        | 2026-04-19 — added `eslint@^10` + `@eslint/js` + `typescript-eslint@^8` to `devDependencies`; new flat-config `eslint.config.js`; `lint` wired into `prepublishOnly`; 18 surfaced issues cleaned (unused imports, adapter-interface args prefixed `_`, `require()` → import in cache, escape / `cause` cleanup) |
 | R5.0 | Strategic: adopt `ExecutionContext` per command       | Decide   | —        | XL       | Routes `query` / `report` / `viz` through one context object |
 
 ---
@@ -181,13 +181,24 @@ Source: Codex CLI rescue, job `task-mo52xq64-55apez`, session `019da353-7cd8-704
 - `test/commands/query.test.ts` mock updated to expose the new helpers (they default to `true` so existing fallback-chain tests aren't affected).
 - Full suite: 235 / 235 green.
 
-### R4.1 — Lint / release hygiene broken
+### R4.1 — Lint / release hygiene broken — **Shipped 2026-04-19**
 
-**Issue:** `lint` script exists (`package.json:28`) but eslint is not in `devDependencies` (`package.json:68`); the publish gate at `package.json:31` (`prepublishOnly`) omits lint entirely.
+**Issue (resolved):** `lint` script existed (`package.json:28`) but eslint was not in `devDependencies`, and `prepublishOnly` omitted lint — so `npm run lint` failed on any clean install and style/safety regressions could ship unchecked.
 
-**Why it matters:** `npm run lint` fails on any clean environment. Style/safety regressions can ship unnoticed because the publish pipeline never runs the linter.
+**What shipped:**
+- `devDependencies` gained `eslint@^10`, `@eslint/js@^10`, `typescript-eslint@^8`.
+- New `eslint.config.js` — flat-config, `js.configs.recommended` + `tseslint.configs.recommended`, `_`-prefixed argsIgnorePattern, `no-explicit-any` off (the codebase intentionally uses `any` at a few adapter boundaries), empty catch allowed.
+- `prepublishOnly` chain now: `build && lint && typecheck && test`.
+- **Incidental cleanups** surfaced by the first clean lint pass (all 18 fixed, zero errors on `main`):
+  - Unused imports removed: `parse` in `src/adapters/fangraphs.ts:1`; `FormattedOutput` in `src/commands/query.ts:5`; `gradeColor` in `src/commands/report.ts:8`; `QueryTemplateParams` in `src/templates/queries/pitcher-arsenal.ts:1`; `pitchTypeName` in `src/templates/queries/pitcher-velocity-trend.ts:3`; `DataSource, AdapterQuery` in `src/templates/reports/registry.ts:1`.
+  - `_`-prefixed interface args (intentional per-`DataAdapter`-contract unused args): `supports(_query)` and `fetch(..., _options)` on FanGraphs / MLB Stats API / Savant adapters; `transform(data, _params)` in `trend-year-over-year`.
+  - `require('node:fs')` inside `src/cache/store.ts:saveDb` hoisted to the top-level import.
+  - `const cmd =` dropped from `registerQueryCommand` (Commander chain used only for side effect).
+  - `const result =` dropped in `test/commands/query.test.ts:125` (test asserts adapter calls, not the return value).
+  - `src/viz/charts/rolling.ts:20` — unnecessary `\-` escape in character class removed.
+  - `src/adapters/stdin.ts:57` — rethrown parse error now forwards `{ cause: error }` so callers keep the underlying stack.
 
-**Fix:** add `eslint` + config/plugins to `devDependencies` and include `lint` in the `prepublishOnly` chain. Alternatively: remove the `lint` script if intentionally unsupported (and document the choice in CLAUDE.md).
+**Verification:** `npm run lint` → clean. `npm run typecheck` → clean. `npm test` → 235 / 235 green. `npm run prepublishOnly` end-to-end → green.
 
 ### R5.0 — Strategic: `ExecutionContext` per command invocation — **Decide**
 

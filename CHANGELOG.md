@@ -118,6 +118,27 @@ process died after every invocation.
   the same gate. `stdin` bypasses the check — it's a local data path,
   not a configurable network source. Covered by `test/config/sources.test.ts`.
 
+- **R4.1 (lint / release hygiene broken).** `npm run lint` failed on any
+  clean install because `eslint` was not declared in `devDependencies`,
+  and the publish gate (`prepublishOnly`) didn't run lint at all — so
+  style / safety regressions could ship unchecked. Fixed by adding
+  `eslint@^10`, `@eslint/js@^10`, `typescript-eslint@^8` to
+  `devDependencies`; adding a flat-config `eslint.config.js`
+  (`eslint:recommended` + `typescript-eslint:recommended`, tuned to
+  ignore `_`-prefixed unused bindings); and inserting `npm run lint`
+  into the `prepublishOnly` chain between `build` and `typecheck`.
+  Incidental fixes surfaced by the first clean lint pass: unused
+  imports in 6 files (`FormattedOutput`, `gradeColor`, `QueryTemplateParams`,
+  `pitchTypeName`, `DataSource`/`AdapterQuery`, `parse`); `_`-prefixed
+  interface args on three adapter `fetch`/`supports` stubs and one
+  template `transform`; `require('node:fs')` hoisted to a top-level
+  import in `src/cache/store.ts`; unused `cmd` binding in
+  `registerQueryCommand` inlined; unused `result` in
+  `test/commands/query.test.ts` dropped; unnecessary escape in
+  `src/viz/charts/rolling.ts` numeric-strip regex removed; and a
+  `cause:` chain added to the rethrown parse error in
+  `src/adapters/stdin.ts`.
+
 ---
 
 ## 0.8.0 — 2026-04-14

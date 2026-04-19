@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { resolveAdapters, createStdinAdapter } from '../adapters/index.js';
 import type { StdinAdapter } from '../adapters/stdin.js';
 import type { DataSource } from '../adapters/types.js';
-import { format, type OutputFormat, type FormattedOutput } from '../formatters/index.js';
+import { format, type OutputFormat } from '../formatters/index.js';
 import { getConfig, getConfigDir, isSourceEnabled, sourceConfigKey } from '../config/config.js';
 import { log } from '../utils/logger.js';
 import { readStdin } from '../utils/stdin.js';
@@ -251,7 +251,7 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
  * CLI registration — Commander calls this.
  */
 export function registerQueryCommand(program: Command): void {
-  const cmd = program
+  program
     .command('query [template]')
     .description('Query baseball data using pre-built templates')
     .option('-p, --player <name>', 'Player name')

@@ -27,7 +27,7 @@ const template: QueryTemplate = {
     return ['Metric', 'Prior', 'Current', 'Change', 'Flag'];
   },
 
-  transform(data, params) {
+  transform(data, _params) {
     const stats = data as PlayerStats[];
     if (stats.length === 0) return [];
 

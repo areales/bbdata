@@ -1,4 +1,3 @@
-import { parse } from 'csv-parse/sync';
 import { fetchText } from '../utils/http.js';
 import { log } from '../utils/logger.js';
 import type {
@@ -21,7 +20,7 @@ export class FanGraphsAdapter implements DataAdapter {
   readonly source = 'fangraphs' as const;
   readonly description = 'FanGraphs — aggregated stats, leaderboards, WAR, wRC+, FIP';
 
-  supports(query: AdapterQuery): boolean {
+  supports(_query: AdapterQuery): boolean {
     // FanGraphs is best for aggregated season-level stats and leaderboards
     return true;
   }
@@ -85,7 +84,7 @@ export class FanGraphsAdapter implements DataAdapter {
 
   async fetch(
     query: AdapterQuery,
-    options?: { bypassCache?: boolean },
+    _options?: { bypassCache?: boolean },
   ): Promise<AdapterResult<PlayerStats[]>> {
     const statType = query.stat_type === 'batting' ? 'bat' : 'pit';
 

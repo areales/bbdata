@@ -17,7 +17,7 @@ interface RollingRow {
 function parseNumeric(v: unknown): number | null {
   if (v == null) return null;
   if (typeof v === 'number') return Number.isFinite(v) ? v : null;
-  const s = String(v).replace(/[^\d.\-]/g, '');
+  const s = String(v).replace(/[^\d.-]/g, '');
   if (!s) return null;
   const n = parseFloat(s);
   return Number.isFinite(n) ? n : null;

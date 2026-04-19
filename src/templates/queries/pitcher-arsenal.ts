@@ -1,4 +1,4 @@
-import { registerTemplate, type QueryTemplate, type QueryTemplateParams } from './registry.js';
+import { registerTemplate, type QueryTemplate } from './registry.js';
 import type { PitchData } from '../../adapters/types.js';
 import { pitchTypeName } from '../../adapters/types.js';
 

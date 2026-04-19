@@ -34,7 +34,7 @@ export class SavantAdapter implements DataAdapter {
 
   async fetch(
     query: AdapterQuery,
-    options?: { bypassCache?: boolean },
+    _options?: { bypassCache?: boolean },
   ): Promise<AdapterResult<PitchData[]>> {
     // Resolve player ID
     let playerId = query.player_id;

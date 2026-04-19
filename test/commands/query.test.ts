@@ -122,7 +122,7 @@ describe('query command', () => {
 
     vi.mocked(resolveAdapters).mockReturnValue([failAdapter, successAdapter]);
 
-    const result = await query({
+    await query({
       template: 'pitcher-arsenal',
       player: 'Test Player',
       season: 2025,

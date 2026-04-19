@@ -1,5 +1,3 @@
-import type { DataSource, AdapterQuery } from '../../adapters/types.js';
-
 export type ReportCategory = 'pro-scouting' | 'amateur-scouting' | 'advance' | 'player-dev' | 'executive';
 export type Audience = 'coach' | 'gm' | 'scout' | 'analyst';
 

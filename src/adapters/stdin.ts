@@ -55,7 +55,8 @@ export class StdinAdapter implements DataAdapter {
       log.info(`Stdin adapter loaded ${this.data.length} records`);
     } catch (error) {
       throw new Error(
-        `Failed to parse stdin data: ${error instanceof Error ? error.message : String(error)}`
+        `Failed to parse stdin data: ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error },
       );
     }
   }

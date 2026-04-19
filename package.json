@@ -28,7 +28,7 @@
     "lint": "eslint src/ bin/ test/",
     "typecheck": "tsc --noEmit",
     "viz:fixtures": "tsx scripts/render-fixtures.ts",
-    "prepublishOnly": "npm run build && npm run typecheck && npm test"
+    "prepublishOnly": "npm run build && npm run lint && npm run typecheck && npm test"
   },
   "keywords": [
     "baseball",
@@ -66,12 +66,15 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^22.13.0",
     "@types/pdfkit": "^0.17.5",
     "@types/svg-to-pdfkit": "^0.1.4",
+    "eslint": "^10.2.1",
     "tsup": "^8.4.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
+    "typescript-eslint": "^8.58.2",
     "vitest": "^3.0.4"
   },
   "engines": {

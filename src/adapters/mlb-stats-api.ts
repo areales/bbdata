@@ -35,7 +35,7 @@ export class MlbStatsApiAdapter implements DataAdapter {
   readonly source = 'mlb-stats-api' as const;
   readonly description = 'Official MLB Stats API — rosters, schedules, season stats (JSON)';
 
-  supports(query: AdapterQuery): boolean {
+  supports(_query: AdapterQuery): boolean {
     // MLB Stats API provides season-level aggregated stats, not pitch-level
     // Good for: player lookup, season stats, rosters, schedules
     return true;
@@ -66,7 +66,7 @@ export class MlbStatsApiAdapter implements DataAdapter {
 
   async fetch(
     query: AdapterQuery,
-    options?: { bypassCache?: boolean },
+    _options?: { bypassCache?: boolean },
   ): Promise<AdapterResult<PlayerStats[]>> {
     // Resolve player ID if we have a name
     let playerId = query.player_id;

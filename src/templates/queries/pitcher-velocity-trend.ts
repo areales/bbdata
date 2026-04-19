@@ -1,6 +1,5 @@
 import { registerTemplate, type QueryTemplate } from './registry.js';
 import type { PitchData } from '../../adapters/types.js';
-import { pitchTypeName } from '../../adapters/types.js';
 
 const template: QueryTemplate = {
   id: 'pitcher-velocity-trend',

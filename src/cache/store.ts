@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
@@ -70,7 +70,6 @@ async function getDb(): Promise<any> {
 function saveDb(): void {
   if (!db) return;
   try {
-    const { writeFileSync, mkdirSync } = require('node:fs');
     const cacheDir = getCacheDir();
     mkdirSync(cacheDir, { recursive: true });
     const data = db.export();

@@ -5,7 +5,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getConfig, getTemplatesDir } from '../config/config.js';
 import { log } from '../utils/logger.js';
-import { gradeLabel, gradeColor, formatGrade } from '../utils/grading.js';
+import { gradeLabel, formatGrade } from '../utils/grading.js';
 import { pitchTypeName } from '../adapters/types.js';
 import { query as runQuery } from './query.js';
 import { createStdinAdapter } from '../adapters/index.js';
