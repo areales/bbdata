@@ -57,6 +57,35 @@ describe('pitcher-arsenal template', () => {
     expect(rows).toEqual([]);
   });
 
+  it('throws a clear error when records are missing fields the template dereferences (P4.5)', () => {
+    // Minimal hand-authored payload — real Savant exports always include these
+    // fields, but sparse stdin / --data fixtures used to crash with an
+    // inscrutable "Cannot read properties of undefined (reading 'includes')".
+    const sparse = [
+      { pitcher_id: '669203', pitch_type: 'FF', release_speed: 95 } as unknown as PitchData,
+    ];
+
+    expect(() => template.transform(sparse, { player: 'Burnes' })).toThrow(
+      /"pitcher-arsenal".*"description"/,
+    );
+  });
+
+  it('names all missing fields in one error (not just the first)', () => {
+    const sparse = [
+      { pitcher_id: '669203', pitch_type: 'FF' } as unknown as PitchData,
+    ];
+
+    try {
+      template.transform(sparse, { player: 'Burnes' });
+      expect.fail('expected transform() to throw for sparse input');
+    } catch (err) {
+      const msg = (err as Error).message;
+      expect(msg).toContain('description');
+      expect(msg).toContain('release_speed');
+      expect(msg).toContain('release_spin_rate');
+    }
+  });
+
   it('calculates whiff % correctly', () => {
     const pitches: PitchData[] = [
       // 2 swings (1 swinging_strike + 1 foul), 1 whiff → 50% whiff rate

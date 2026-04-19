@@ -139,6 +139,20 @@ process died after every invocation.
   `cause:` chain added to the rethrown parse error in
   `src/adapters/stdin.ts`.
 
+- **P4.5 (friendly error for minimal-field stdin JSON).** Before 0.9.0,
+  `pitcher-arsenal.transform()` crashed with `TypeError: Cannot read
+  properties of undefined (reading 'includes')` whenever a hand-authored
+  stdin or `--data` payload was missing fields the template
+  dereferences (e.g. `description`). The stack pointed at the template,
+  not the input, which made debugging painful. Fixed by a new
+  `assertFields(records, requiredFields, templateId)` helper in
+  `src/utils/validate-records.ts` that runs at the start of
+  `pitcher-arsenal.transform()` and throws a single clear error naming
+  every missing field plus a pointer to the `PitchData` schema in
+  `src/adapters/types.ts`. Nine other templates use the same
+  `.includes()` pattern on optional-in-stdin fields — `assertFields` is
+  ready for them as a drop-in whenever they next get touched.
+
 - **R1.1 (caching is unimplemented despite public contract).** Before
   0.9.0, `query()` accepted `bypassCache` but adapters never consulted
   the cache, so `--no-cache`, `config.cache.enabled`, and

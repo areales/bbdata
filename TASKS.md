@@ -27,7 +27,7 @@ Source: `../ai-baseball-data-analyst/course-audit.md` (2026-04-13). CLI-side ite
 | P2.5 | `team-dashboard` viz type                    | Pending  | P2       | XL (1–2d) | Also adds `--team`, `--unit pitching\|hitting` flags                    |
 | P2.6 | `release-point` chart variant                | Pending  | P2       | M (~3h)   | `pitcher-raw-pitches` already has `release_pos_x/z`                     |
 | P4.4 | Fix `/build-model equivalent` fake query IDs | Decide   | P4       | S–M       | 3 options below; leaning (c) remove callouts                            |
-| P4.5 | Friendly error for minimal-field stdin JSON  | Pending  | P4       | S (~1h)   | Arsenal template crashes on sparse JSON with `Cannot read … 'includes'` |
+| P4.5 | Friendly error for minimal-field stdin JSON  | Shipped  | P4       | —         | 2026-04-19 — new `assertFields()` helper in `src/utils/validate-records.ts`; applied to `pitcher-arsenal.transform()` with the fields it dereferences; error names every missing field + points at the PitchData schema |
 
 **All P2.x items are conditional.** If Aaron rewrites `Modules/04/Deliverables/Visualization Template Library.md` (audit recommendation #1), skip the entire P2 section.
 
@@ -82,14 +82,18 @@ instructions and `RENAME_PLAN.md` for the full 5-phase plan.
 - **Recommendation:** (c) if `/build-model` is Python-generation rather than CLI-passthrough. (a) is the fallback if the callouts are load-bearing for some student workflow.
 - **Files:** (a/c) `ai-baseball-data-analyst/Modules/05 - Code & Model Building/Deliverables/Model Template Library.md`; (b) new alias layer in `src/templates/queries/index.ts`.
 
-### P4.5 — Friendly error for minimal-field stdin JSON
-- **What:** When the arsenal template receives a record missing fields it dereferences (e.g. a raw `[{pitcher_id, pitch_type, release_speed}]` fixture with no `description`/`game_type`/etc.), it crashes with `Cannot read properties of undefined (reading 'includes')`. Real-world Savant CSV/JSON exports always include these fields, so only hand-authored minimal fixtures hit it — but the error is inscrutable for anyone who does.
-- **Where:** `src/templates/queries/pitcher-arsenal.ts` (and likely other templates that `.includes()` optional string fields inside `transform()`). Triaged 2026-04-14 during v0.7.2 smoke-test authoring (TEST_PLAN C.1d).
-- **Fix options:**
-  - **(a)** Guard the specific `.includes()` call sites with `field ?? ''` and accept that sparse records produce degraded-but-non-crashing output.
-  - **(b)** Validate required fields at stdin-adapter boundary and emit a message like `Record missing field "description" — pitcher-arsenal needs description, game_type, game_year. See README schema.`
-- **Recommendation:** (b) — fail fast at the boundary with a pointer to the schema is more teachable than silently returning "Unknown" rows.
-- **Files:** `src/adapters/stdin.ts` or per-template `transform()`; new test case in `test/templates/pitcher-arsenal.test.ts`.
+### P4.5 — Friendly error for minimal-field stdin JSON — **Shipped 2026-04-19**
+
+**Issue (resolved):** `pitcher-arsenal.transform()` dereferenced `pitch.description.includes(...)` on every record. Hand-authored stdin / `--data` fixtures without the full Savant field set crashed with `TypeError: Cannot read properties of undefined (reading 'includes')`, pointing the stack trace at the template rather than the missing input field. Real Savant exports always include these fields — the bug only surfaced for tutorial / test / minimal payloads.
+
+**What shipped:**
+- **New helper** `src/utils/validate-records.ts` — `assertFields(records, requiredFields, templateId)`. Checks the first record (payloads are homogeneous in practice), collects *every* missing field into one message, and points at `src/adapters/types.ts` for the full PitchData / PlayerStats contract.
+- **Applied to `pitcher-arsenal.ts`** with its actual dereferenced fields: `description`, `release_speed`, `release_spin_rate`, `pfx_x`, `pfx_z`. (The existing `if (!pitch.pitch_type) continue` soft-skip is preserved for heterogeneous inputs — only the fields the template would otherwise silently NaN-out on or crash on are required.)
+- **Tests:** two new cases in `test/templates/pitcher-arsenal.test.ts` — one verifies the error names the template + the specific missing field, the other verifies every missing field appears in one message (so a user fixing a sparse fixture edits all of them in one pass instead of bisecting).
+
+**Chose (b) over (a):** per the original triage. Silent degradation ("Unknown" rows, NaN-filled stats) is worse than a fail-fast error with a schema pointer — analyst-user payloads should round-trip cleanly or die explicitly, not return dashboards full of dashes.
+
+**Other templates with the same pattern:** `src/templates/queries/` has 9 other files that use `.includes()` on optional-in-stdin fields (`pitcher-velocity-trend`, `trend-rolling-average`, `hitter-handedness-splits`, `hitter-hot-cold-zones`, `hitter-vs-pitch-type`, `leaderboard-comparison`, `leaderboard-custom`, `matchup-pitcher-vs-hitter`, `pitcher-handedness-splits`). `assertFields` is ready for them — adoption is a drop-in when they next get touched or when a student hits the same crash. Out of scope for P4.5 since the original triage named only pitcher-arsenal.
 
 ---
 

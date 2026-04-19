@@ -1,6 +1,15 @@
 import { registerTemplate, type QueryTemplate } from './registry.js';
 import type { PitchData } from '../../adapters/types.js';
 import { pitchTypeName } from '../../adapters/types.js';
+import { assertFields } from '../../utils/validate-records.js';
+
+const REQUIRED_FIELDS = [
+  'description',
+  'release_speed',
+  'release_spin_rate',
+  'pfx_x',
+  'pfx_z',
+];
 
 const template: QueryTemplate = {
   id: 'pitcher-arsenal',
@@ -41,6 +50,7 @@ const template: QueryTemplate = {
   transform(data, _params) {
     const pitches = data as PitchData[];
     if (pitches.length === 0) return [];
+    assertFields(pitches, REQUIRED_FIELDS, 'pitcher-arsenal');
 
     // Group by pitch type
     const byType = new Map<string, PitchData[]>();
