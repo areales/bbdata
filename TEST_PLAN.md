@@ -101,11 +101,11 @@ Before 0.9.0 the cache was a no-op despite `--no-cache`, `cache.enabled`, and `c
 | # | Who | Command | Expected | ✓ |
 |---|---|---|---|---|
 | CA.1 | A | `rm -rf ~/.bbdata/cache` to start clean, then run `npm run dev -- query pitcher-arsenal --player "Corbin Burnes" --season 2025` twice. Time both runs with PowerShell `Measure-Command`. | Second run is clearly faster than the first (typically 10× — cache hit avoids the upstream fetch). `~/.bbdata/cache/bbdata.sqlite` exists after run 1. | ☐ |
-| CA.2 | C | After CA.1, inspect the `{ data, meta }` envelope from run 2 via `--format json`. | `meta.cached === true` on run 2. `meta.source` matches run 1's source. | ☐ |
+| CA.2 | C | After CA.1, inspect the `{ data, meta }` envelope from run 2 via `--format json`. | `meta.cached === true` on run 2. `meta.source` matches run 1's source. | ✓ |
 | CA.3 | A | Run the same query again with `--no-cache`. Time it. | As slow as run 1 (bypass works). `meta.cached === false`. | ☐ |
 | CA.4 | A | Set `~/.bbdata/config.json → cache.enabled = false`, re-run the query. | Every invocation hits upstream fresh; no cache reads or writes. `meta.cached === false`. Restore to `true` when done. | ☐ |
 | CA.5 | A | Set `cache.maxAgeDays = 0`, re-run after a warm cache. | Existing entries are treated as expired; invocation hits upstream fresh and overwrites. `meta.cached === false`. Restore to `30` when done. | ☐ |
-| CA.6 | C | Confirm `query --stdin` and `query --data <file>` never touch the cache (grep `bbdata.sqlite` mtime before/after). | mtime unchanged — stdin paths bypass cache. | ☐ |
+| CA.6 | C | Confirm `query --stdin` and `query --data <file>` never touch the cache (grep `bbdata.sqlite` mtime before/after). | mtime unchanged — stdin paths bypass cache. | ✓ |
 
 ### Cross-project regression — scout-app
 
@@ -229,7 +229,7 @@ npm run build
 | B.1d | A | `npm run dev -- viz rolling --player "Freddie Freeman" --season 2025 --format pdf -o .tmp/freddie.pdf` | Faceted small multiples render; each panel's y-axis independent. | ☐ |
 | B.1e | A | `npm run dev -- viz movement --player "Corbin Burnes" --season 2025 --format pdf --pdf-mode raster --dpi 300 -o .tmp/burnes_raster.pdf` | PDF renders. Visually identical to PNG at equivalent DPI. Zooming reveals pixel grid (raster). File noticeably larger than B.1a. | ☐ |
 | B.1f | A | `npm run dev -- viz movement --player "Corbin Burnes" --season 2025 --format pdf` (in a TTY) | Errors with `Refusing to write binary PDF to a TTY. Use --output <path> or pipe stdout.` Claude runs non-interactively so can't trigger the TTY guard. | ☐ |
-| B.1g | C | `npm run dev -- viz movement --player "Corbin Burnes" --season 2025 --format gif -o .tmp/bad.gif` | Errors with `Unsupported --format "gif"`. Pure string-match check. | ☐ |
+| B.1g | C | `npm run dev -- viz movement --player "Corbin Burnes" --season 2025 --format gif -o .tmp/bad.gif` | Errors with `Unsupported --format "gif"`. Pure string-match check. | ✓ |
 
 ### Regression re-run (v0.7.0 features, spot check)
 
@@ -276,7 +276,7 @@ npm run build
 | # | Who | Command | Expected | ✓ |
 |---|---|---|---|---|
 | 3.2a | A | `npm run dev -- viz rolling --player "Freddie Freeman" --season 2025 --format html -o .tmp/freddie.html` | File exists. Open in a browser — rolling chart renders. | ☐ |
-| 3.2b | C | View-source `.tmp/freddie.html` | Contains `<!doctype html>`, inline `<svg>`, and `<script type="application/json" id="bbdata-spec">`. Spec JSON parses. Pure text inspection. | ☐ |
+| 3.2b | C | View-source `.tmp/freddie.html` | Contains `<!doctype html>`, inline `<svg>`, and `<script type="application/json" id="bbdata-spec">`. Spec JSON parses. Pure text inspection. | ✓ |
 
 ### P3.3 — `--dpi <n>`
 
@@ -291,7 +291,7 @@ npm run build
 |---|---|---|---|---|
 | 1.3a | A | `npm run dev -- viz rolling --player "Freddie Freeman" --season 2025 --window 5 -o .tmp/freddie_w5.svg` | Chart renders. More data points than default (15-game window) because 5-game windows produce more steps per season. | ☐ |
 | 1.3b | A | `npm run dev -- viz rolling --player "Freddie Freeman" --season 2025 -o .tmp/freddie_default.svg` | Chart renders with 15-game default. Open both SVGs in VS Code preview and confirm `freddie_w5` has denser trend lines. | ☐ |
-| 1.3c | C | `npm run dev -- query trend-rolling-average --player "Freddie Freeman" --season 2025 --format json` then inspect `.data.length` | Baseline row count with default window=15. JSON length is structural. (Network-dependent; flakes are network, not code.) | ☐ |
+| 1.3c | C | `npm run dev -- query trend-rolling-average --player "Freddie Freeman" --season 2025 --format json` then inspect `.data.length` | Baseline row count with default window=15. JSON length is structural. (Network-dependent; flakes are network, not code.) | ✓ |
 
 ### P1.2b — Chart-type aliases
 
@@ -301,7 +301,7 @@ npm run build
 | 1.2b | A | `npm run dev -- viz hitting-spray --player "Aaron Judge" --season 2025 -o .tmp/alias_spray.svg` | Resolves to `spray`. | ☐ |
 | 1.2c | A | `npm run dev -- viz hitting-zones --player "Shohei Ohtani" --season 2025 -o .tmp/alias_zone.svg` | Resolves to `zone`. | ☐ |
 | 1.2d | A | `npm run dev -- viz trend-rolling --player "Freddie Freeman" --season 2025 -o .tmp/alias_rolling.svg` | Resolves to `rolling`. | ☐ |
-| 1.2e | C | `npm run dev -- viz` (no type arg) | Lists canonical types AND alias map in help output. Pure stdout text check. | ☐ |
+| 1.2e | C | `npm run dev -- viz` (no type arg) | Lists canonical types AND alias map in help output. Pure stdout text check. | ✓ |
 
 ### P4.3 — Audience harmonize
 
@@ -309,8 +309,8 @@ npm run build
 |---|---|---|---|---|
 | 4.3a | A | `npm run dev -- viz movement --player "Corbin Burnes" --season 2025 --audience gm -o .tmp/aud_gm.svg` | No error. `gm` maps to `frontoffice` on viz. SVG renders. | ☐ |
 | 4.3b | A | `npm run dev -- viz movement --player "Corbin Burnes" --season 2025 --audience scout -o .tmp/aud_scout.svg` | No error. `scout` maps to `analyst` on viz. SVG renders. | ☐ |
-| 4.3c | C | `npm run dev -- report relief-pitcher-quick --player "Edwin Diaz" --audience presentation --format json` | No error. `presentation` normalizes to `analyst` on report. JSON `.meta.audience === "analyst"`. Structural check. | ☐ |
-| 4.3d | C | `npm run dev -- report relief-pitcher-quick --player "Edwin Diaz" --audience frontoffice --format json` | No error. `frontoffice` normalizes to `gm`. JSON `.meta.audience === "gm"`. Structural check. | ☐ |
+| 4.3c | C | `npm run dev -- report relief-pitcher-quick --player "Edwin Diaz" --audience presentation --format json` | No error. `presentation` normalizes to `analyst` on report. JSON `.meta.audience === "analyst"`. Structural check. | ✓ |
+| 4.3d | C | `npm run dev -- report relief-pitcher-quick --player "Edwin Diaz" --audience frontoffice --format json` | No error. `frontoffice` normalizes to `gm`. JSON `.meta.audience === "gm"`. Structural check. | ✓ |
 
 ### Cross-project verification
 
