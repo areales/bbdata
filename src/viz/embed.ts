@@ -1,6 +1,7 @@
 import { viz } from '../commands/viz.js';
 import type { ChartType, VizAudience } from './types.js';
 import type { Audience } from '../templates/reports/registry.js';
+import type { StdinAdapter } from '../adapters/stdin.js';
 
 /**
  * Map from report template id → graph slots to inject into the Handlebars
@@ -36,17 +37,17 @@ const REPORT_GRAPH_MAP: Record<
  * Graphs that fail to generate (missing data, query errors) resolve to an
  * empty string; templates should guard with `{{#if graphs.X}}`.
  *
- * When called from a report that was invoked with `--stdin`, the stdin
- * adapter is already loaded by the caller; we pass `source: 'stdin'` to
- * route viz's internal query through the same adapter instead of re-reading
- * stdin (which would hang forever — stdin can only be consumed once).
+ * When called from a report invoked with `--stdin` or `--data`, the parent
+ * passes its pre-loaded `stdinAdapter` through so every embedded viz call
+ * shares the same payload — stdin can only be consumed once per process, and
+ * re-reading file data per slot would be wasteful.
  */
 export async function generateReportGraphs(
   reportId: string,
   player: string,
   season: number,
   audience: Audience | VizAudience,
-  opts: { stdin?: boolean } = {},
+  opts: { stdinAdapter?: StdinAdapter } = {},
 ): Promise<Record<string, string>> {
   const slots = REPORT_GRAPH_MAP[reportId] ?? [];
   const out: Record<string, string> = {};
@@ -57,7 +58,7 @@ export async function generateReportGraphs(
         player,
         season,
         audience,
-        ...(opts.stdin ? { source: 'stdin' } : {}),
+        ...(opts.stdinAdapter ? { source: 'stdin', stdinAdapter: opts.stdinAdapter } : {}),
       });
       out[slot] = r.svg;
     } catch {

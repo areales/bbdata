@@ -8,7 +8,8 @@ import { log } from '../utils/logger.js';
 import { gradeLabel, gradeColor, formatGrade } from '../utils/grading.js';
 import { pitchTypeName } from '../adapters/types.js';
 import { query as runQuery } from './query.js';
-import { getStdinAdapter } from '../adapters/index.js';
+import { createStdinAdapter } from '../adapters/index.js';
+import type { StdinAdapter } from '../adapters/stdin.js';
 import { readStdin } from '../utils/stdin.js';
 import { loadDataFile } from '../utils/data-input.js';
 import { generateReportGraphs } from '../viz/embed.js';
@@ -190,13 +191,16 @@ export async function report(options: ReportOptions): Promise<ReportResult> {
   if (options.stdin && options.data) {
     throw new Error('Pass only one of --stdin or --data <path>, not both.');
   }
-  // Pre-load stdin data once for all sub-queries
+  // Pre-load stdin data once into a per-invocation adapter. All sub-queries
+  // (runQuery calls + generateReportGraphs → viz()) share this same instance
+  // so stdin is consumed only once and no state leaks across `report()` calls.
+  let stdinAdapter: StdinAdapter | undefined;
   if (options.stdin) {
     const raw = await readStdin();
-    const adapter = getStdinAdapter();
-    adapter.load(raw);
+    stdinAdapter = createStdinAdapter();
+    stdinAdapter.load(raw);
   } else if (options.data) {
-    loadDataFile(options.data);
+    stdinAdapter = loadDataFile(options.data);
   }
 
   const config = getConfig();
@@ -226,7 +230,7 @@ export async function report(options: ReportOptions): Promise<ReportResult> {
         team: options.team,
         season,
         format: 'json',
-        ...(options.stdin || options.data ? { source: 'stdin' } : {}),
+        ...(stdinAdapter ? { source: 'stdin', stdinAdapter } : {}),
       });
       dataResults[req.queryTemplate] = result.data;
       if (!dataSources.includes(result.meta.source)) {
@@ -261,7 +265,7 @@ export async function report(options: ReportOptions): Promise<ReportResult> {
     player,
     season,
     audience,
-    { stdin: options.stdin },
+    stdinAdapter ? { stdinAdapter } : {},
   );
 
   // Load and compile Handlebars template

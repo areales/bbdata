@@ -35,6 +35,70 @@ binary outputs, adapter round-trips — that mocks can't validate.
 
 ---
 
+## v0.9.0 — R1.3 stdin singleton removal (2026-04-19)
+
+Ships R1.3 from `TASKS.md` (Codex senior-eng review 2026-04-19).
+**Breaking** for library consumers of `getStdinAdapter()` / the old
+`loadDataFile()` void signature — **CLI surface unchanged**. Smoke
+focus: no regression on `--stdin` / `--data` flows in all three
+commands; confirm per-invocation isolation in programmatic use;
+confirm no singleton leaks back in under future edits.
+
+### Registry + install
+
+| # | Who | Command | Expected | ✓ |
+|---|---|---|---|---|
+| R.1 | C | `npm view bbdata version` | Outputs `0.9.0`. | ☐ |
+| R.1b | C | `(Invoke-WebRequest -Uri "https://registry.npmjs.org/bbdata").Content.Substring(0, 500)` | Contains `"dist-tags":{"latest":"0.9.0"}`. Confirms registry + CDN caught up. | ☐ |
+| R.2 | A | `npm install -g bbdata@0.9.0 && bbdata --version` | Outputs `0.9.0`. Validates global-install path + `CLI_VERSION` walk-up. | ☐ |
+
+### CLI — `query` (no functional regression)
+
+| # | Who | Command | Expected | ✓ |
+|---|---|---|---|---|
+| Q.1 | A | `Get-Content fixtures\burnes-2025.json \| bbdata query pitcher-arsenal --stdin --format json` | Exit 0. JSON envelope `{data, meta}` with `meta.source === 'stdin'`, non-empty `data`. | ☐ |
+| Q.2 | A | `bbdata query pitcher-arsenal --data fixtures\burnes-2025.json --format json` | Exit 0. Same shape as Q.1. | ☐ |
+| Q.3 | A | `bbdata query pitcher-arsenal --data fixtures\burnes-2025.csv --format json` | Exit 0. Savant CSV parsed through `loadDataFile`'s CSV branch; `meta.source === 'stdin'`. | ☐ |
+| Q.4 | A | `'not-json' \| bbdata query pitcher-arsenal --stdin` | Exit non-zero. Stderr matches `/Failed to parse stdin data/`. Confirms the error path in `StdinAdapter.load` survives the refactor. | ☐ |
+| Q.5 | C | `bbdata query pitcher-arsenal --stdin --data foo.json` | Exit non-zero. Stderr matches `/Pass only one of --stdin or --data/`. | ☐ |
+
+### CLI — `report` (stdin consumed once across sub-queries + embedded graphs)
+
+| # | Who | Command | Expected | ✓ |
+|---|---|---|---|---|
+| RP.1 | A | `Get-Content fixtures\burnes-2025.json \| bbdata report advance-sp --player "Corbin Burnes" --season 2025 --stdin` | Exit 0. Markdown report with populated sections + an embedded `<svg>` movement chart. No hang (would indicate a second stdin read attempt), no "Stdin adapter has no data" (would indicate state loss between sub-query and embed). | ☐ |
+| RP.2 | A | `bbdata report advance-sp --player "Corbin Burnes" --season 2025 --data fixtures\burnes-2025.json` | Same as RP.1 but via `--data`. Markdown + graph both populated. | ☐ |
+
+### CLI — `viz`
+
+| # | Who | Command | Expected | ✓ |
+|---|---|---|---|---|
+| V.1 | A | `bbdata viz --type movement --data fixtures\burnes-2025.json --player "Corbin Burnes" --season 2025 --format svg --output tmp\burnes.svg` | Exit 0. `tmp\burnes.svg` exists, opens as valid SVG, and shows per-pitch arsenal markers. | ☐ |
+
+### Programmatic — per-invocation isolation (the real reason for 0.9.0)
+
+| # | Who | Check | Expected | ✓ |
+|---|---|---|---|---|
+| P.1 | C | `npx vitest run test/utils/data-input.test.ts` | 8 / 8 pass, including the new `returns independent adapter instances across calls (no singleton state leak)` test. | ✓ |
+| P.2 | A | In a fresh Node script: `import { createStdinAdapter } from 'bbdata'; const a = createStdinAdapter(); a.load('[{"pitcher_id":"1","pitch_type":"FF"}]'); const b = createStdinAdapter(); console.log(b.supports({}));` | Prints `false`. `b` is empty even though `a` is loaded — confirms no shared state. | ☐ |
+| P.3 | C | `grep -rc "new StdinAdapter" dist/` | Returns exactly 1 (the factory's single construction site), not multiple module-scope instantiations. Guards against a future edit that reintroduces a singleton. | ☐ |
+| P.4 | C | `grep -c "getStdinAdapter" dist/` | Returns 0. The removed export must not leak into the bundle. | ☐ |
+
+### Cross-project regression — scout-app
+
+| # | Who | Check | Expected | ✓ |
+|---|---|---|---|---|
+| X.1 | A | Bump `scout-app`'s `bbdata` dep to `^0.9.0`, run `npm install`, boot `npm run dev`. Hit `/chat` with a known player (e.g. "Corbin Burnes"). | Prefetch path succeeds; report streams back identical to `bbdata@0.8.0` behavior. Confirms programmatic use of `query()` / `report()` is source-compatible. | ☐ |
+| X.2 | A | On a warm Vercel preview instance, hit `/api/chat` with three near-concurrent requests from different Clerk users all triggering stdin-sourced reports. | All three reports complete correctly with their own data. Before 0.9.0, the shared singleton could bleed payload between requests; 0.9.0 must not. | ☐ |
+
+### Notes
+
+- **Breaking for `getStdinAdapter` / `loadDataFile` direct importers only.** Migration examples live in `CHANGELOG.md 0.9.0 § Migration`. scout-app's `prefetch.ts` does not import either of these directly, so it's non-breaking for scout-app once the dep bump lands.
+- **Rollback window:** `npm unpublish bbdata@0.9.0` is available for 72h from publish. After that, bump to 0.9.1.
+- **Pre-existing Vega SVG snapshot drift** in `test/viz/snapshots.test.ts > rolling chart` persists on `main` before this change — confirmed via `git stash` + re-run on 2026-04-19. Unrelated; tracked separately.
+
+---
+
 ## v0.8.0 — package rename (2026-04-14)
 
 The npm package renamed from `bbdata-cli` to `bbdata`. Binary name

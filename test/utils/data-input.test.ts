@@ -3,7 +3,6 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { loadDataFile } from '../../src/utils/data-input.js';
-import { getStdinAdapter } from '../../src/adapters/index.js';
 import { parseSavantCsv } from '../../src/adapters/savant-csv.js';
 
 const SAVANT_CSV = `pitch_type,game_date,release_speed,release_spin_rate,pfx_x,pfx_z,plate_x,plate_z,player_name,pitcher,batter,batter_name,description,events,bb_type,stand,p_throws,launch_speed,launch_angle,hc_x,hc_y,estimated_ba_using_speedangle,estimated_woba_using_speedangle,inning,balls,strikes,outs_when_up,at_bat_number,pitch_number,game_type
@@ -50,26 +49,37 @@ describe('loadDataFile', () => {
       player: { mlbam_id: '123', name: 'Test' },
     };
     writeFileSync(path, JSON.stringify(payload));
-    loadDataFile(path);
-    const adapter = getStdinAdapter();
+    const adapter = loadDataFile(path);
     expect(adapter.supports({} as any)).toBe(true);
   });
 
   it('loads a .json file with raw array shape', () => {
     const path = join(tmp, 'arr.json');
     writeFileSync(path, JSON.stringify([{ pitcher_id: '1', pitch_type: 'SL' }]));
-    loadDataFile(path);
-    expect(getStdinAdapter().supports({} as any)).toBe(true);
+    const adapter = loadDataFile(path);
+    expect(adapter.supports({} as any)).toBe(true);
   });
 
   it('loads a .csv file and parses via Savant schema', async () => {
     const path = join(tmp, 'savant.csv');
     writeFileSync(path, SAVANT_CSV);
-    loadDataFile(path);
-    const adapter = getStdinAdapter();
+    const adapter = loadDataFile(path);
     const result = await adapter.fetch({ season: 2025 } as any);
     expect(result.data).toHaveLength(2);
     expect((result.data[0] as any).pitch_type).toBe('FF');
+  });
+
+  it('returns independent adapter instances across calls (no singleton state leak)', () => {
+    const pathA = join(tmp, 'a.json');
+    const pathB = join(tmp, 'b.json');
+    writeFileSync(pathA, JSON.stringify([{ pitcher_id: 'A', pitch_type: 'FF' }]));
+    writeFileSync(pathB, JSON.stringify([]));
+    const adapterA = loadDataFile(pathA);
+    const adapterB = loadDataFile(pathB);
+    // Each call returns its own instance; loading B must not touch A's data.
+    expect(adapterA).not.toBe(adapterB);
+    expect(adapterA.supports({} as any)).toBe(true);
+    expect(adapterB.supports({} as any)).toBe(false);
   });
 
   it('rejects unsupported extensions', () => {

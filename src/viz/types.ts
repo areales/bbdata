@@ -1,4 +1,5 @@
 import type { Audience } from '../templates/reports/registry.js';
+import type { StdinAdapter } from '../adapters/stdin.js';
 
 export type ChartType = 'movement' | 'movement-binned' | 'spray' | 'zone' | 'rolling';
 export type VizFormat = 'svg' | 'png' | 'pdf' | 'html';
@@ -38,6 +39,14 @@ export interface VizOptions {
    * `raster` for Vega specs that svg-to-pdfkit renders imperfectly.
    */
   pdfMode?: 'vector' | 'raster';
+  /**
+   * Internal plumbing: a pre-loaded StdinAdapter supplied by a parent
+   * command (e.g. `report()` → `generateReportGraphs()` → `viz()`) so a
+   * single stdin payload can serve many sub-viz calls without re-reading
+   * stdin. Skills and agents calling `viz()` directly typically don't set
+   * this — use `stdin` or `data` instead.
+   */
+  stdinAdapter?: StdinAdapter;
 }
 
 export interface VizResult {

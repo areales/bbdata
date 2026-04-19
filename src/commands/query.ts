@@ -1,5 +1,6 @@
 import { Command } from 'commander';
-import { resolveAdapters, getStdinAdapter } from '../adapters/index.js';
+import { resolveAdapters, createStdinAdapter } from '../adapters/index.js';
+import type { StdinAdapter } from '../adapters/stdin.js';
 import { format, type OutputFormat, type FormattedOutput } from '../formatters/index.js';
 import { getConfig } from '../config/config.js';
 import { log } from '../utils/logger.js';
@@ -32,6 +33,14 @@ export interface QueryOptions {
   stdin?: boolean;
   /** Path to a local .json or .csv file to use instead of fetching. */
   data?: string;
+  /**
+   * Internal plumbing: a pre-loaded StdinAdapter supplied by a parent
+   * command (e.g. `report()` or `viz()`) so a single stdin payload can
+   * serve many sub-queries without re-reading stdin (which can only be
+   * consumed once per process). Skills and agents calling `query()`
+   * directly typically don't set this — use `stdin` or `data` instead.
+   */
+  stdinAdapter?: StdinAdapter;
 }
 
 export interface QueryResult {
@@ -54,14 +63,20 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
   if (options.stdin && options.data) {
     throw new Error('Pass only one of --stdin or --data <path>, not both.');
   }
-  // If --stdin or --data, load data into the stdin adapter and force source
+  // Build a per-invocation stdin adapter. If a parent command supplied one
+  // via `options.stdinAdapter`, reuse it so sibling sub-queries share payload.
+  // Otherwise, create one locally when --stdin or --data is set.
+  let stdinAdapter: StdinAdapter | undefined = options.stdinAdapter;
   if (options.stdin) {
     const raw = await readStdin();
-    const adapter = getStdinAdapter();
-    adapter.load(raw);
+    stdinAdapter = createStdinAdapter();
+    stdinAdapter.load(raw);
     options.source = 'stdin';
   } else if (options.data) {
-    loadDataFile(options.data);
+    stdinAdapter = loadDataFile(options.data);
+    options.source = 'stdin';
+  } else if (stdinAdapter) {
+    // Parent command already loaded an adapter; ensure source is routed to it.
     options.source = 'stdin';
   }
 
@@ -103,7 +118,10 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
   const preferredSources = options.source
     ? [options.source as any]
     : template.preferredSources;
-  const adapters = resolveAdapters(preferredSources);
+  const adapters = resolveAdapters(
+    preferredSources,
+    stdinAdapter ? { stdin: stdinAdapter } : undefined,
+  );
 
   let lastError: Error | undefined;
   let lastErrorAdapter: string | undefined;

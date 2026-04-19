@@ -3,6 +3,101 @@
 All notable changes to `bbdata` are documented here. This project follows
 [Semantic Versioning](https://semver.org/).
 
+## 0.9.0 — 2026-04-19
+
+**Breaking:** removes the module-singleton `stdinAdapter` to eliminate
+cross-call state leakage that affected programmatic library consumers
+(scout-app via `src/lib/prefetch.ts`, course tooling). Source: Codex
+senior-eng review item R1.3 in `TASKS.md`. CLI surface (flags, args,
+output schema) is unchanged.
+
+### Migration
+
+Only affects code that imports stdin-adapter helpers directly. CLI users
+(`bbdata query --stdin …`, `bbdata report --data …`, `bbdata viz …`)
+see no change.
+
+```diff
+- import { getStdinAdapter, resolveAdapters } from 'bbdata';
++ import { createStdinAdapter, resolveAdapters } from 'bbdata';
+
+- const adapter = getStdinAdapter();
+- adapter.load(raw);
++ const adapter = createStdinAdapter();
++ adapter.load(raw);
+
+- resolveAdapters(['stdin']);
++ resolveAdapters(['stdin'], { stdin: adapter });
+```
+
+`loadDataFile(path)` now **returns** the loaded `StdinAdapter`:
+
+```diff
+- loadDataFile('./payload.csv');
+- const adapter = getStdinAdapter();
++ const adapter = loadDataFile('./payload.csv');
+```
+
+When calling `query()` / `report()` / `viz()` programmatically from a
+parent command, thread a pre-loaded adapter via the new
+`stdinAdapter` option so sibling sub-calls share the same payload
+without re-reading stdin (stdin is consumable exactly once per process).
+
+### Changed
+
+- **`src/adapters/index.ts`** — module-scope `stdinAdapter` singleton
+  removed; `'stdin'` dropped from the static adapter record;
+  `getStdinAdapter()` replaced by a `createStdinAdapter()` factory;
+  `resolveAdapters(preferred, overrides?)` accepts a per-call override
+  map so stdin flows through the same resolution path as network
+  adapters.
+- **`src/utils/data-input.ts`** — `loadDataFile(path)` now constructs
+  and **returns** a fresh `StdinAdapter` instead of mutating a
+  singleton.
+- **`src/commands/query.ts`** — new internal
+  `QueryOptions.stdinAdapter` field lets parent commands thread a
+  shared adapter into sub-queries.
+- **`src/commands/report.ts`**, **`src/commands/viz.ts`** — each entry
+  point constructs one adapter and threads it through every
+  sub-`runQuery(...)` call plus `generateReportGraphs(...)`.
+- **`src/viz/embed.ts`** — `generateReportGraphs` now takes
+  `{ stdinAdapter? }` and forwards to `viz()`.
+- **`src/viz/types.ts`** — `VizOptions.stdinAdapter?` mirrors the
+  `query` option for symmetry.
+
+### Why
+
+Before 0.9.0, concurrent or repeated `query()` / `report()` / `viz()`
+calls within the same process would read or overwrite each other's
+stdin payload via the module-scope adapter. Visible in long-running
+programmatic consumers like scout-app (one Vercel warm instance serving
+many requests); CLI one-shots were mostly unaffected because the
+process died after every invocation.
+
+### Tests
+
+- `test/utils/data-input.test.ts` updated for the new `loadDataFile`
+  return type.
+- **New regression test** — asserts two back-to-back `loadDataFile`
+  calls return independent adapter instances, the exact scenario the
+  old singleton broke.
+
+### Developer notes
+
+- **Pre-existing Vega snapshot drift** in
+  `test/viz/snapshots.test.ts > rolling chart` persists on `main`;
+  unrelated to this change.
+- **Groundwork for R5.0 (`ExecutionContext`)** — the `overrides` map on
+  `resolveAdapters` is a natural inflection point for a full
+  per-invocation context carrying cache/config/source policy alongside
+  adapters.
+- **scout-app migration** is a follow-up: bump its `bbdata` dep to
+  `^0.9.0` and verify the prefetch path (no API change needed on its
+  side because it calls `query()` / `report()` rather than importing
+  `getStdinAdapter` directly).
+
+---
+
 ## 0.8.0 — 2026-04-14
 
 **Package renamed from `bbdata-cli` to `bbdata`.** The binary name is unchanged
