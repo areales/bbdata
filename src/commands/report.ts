@@ -3,15 +3,12 @@ import Handlebars from 'handlebars';
 import { readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getConfig, getTemplatesDir } from '../config/config.js';
+import { getTemplatesDir } from '../config/config.js';
 import { log } from '../utils/logger.js';
 import { gradeLabel, formatGrade } from '../utils/grading.js';
 import { pitchTypeName } from '../adapters/types.js';
 import { query as runQuery } from './query.js';
-import { createStdinAdapter } from '../adapters/index.js';
-import type { StdinAdapter } from '../adapters/stdin.js';
-import { readStdin } from '../utils/stdin.js';
-import { loadDataFile } from '../utils/data-input.js';
+import { ExecutionContext } from '../context/execution.js';
 import { generateReportGraphs } from '../viz/embed.js';
 import {
   getReportTemplate,
@@ -188,23 +185,10 @@ function generateFallbackTemplate(templateFile: string): string {
  * Programmatic API — skills and agents call this directly.
  */
 export async function report(options: ReportOptions): Promise<ReportResult> {
-  if (options.stdin && options.data) {
-    throw new Error('Pass only one of --stdin or --data <path>, not both.');
-  }
-  // Pre-load stdin data once into a per-invocation adapter. All sub-queries
-  // (runQuery calls + generateReportGraphs → viz()) share this same instance
-  // so stdin is consumed only once and no state leaks across `report()` calls.
-  let stdinAdapter: StdinAdapter | undefined;
-  if (options.stdin) {
-    const raw = await readStdin();
-    stdinAdapter = createStdinAdapter();
-    stdinAdapter.load(raw);
-  } else if (options.data) {
-    stdinAdapter = loadDataFile(options.data);
-  }
+  const context = new ExecutionContext(options);
+  await context.loadStdinAdapter();
 
-  const config = getConfig();
-  const audience = resolveReportAudience(options.audience ?? (config.defaultAudience as Audience));
+  const audience = resolveReportAudience(options.audience ?? (context.config.defaultAudience as Audience));
 
   const template = getReportTemplate(options.template);
   if (!template) {
@@ -224,13 +208,14 @@ export async function report(options: ReportOptions): Promise<ReportResult> {
 
   for (const req of template.dataRequirements) {
     try {
-      const result = await runQuery({
-        template: req.queryTemplate,
-        player: options.player,
-        team: options.team,
-        season,
+        const result = await runQuery({
+          template: req.queryTemplate,
+          resolveTemplateId: req.queryTemplate,
+          player: options.player,
+          team: options.team,
+          season,
         format: 'json',
-        ...(stdinAdapter ? { source: 'stdin', stdinAdapter } : {}),
+        ...(context.stdinAdapter ? { source: 'stdin', stdinAdapter: context.stdinAdapter } : {}),
       });
       dataResults[req.queryTemplate] = result.data;
       if (!dataSources.includes(result.meta.source)) {
@@ -265,7 +250,7 @@ export async function report(options: ReportOptions): Promise<ReportResult> {
     player,
     season,
     audience,
-    stdinAdapter ? { stdinAdapter } : {},
+    context.stdinAdapter ? { stdinAdapter: context.stdinAdapter } : {},
   );
 
   // Load and compile Handlebars template
