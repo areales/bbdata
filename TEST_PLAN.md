@@ -84,6 +84,16 @@ confirm no singleton leaks back in under future edits.
 | P.3 | C | `grep -rc "new StdinAdapter" dist/` | Returns exactly 1 (the factory's single construction site), not multiple module-scope instantiations. Guards against a future edit that reintroduces a singleton. | ☐ |
 | P.4 | C | `grep -c "getStdinAdapter" dist/` | Returns 0. The removed export must not leak into the bundle. | ☐ |
 
+### Source enable/disable config (R2.1)
+
+| # | Who | Command | Expected | ✓ |
+|---|---|---|---|---|
+| S.1 | C | `npx vitest run test/config/sources.test.ts` | 6 / 6 pass — covers default enable-state, kebab↔camel mapping, stdin always-on, toggle-flip. | ✓ |
+| S.2 | A | Edit `~/.bbdata/config.json` → `sources.mlbStatsApi.enabled = false`, then run `bbdata query leaderboard-custom --stat ERA --min-ip 50 --source mlb-stats-api`. | Exits non-zero. Stderr: `Source "mlb-stats-api" is disabled in config. Edit …/config.json — set sources.mlbStatsApi.enabled = true, or omit --source …`. Confirms the actionable error path + that the camelCase key is surfaced even though the CLI value is kebab-case. | ☐ |
+| S.3 | A | With the same config (`mlbStatsApi` disabled), run `bbdata query player-season-profile --player "Aaron Judge"` (a template whose preferred sources include `mlb-stats-api` as a fallback). | Exit 0. Log shows the disabled source was filtered out; query resolved against an enabled source (e.g. `savant` or `fangraphs`). | ☐ |
+| S.4 | A | Disable every network source (`savant`, `fangraphs`, `mlbStatsApi`, `baseballReference`), then run any non-stdin query (e.g. `bbdata query pitcher-arsenal --player "Corbin Burnes"`). | Exits non-zero. Stderr: `Template "pitcher-arsenal" has no enabled sources…`. | ☐ |
+| S.5 | A | Restore defaults, then run any query normally (no `--source`). | Exit 0. Confirms the enable-filter is pass-through for the default config. | ☐ |
+
 ### Cross-project regression — scout-app
 
 | # | Who | Check | Expected | ✓ |

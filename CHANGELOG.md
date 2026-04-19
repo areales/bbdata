@@ -106,6 +106,18 @@ process died after every invocation.
   was forwarded to graph embedding); unifying both paths onto the
   adapter handle dissolved it.
 
+- **R2.1 (source enable/disable config is ignored).** The config
+  schema documented `sources.savant.enabled`, `sources.mlbStatsApi.enabled`,
+  etc., but `query()` never consulted those toggles before
+  `resolveAdapters()` — operators' config edits were silently no-ops.
+  Now `query()` filters `template.preferredSources` through
+  `isSourceEnabled(config, source)` and raises an actionable error when
+  `--source <X>` names a disabled source. A new `SOURCE_CONFIG_KEYS`
+  mapping bridges the kebab-case `DataSource` values (`mlb-stats-api`)
+  to the camelCase config keys (`mlbStatsApi`) so both forms resolve to
+  the same gate. `stdin` bypasses the check — it's a local data path,
+  not a configurable network source. Covered by `test/config/sources.test.ts`.
+
 ---
 
 ## 0.8.0 — 2026-04-14

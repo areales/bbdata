@@ -25,6 +25,11 @@ vi.mock('../../src/config/config.js', () => ({
   getCacheDir: vi.fn(() => '/tmp/bbdata/cache'),
   getTemplatesDir: vi.fn(() => '/tmp/bbdata/templates'),
   setConfig: vi.fn(),
+  // Source-enable filtering (R2.1): these tests exercise adapter fallback logic
+  // and intentionally treat all sources as enabled. Real enable-filtering
+  // behavior is covered in test/config/sources.test.ts.
+  isSourceEnabled: vi.fn(() => true),
+  sourceConfigKey: vi.fn((src: string) => src),
 }));
 
 import { query } from '../../src/commands/query.js';

@@ -1,8 +1,9 @@
 import { Command } from 'commander';
 import { resolveAdapters, createStdinAdapter } from '../adapters/index.js';
 import type { StdinAdapter } from '../adapters/stdin.js';
+import type { DataSource } from '../adapters/types.js';
 import { format, type OutputFormat, type FormattedOutput } from '../formatters/index.js';
-import { getConfig } from '../config/config.js';
+import { getConfig, getConfigDir, isSourceEnabled, sourceConfigKey } from '../config/config.js';
 import { log } from '../utils/logger.js';
 import { readStdin } from '../utils/stdin.js';
 import { loadDataFile } from '../utils/data-input.js';
@@ -115,9 +116,32 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
   const adapterQuery = template.buildQuery(params);
 
   // Get adapters in preference order
-  const preferredSources = options.source
-    ? [options.source as any]
-    : template.preferredSources;
+  // Filter preferred sources through config so operators can disable sources
+  // (e.g. a rate-limited or compliance-blocked adapter). `stdin` bypasses this
+  // — it's a local data path, not a network source, and `isSourceEnabled`
+  // always returns true for it.
+  let preferredSources: DataSource[];
+  if (options.source) {
+    const requested = options.source as DataSource;
+    if (!isSourceEnabled(config, requested)) {
+      const key = sourceConfigKey(requested);
+      throw new Error(
+        `Source "${requested}" is disabled in config. Edit ${getConfigDir()}/config.json — ` +
+          `set sources.${key}.enabled = true, or omit --source to fall through to enabled sources.`,
+      );
+    }
+    preferredSources = [requested];
+  } else {
+    preferredSources = template.preferredSources.filter((s) => isSourceEnabled(config, s));
+    if (preferredSources.length === 0) {
+      const disabled = template.preferredSources.join(', ');
+      throw new Error(
+        `Template "${template.id}" has no enabled sources. Its preferred sources ` +
+          `(${disabled}) are all disabled in ${getConfigDir()}/config.json. ` +
+          `Enable at least one under sources.*.enabled, or pass --source <name>.`,
+      );
+    }
+  }
   const adapters = resolveAdapters(
     preferredSources,
     stdinAdapter ? { stdin: stdinAdapter } : undefined,

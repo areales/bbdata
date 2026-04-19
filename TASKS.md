@@ -117,7 +117,7 @@ Source: Codex CLI rescue, job `task-mo52xq64-55apez`, session `019da353-7cd8-704
 | R1.1 | Caching is unimplemented despite public contract      | Pending  | P1       | L (1–2d) | `--no-cache`, `cache.enabled`, `cache.maxAgeDays` are no-ops |
 | R1.2 | `report --data` still triggers network fetches        | Shipped  | P1       | —        | 2026-04-19 — resolved as side effect of R1.3; both `--stdin` and `--data` populate the same `stdinAdapter`, threaded through `generateReportGraphs` |
 | R1.3 | Global stdin adapter leaks state across calls         | Shipped  | P1       | —        | 2026-04-19 — singleton removed, `resolveAdapters(overrides)` + `createStdinAdapter()` per invocation; `loadDataFile` now returns an adapter; threaded through `query` / `report` / `viz` / `generateReportGraphs` |
-| R2.1 | Source enable/disable config is ignored               | Pending  | P2       | S (~1h)  | Per-source toggles defined but never consulted               |
+| R2.1 | Source enable/disable config is ignored               | Shipped  | P2       | —        | 2026-04-19 — `isSourceEnabled` / `sourceConfigKey` helpers in `src/config/config.ts`, kebab↔camel map in `SOURCE_CONFIG_KEYS`; `query()` filters `template.preferredSources` through config + errors loudly when `--source` names a disabled source |
 | R4.1 | Lint/release hygiene broken (eslint missing)          | Pending  | P4       | S (~1h)  | `npm run lint` fails on clean install                        |
 | R5.0 | Strategic: adopt `ExecutionContext` per command       | Decide   | —        | XL       | Routes `query` / `report` / `viz` through one context object |
 
@@ -165,15 +165,21 @@ Source: Codex CLI rescue, job `task-mo52xq64-55apez`, session `019da353-7cd8-704
 
 **Next-step hint for R5.0 (strategic ExecutionContext):** the overrides map on `resolveAdapters` is a natural inflection point — generalize `{ stdin: adapter }` into a full per-invocation `ExecutionContext { adapters, cache, config, sourcePolicy }` when R1.1 (caching) lands.
 
-### R2.1 — Source enable/disable config is defined but ignored
+### R2.1 — Source enable/disable config is defined but ignored — **Shipped 2026-04-19**
 
-**Issue:** The config schema and README document per-source toggles, but `resolveAdapters()` does not consult them.
+**Issue (resolved):** The config schema and README documented per-source toggles (`sources.savant.enabled`, `sources.mlbStatsApi.enabled`, etc.), but `query()` never consulted them before calling `resolveAdapters()`. Config changes were silently no-ops.
 
-**Files:** `src/config/defaults.ts:15`, `src/commands/query.ts:103`, `README.md:161`
+**What shipped:**
+- `src/config/config.ts` — added a single-source-of-truth mapping table `SOURCE_CONFIG_KEYS` that bridges the kebab-case `DataSource` values (`mlb-stats-api`, `baseball-reference`) to the camelCase config keys (`mlbStatsApi`, `baseballReference`). Exported `isSourceEnabled(config, source)` and `sourceConfigKey(source)` helpers.
+- `src/commands/query.ts` — filters `template.preferredSources` through `isSourceEnabled` before `resolveAdapters`. Two distinct error paths:
+  - **Explicit `--source <X>` names a disabled source:** throws an actionable error pointing at `~/.bbdata/config.json → sources.<camelKey>.enabled = true`.
+  - **Template default sources are all disabled:** throws a template-scoped error listing the disabled sources and suggesting `--source`.
+- `stdin` bypasses the enable check — it's a local data path, not a configurable network source.
 
-**Why it matters:** Operators cannot disable an unstable or disallowed source (relevant for compliance/rate-limit scenarios). Config is misleading — appears to work but silently does nothing.
-
-**Fix:** filter preferred sources through config before `resolveAdapters()`. Normalize key naming (`mlbStatsApi` vs. `mlb-stats-api`) so both forms resolve to the same gate.
+**Verification:**
+- New unit test suite `test/config/sources.test.ts` (6 tests, all green): default enable-state, kebab↔camel mapping, `stdin` always allowed, toggle-flip behavior.
+- `test/commands/query.test.ts` mock updated to expose the new helpers (they default to `true` so existing fallback-chain tests aren't affected).
+- Full suite: 235 / 235 green.
 
 ### R4.1 — Lint / release hygiene broken
 
