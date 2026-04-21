@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { ExecutionContext } from '../context/execution.js';
 import type { StdinAdapter } from '../adapters/stdin.js';
+import type { DataSource } from '../adapters/types.js';
 import { format, type OutputFormat } from '../formatters/index.js';
 import { log } from '../utils/logger.js';
 import {
@@ -56,6 +57,15 @@ export interface QueryResult {
   };
 }
 
+const VALID_SOURCE_MAP = {
+  savant: true,
+  fangraphs: true,
+  'mlb-stats-api': true,
+  'baseball-reference': true,
+  stdin: true,
+} satisfies Record<DataSource, true>;
+
+const VALID_SOURCES = Object.keys(VALID_SOURCE_MAP) as DataSource[];
 /**
  * Programmatic API — skills and agents call this directly.
  */
@@ -74,7 +84,7 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
   // Build template params from CLI options
   const params: QueryTemplateParams = {
     player: options.player,
-    players: options.players?.split(',').map((s) => s.trim()),
+    players: options.players?.split(',').map((s) => s.trim()).filter((s) => s.length > 0),
     team: options.team,
     season: options.season ?? new Date().getFullYear(),
     stat: options.stat,
@@ -88,7 +98,14 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
 
   // Validate required params
   for (const req of template.requiredParams) {
-    if (!params[req] && !(req === 'players' && params.player)) {
+    if (req === 'players') {
+      if (!params.players || params.players.length < 2) {
+        throw new Error(`Template "${template.id}" requires --players with at least two comma-separated names`);
+      }
+      continue;
+    }
+
+    if (!params[req]) {
       throw new Error(`Template "${template.id}" requires --${req}`);
     }
   }
@@ -96,8 +113,25 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
   // Build adapter query
   const adapterQuery = template.buildQuery(params);
 
+  let preferredSources = template.preferredSources;
+  if (options.source) {
+    if (!VALID_SOURCES.includes(options.source as DataSource)) {
+      throw new Error(
+        `Unknown source "${options.source}". Supported: ${VALID_SOURCES.join(', ')}`,
+      );
+    }
+    const requested = options.source as DataSource;
+    if (requested === 'stdin' && !context.stdinAdapter) {
+      throw new Error(
+        'Source "stdin" requires input data. Pass --stdin to read from standard input, ' +
+          '--data <path> to load a local file, or provide stdinAdapter programmatically.',
+      );
+    }
+    preferredSources = [requested];
+  }
+
   const adapters = context.resolveAdaptersFor(
-    template.preferredSources,
+    preferredSources,
     options.resolveTemplateId ?? template.id,
   );
 

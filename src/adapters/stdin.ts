@@ -74,7 +74,10 @@ export class StdinAdapter implements DataAdapter {
   }
 
   supports(_query: AdapterQuery): boolean {
-    return this.loaded && this.data.length > 0;
+    // Loaded-but-empty payloads are still a valid stdin invocation. Returning
+    // true lets the query layer produce its explicit "0 rows" guidance instead
+    // of incorrectly classifying stdin as an unsupported adapter.
+    return this.loaded;
   }
 
   async fetch(query: AdapterQuery): Promise<AdapterResult> {
