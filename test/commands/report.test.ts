@@ -339,6 +339,26 @@ describe('report command', () => {
     expect(result.content).not.toContain('Fastball');
   });
 
+  it('report footer embeds the CLI version from package.json (regression: footer partial was orphaned)', async () => {
+    // The footer.hbs partial existed but was never registered — reports
+    // rendered without any version line. Guard against re-orphaning by
+    // asserting the footer's version + disclaimer text appear in output.
+    const { readFileSync } = await import('node:fs');
+    const pkg = JSON.parse(
+      readFileSync(new URL('../../package.json', import.meta.url), 'utf-8'),
+    ) as { version: string };
+
+    const result = await report({
+      template: 'trade-target-onepager',
+      player: 'Vladimir Guerrero Jr.',
+      season: 2026,
+      audience: 'gm',
+    });
+
+    expect(result.content).toContain(`bbdata CLI v${pkg.version}`);
+    expect(result.content).toContain('generated with AI assistance');
+  });
+
   it('JSON output exposes structured sections keyed by queryTemplate id (BBDATA-014)', async () => {
     vi.mocked(runQuery).mockImplementation(async (opts: { template: string }) => ({
       data: [{ marker: opts.template }],
