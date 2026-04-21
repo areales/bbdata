@@ -58,14 +58,15 @@ export interface QueryResult {
   };
 }
 
-const VALID_SOURCES: DataSource[] = [
-  'savant',
-  'fangraphs',
-  'mlb-stats-api',
-  'baseball-reference',
-  'stdin',
-];
+const VALID_SOURCE_MAP = {
+  savant: true,
+  fangraphs: true,
+  'mlb-stats-api': true,
+  'baseball-reference': true,
+  stdin: true,
+} satisfies Record<DataSource, true>;
 
+const VALID_SOURCES = Object.keys(VALID_SOURCE_MAP) as DataSource[];
 /**
  * Programmatic API — skills and agents call this directly.
  */
