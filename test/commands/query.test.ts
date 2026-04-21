@@ -101,6 +101,12 @@ describe('query command', () => {
     ).rejects.toThrow('requires --players with at least two comma-separated names');
   });
 
+  it('throws when a --players template has only one non-empty name after splitting', async () => {
+    await expect(
+      query({ template: 'matchup-pitcher-vs-hitter', players: 'Only One, ' }),
+    ).rejects.toThrow('requires --players with at least two comma-separated names');
+  });
+
   it('throws for unknown source values before config-enable checks', async () => {
     await expect(
       query({ template: 'pitcher-arsenal', player: 'Test Player', source: 'bogus' }),
