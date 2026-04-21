@@ -33,6 +33,14 @@ Source: `../ai-baseball-data-analyst/course-audit.md` (2026-04-13). CLI-side ite
 
 ---
 
+## Unreleased
+
+Accumulates items completed after v0.9.0 ship; renamed to `Shipped in vX.Y.Z` on the next `npm version`.
+
+- **Footer partial wiring fix.** `src/templates/reports/partials/footer.hbs` existed with `{{cliVersion}}` but was never registered and no `.hbs` template referenced it — reports rendered without any version line (and without the AI-assistance disclaimer the partial carries). Fixed by registering the partial once at module load in `src/commands/report.ts` and converting all 13 report templates + the `generateFallbackTemplate` fallback to `{{> footer}}`. Regression test at `test/commands/report.test.ts` reads version from `package.json` and asserts it appears in the rendered output, so future refactors can't re-orphan the partial.
+
+---
+
 ## Shipped in v0.9.0
 
 Codex senior-eng review cleanup + one course-audit follow-up. **Breaking**
