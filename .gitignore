@@ -17,3 +17,5 @@ dist/
 !.claude/hooks/
 !.claude/hooks/**
 !.claude/settings.json
+!.claude/commands/
+!.claude/commands/**
