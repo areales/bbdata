@@ -144,7 +144,13 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
         `Unknown source "${options.source}". Supported: ${VALID_SOURCES.join(', ')}`,
       );
     }
-
+    const requested = options.source as DataSource;
+    if (requested === 'stdin' && !options.stdin && !options.data && !options.stdinAdapter) {
+      throw new Error(
+        'Source "stdin" requires input data. Pass --stdin to read from standard input, ' +
+          '--data <path> to load a local file, or provide stdinAdapter programmatically.',
+      );
+    }
     const requested = options.source as DataSource;
     if (!isSourceEnabled(config, requested)) {
       const key = sourceConfigKey(requested);
