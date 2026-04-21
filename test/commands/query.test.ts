@@ -95,6 +95,32 @@ describe('query command', () => {
     ).rejects.toThrow('requires --player');
   });
 
+  it('throws when a --players template receives fewer than two names', async () => {
+    await expect(
+      query({ template: 'matchup-pitcher-vs-hitter', players: 'Only One' }),
+    ).rejects.toThrow('requires --players with at least two comma-separated names');
+  });
+
+  it('throws for unknown source values before config-enable checks', async () => {
+    await expect(
+      query({ template: 'pitcher-arsenal', player: 'Test Player', source: 'bogus' }),
+    ).rejects.toThrow('Unknown source "bogus"');
+  });
+
+  it('throws a clear error for unsupported output formats', async () => {
+    const mockAdapter = makeMockAdapter();
+    vi.mocked(resolveAdapters).mockReturnValue([mockAdapter]);
+
+    await expect(
+      query({
+        template: 'pitcher-arsenal',
+        player: 'Test Player',
+        season: 2025,
+        format: 'yaml' as any,
+      }),
+    ).rejects.toThrow('Unsupported output format "yaml"');
+  });
+
   it('returns data from adapter through template transform', async () => {
     const mockAdapter = makeMockAdapter();
     vi.mocked(resolveAdapters).mockReturnValue([mockAdapter]);

@@ -21,5 +21,7 @@ export function format(
       return formatCsv(data, meta);
     case 'markdown':
       return formatMarkdown(data, meta);
+    default:
+      throw new Error(`Unsupported output format "${String(outputFormat)}". Supported: json, table, csv, markdown.`);
   }
 }

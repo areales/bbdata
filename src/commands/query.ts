@@ -58,6 +58,14 @@ export interface QueryResult {
   };
 }
 
+const VALID_SOURCES: DataSource[] = [
+  'savant',
+  'fangraphs',
+  'mlb-stats-api',
+  'baseball-reference',
+  'stdin',
+];
+
 /**
  * Programmatic API — skills and agents call this directly.
  */
@@ -108,7 +116,14 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
 
   // Validate required params
   for (const req of template.requiredParams) {
-    if (!params[req] && !(req === 'players' && params.player)) {
+    if (req === 'players') {
+      if (!params.players || params.players.length < 2) {
+        throw new Error(`Template "${template.id}" requires --players with at least two comma-separated names`);
+      }
+      continue;
+    }
+
+    if (!params[req]) {
       throw new Error(`Template "${template.id}" requires --${req}`);
     }
   }
@@ -123,6 +138,12 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
   // always returns true for it.
   let preferredSources: DataSource[];
   if (options.source) {
+    if (!VALID_SOURCES.includes(options.source as DataSource)) {
+      throw new Error(
+        `Unknown source "${options.source}". Supported: ${VALID_SOURCES.join(', ')}`,
+      );
+    }
+
     const requested = options.source as DataSource;
     if (!isSourceEnabled(config, requested)) {
       const key = sourceConfigKey(requested);
