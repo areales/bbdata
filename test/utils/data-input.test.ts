@@ -69,7 +69,7 @@ describe('loadDataFile', () => {
     expect((result.data[0] as any).pitch_type).toBe('FF');
   });
 
-  it('returns independent adapter instances across calls (no singleton state leak)', () => {
+  it('returns independent adapter instances across calls (no singleton state leak)', async () => {
     const pathA = join(tmp, 'a.json');
     const pathB = join(tmp, 'b.json');
     writeFileSync(pathA, JSON.stringify([{ pitcher_id: 'A', pitch_type: 'FF' }]));
@@ -77,9 +77,18 @@ describe('loadDataFile', () => {
     const adapterA = loadDataFile(pathA);
     const adapterB = loadDataFile(pathB);
     // Each call returns its own instance; loading B must not touch A's data.
+    // We probe via fetch() rather than supports(): the adapter intentionally
+    // returns `supports() === true` for loaded-but-empty payloads so the
+    // query layer can emit its explicit "0 rows" guidance, which makes
+    // supports() a poor probe for state isolation.
     expect(adapterA).not.toBe(adapterB);
-    expect(adapterA.supports({} as any)).toBe(true);
-    expect(adapterB.supports({} as any)).toBe(false);
+    const [resultA, resultB] = await Promise.all([
+      adapterA.fetch({} as any),
+      adapterB.fetch({} as any),
+    ]);
+    expect(resultA.data).toHaveLength(1);
+    expect((resultA.data[0] as any).pitcher_id).toBe('A');
+    expect(resultB.data).toHaveLength(0);
   });
 
   it('rejects unsupported extensions', () => {
