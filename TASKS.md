@@ -27,9 +27,28 @@ Source: `../ai-baseball-data-analyst/course-audit.md` (2026-04-13). CLI-side ite
 | P2.5 | `team-dashboard` viz type                    | Pending  | P2       | XL (1–2d) | Also adds `--team`, `--unit pitching\|hitting` flags                    |
 | P2.6 | `release-point` chart variant                | Pending  | P2       | M (~3h)   | `pitcher-raw-pitches` already has `release_pos_x/z`                     |
 | P4.4 | Fix `/build-model equivalent` fake query IDs | Decide   | P4       | S–M       | 3 options below; leaning (c) remove callouts                            |
-| P4.5 | Friendly error for minimal-field stdin JSON  | Shipped  | P4       | —         | 2026-04-19 — new `assertFields()` helper in `src/utils/validate-records.ts`; applied to `pitcher-arsenal.transform()` with the fields it dereferences; error names every missing field + points at the PitchData schema |
+| P4.5 | Friendly error for minimal-field stdin JSON  | Shipped  | P4       | —         | v0.9.0 — 2026-04-19 — new `assertFields()` helper in `src/utils/validate-records.ts`; applied to `pitcher-arsenal.transform()` with the fields it dereferences; error names every missing field + points at the PitchData schema |
 
 **All P2.x items are conditional.** If Aaron rewrites `Modules/04/Deliverables/Visualization Template Library.md` (audit recommendation #1), skip the entire P2 section.
+
+---
+
+## Shipped in v0.9.0
+
+Codex senior-eng review cleanup + one course-audit follow-up. **Breaking**
+for library consumers that imported `getStdinAdapter()` / relied on
+`loadDataFile()` being void (R1.3). CLI surface (flags, args, output) is
+unchanged. See `CHANGELOG.md` for the full migration guide and
+`TEST_PLAN.md` v0.9.0 section for live smoke coverage.
+
+- **R1.1 — caching actually works.** `fetchWithCache(adapter, query, policy)` at `src/cache/fetch-with-cache.ts`; `query()` threads a per-invocation `CachePolicy` derived from `config.cache.enabled && options.cache !== false` + `config.cache.maxAgeDays`. `--no-cache` and the config toggles now behave as documented (they were silent no-ops before). Tests: `test/cache/fetch-with-cache.test.ts`.
+- **R1.2 — `report --data` no longer hits the network.** Closed as a side effect of R1.3 — `--stdin` and `--data` now populate the same per-invocation adapter, threaded through `generateReportGraphs({ stdinAdapter })` into embedded viz.
+- **R1.3 — per-invocation stdin isolation (breaking for lib).** Module-singleton `stdinAdapter` removed from `src/adapters/index.ts`; `createStdinAdapter()` factory + `resolveAdapters(preferred, overrides?)` override map take its place. `loadDataFile(path)` now returns the new adapter instead of mutating global state. Threaded through `query` / `report` / `viz` / `generateReportGraphs`.
+- **R2.1 — `sources.*.enabled` config is honored.** `isSourceEnabled` / `sourceConfigKey` in `src/config/config.ts` with a `SOURCE_CONFIG_KEYS` kebab↔camel map; `query()` filters `template.preferredSources` through it and fails loudly when `--source` names a disabled source. Tests: `test/config/sources.test.ts`.
+- **R4.1 — lint wired into publish gate.** `eslint@^10` + `@eslint/js` + `typescript-eslint@^8` added; new flat-config `eslint.config.js`; `npm run lint` now part of `prepublishOnly`. 18 pre-existing issues cleaned during wiring.
+- **P4.5 — friendly `pitcher-arsenal` stdin error.** New `assertFields()` helper in `src/utils/validate-records.ts` applied at `pitcher-arsenal.transform()`; missing-field errors now name every absent field and point at the `PitchData` schema instead of `TypeError: cannot read properties of undefined`.
+
+Test-infra follow-up this release also included pinning the vitest worker to `TZ=UTC` via `test/setup-tz.ts` so the rolling-chart snapshot is stable on non-UTC developer machines.
 
 ---
 
@@ -118,12 +137,12 @@ Source: Codex CLI rescue, job `task-mo52xq64-55apez`, session `019da353-7cd8-704
 
 | ID   | Title                                                 | Status   | Priority | Effort   | Notes                                                        |
 |------|-------------------------------------------------------|----------|----------|----------|--------------------------------------------------------------|
-| R1.1 | Caching is unimplemented despite public contract      | Shipped  | P1       | —        | 2026-04-19 — new `fetchWithCache(adapter, query, policy)` wrapper in `src/cache/fetch-with-cache.ts`; `query()` builds a per-invocation `CachePolicy` from `config.cache.enabled && !options.cache===false` and `config.cache.maxAgeDays`; wrapper routes through `getCached` / `setCache`, honors `--no-cache`, and skips `stdin` |
-| R1.2 | `report --data` still triggers network fetches        | Shipped  | P1       | —        | 2026-04-19 — resolved as side effect of R1.3; both `--stdin` and `--data` populate the same `stdinAdapter`, threaded through `generateReportGraphs` |
-| R1.3 | Global stdin adapter leaks state across calls         | Shipped  | P1       | —        | 2026-04-19 — singleton removed, `resolveAdapters(overrides)` + `createStdinAdapter()` per invocation; `loadDataFile` now returns an adapter; threaded through `query` / `report` / `viz` / `generateReportGraphs` |
-| R2.1 | Source enable/disable config is ignored               | Shipped  | P2       | —        | 2026-04-19 — `isSourceEnabled` / `sourceConfigKey` helpers in `src/config/config.ts`, kebab↔camel map in `SOURCE_CONFIG_KEYS`; `query()` filters `template.preferredSources` through config + errors loudly when `--source` names a disabled source |
-| R4.1 | Lint/release hygiene broken (eslint missing)          | Shipped  | P4       | —        | 2026-04-19 — added `eslint@^10` + `@eslint/js` + `typescript-eslint@^8` to `devDependencies`; new flat-config `eslint.config.js`; `lint` wired into `prepublishOnly`; 18 surfaced issues cleaned (unused imports, adapter-interface args prefixed `_`, `require()` → import in cache, escape / `cause` cleanup) |
-| R5.0 | Strategic: adopt `ExecutionContext` per command       | Decide   | —        | XL       | Routes `query` / `report` / `viz` through one context object |
+| R1.1 | Caching is unimplemented despite public contract      | Shipped  | P1       | —        | v0.9.0 — 2026-04-19 — new `fetchWithCache(adapter, query, policy)` wrapper in `src/cache/fetch-with-cache.ts`; `query()` builds a per-invocation `CachePolicy` from `config.cache.enabled && !options.cache===false` and `config.cache.maxAgeDays`; wrapper routes through `getCached` / `setCache`, honors `--no-cache`, and skips `stdin` |
+| R1.2 | `report --data` still triggers network fetches        | Shipped  | P1       | —        | v0.9.0 — 2026-04-19 — resolved as side effect of R1.3; both `--stdin` and `--data` populate the same `stdinAdapter`, threaded through `generateReportGraphs` |
+| R1.3 | Global stdin adapter leaks state across calls         | Shipped  | P1       | —        | v0.9.0 — 2026-04-19 — singleton removed, `resolveAdapters(overrides)` + `createStdinAdapter()` per invocation; `loadDataFile` now returns an adapter; threaded through `query` / `report` / `viz` / `generateReportGraphs` |
+| R2.1 | Source enable/disable config is ignored               | Shipped  | P2       | —        | v0.9.0 — 2026-04-19 — `isSourceEnabled` / `sourceConfigKey` helpers in `src/config/config.ts`, kebab↔camel map in `SOURCE_CONFIG_KEYS`; `query()` filters `template.preferredSources` through config + errors loudly when `--source` names a disabled source |
+| R4.1 | Lint/release hygiene broken (eslint missing)          | Shipped  | P4       | —        | v0.9.0 — 2026-04-19 — added `eslint@^10` + `@eslint/js` + `typescript-eslint@^8` to `devDependencies`; new flat-config `eslint.config.js`; `lint` wired into `prepublishOnly`; 18 surfaced issues cleaned (unused imports, adapter-interface args prefixed `_`, `require()` → import in cache, escape / `cause` cleanup) |
+| R5.0 | Strategic: adopt `ExecutionContext` per command       | Shipped  | —        | XL       | v0.9.0 — 2026-04-19 — implemented `ExecutionContext` class in `src/context/execution.ts`; replaced redundant config, cache, and stdin adapter loading logic in `query.ts`, `report.ts`, and `viz.ts` |
 
 ---
 
@@ -213,15 +232,18 @@ Source: Codex CLI rescue, job `task-mo52xq64-55apez`, session `019da353-7cd8-704
 
 **Verification:** `npm run lint` → clean. `npm run typecheck` → clean. `npm test` → 235 / 235 green. `npm run prepublishOnly` end-to-end → green.
 
-### R5.0 — Strategic: `ExecutionContext` per command invocation — **Decide**
+### R5.0 — Strategic: `ExecutionContext` per command invocation — **Shipped 2026-04-19**
 
 **What:** Route `query`, `report`, and `viz` through a single `ExecutionContext` object that carries config, source policy, cache policy, input payload, and adapters for the life of the invocation.
 
 **Why:** R1.1 (caching), R1.3 (stdin state), and R2.1 (source toggles) are all symptoms of the same pattern — per-concern plumbing duplicated across commands, drifting out of sync. One context object + consistent wiring fixes all three in one refactor and prevents future divergence.
 
-**Risk:** touches every command entry point. Best landed alongside R1.x fixes, not before. Could also be deferred indefinitely if R1.x are fixed locally and the duplication stays manageable.
+**What shipped:**
+- Created `src/context/execution.ts` with `ExecutionContext` class to handle common configuration parsing, caching, and stdin adapters logic.
+- Updated `src/commands/query.ts`, `src/commands/report.ts`, and `src/commands/viz.ts` to instantiate and use `ExecutionContext`.
 
-**Files (exploratory):** `src/commands/query.ts`, `src/commands/report.ts`, `src/commands/viz.ts`, `src/index.ts`, new `src/context/execution.ts`.
+**Verification:**
+- `npm run test` passed with 253/253 tests across the entire suite.
 
 ---
 
