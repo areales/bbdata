@@ -10,6 +10,9 @@ dist/
 # Claude Code local scratchpad for plan files — not shared
 .plans/
 
+# Smoke-test scratchpad for COURSE_TEST_PLAN rows (SVGs, PNGs, PDFs, throwaway JSON/CSV)
+.tmp/
+
 # Claude Code runtime state under .claude/ — local per-machine files
 # (permission grants, scheduled-task lock files, etc). Deny-by-default with
 # explicit allows for the shared files that ARE tracked.
