@@ -28,6 +28,10 @@ Source: `../ai-baseball-data-analyst/course-audit.md` (2026-04-13). CLI-side ite
 | P2.6 | `release-point` chart variant                | Cancelled | P2      | —         | 2026-04-14 — course rewrite marked template #4 AI-prompt-only           |
 | P4.4 | Fix `/build-model equivalent` fake query IDs | Migrated | P4       | —         | Moved to `../ai-baseball-data-analyst/Tasks.md` 2026-04-21 — course-side edit, no bbdata work unless options (a)+(c) are rejected |
 | P4.5 | Friendly error for minimal-field stdin JSON  | Shipped  | P4       | —         | v0.9.0 — 2026-04-19 — new `assertFields()` helper in `src/utils/validate-records.ts`; applied to `pitcher-arsenal.transform()` with the fields it dereferences; error names every missing field + points at the PitchData schema |
+| P4.6 | Thicken shared Savant CSV fixture for `pitcher-by-count` + `pitcher-tto` stdin smoke | Pending | P4 | S | 2026-04-21 — surfaced by `/release-preflight` v0.10.0 §2A run: Q.6/Q.7 return 0 rows because `test/fixtures/savant-csv-sample.csv` lacks `balls`, `strikes`, `inning`, `at_bat_number`; fixture thickened in place OR companion `savant-csv-rich.csv` |
+| P4.7 | Extend `assertFields` retrofit to `matchup-situational` + audit stragglers | Pending | P4 | S | 2026-04-21 — surfaced by §2A Q.15: throws `TypeError: Cannot read properties of undefined (reading 'plateAppearances')` instead of the actionable missing-field message; first discovered miss after the v0.10.0 9-template retrofit; parameterize `test/templates/assert-fields-retrofit.test.ts` to 10 templates |
+| P4.8 | Reject unknown `--audience` values on `report` | Pending | P4 | S–M | 2026-04-21 — surfaced by §3A R.A7: `--audience bogus` silently coerces to `analyst` instead of exiting non-zero with a values list; enum validator at `src/commands/report.ts:85–106` |
+| P4.9 | COURSE_TEST_PLAN wording accuracy fixes      | Pending  | P4       | XS        | 2026-04-21 — three cosmetic drifts from preflight false-positive FAILs: R.7 heading "Times Through **the** Order", F.22 viridis as `rgb(…)` not hex, F.19 third accepted outcome ("disabled in config") |
 
 **P2.x are cancelled, not pending.** The course-side rewrite (2026-04-14) is the resolution the conditional was waiting on. Detail lives in the "Cancelled" section below.
 
@@ -95,6 +99,62 @@ If student survey signal later justifies promoting any of these into `bbdata viz
 
 ## Pending — details
 
+### P4.6 — Thicken shared Savant CSV fixture for `pitcher-by-count` + `pitcher-tto` stdin smoke — **Pending, surfaced 2026-04-21**
+
+**Issue:** `test/fixtures/savant-csv-sample.csv` (13 pitches, 2025-04-15) is the shared pitch-level fixture for stdin-path C rows in `COURSE_TEST_PLAN.md` §2A. But it only carries 23 columns (pitch identity + movement + launch + xwOBA), omitting `balls`, `strikes`, `inning`, and `at_bat_number`. `pitcher-by-count.ts` and `pitcher-tto.ts` both guard on count state / inning number and skip every record whose count or inning is nullish (`if (pitch.balls == null || pitch.strikes == null) continue`), so the transform returns `[]`, the adapter reports "0 rows", and the command exits 1 with *no* stack trace. Q.6 and Q.7 fail preflight with an unactionable error.
+
+**Options:**
+- **(a) Thicken the existing fixture in place** — add the 4 missing columns (`balls`, `strikes`, `inning`, `at_bat_number`) across the 13 existing rows with plausible values. Pros: one fixture, all pitch-level C rows keep passing. Cons: other template tests that assert `data.Count` might shift if their row totals change on the richer fixture.
+- **(b) Companion rich fixture `test/fixtures/savant-csv-rich.csv`** — carve out a second fixture for templates that need count/inning context, point Q.6/Q.7 at the new file. Pros: minimal fixture stays minimal. Cons: two fixtures to keep in sync.
+
+**Recommendation:** (a) unless a template test fails on the richer row. The savant endpoint returns these columns by default — the fixture is underspec'd relative to real adapter output, so thickening it brings the fixture closer to production.
+
+**Acceptance:** Q.6 and Q.7 exit 0 with non-empty `data` on the preflight C-row script; existing 309+ test suite still green.
+
+### P4.7 — Extend `assertFields` retrofit to `matchup-situational` + audit stragglers — **Pending, surfaced 2026-04-21**
+
+**Issue:** `/release-preflight` step 6 §2A Q.15 fires `bbdata query matchup-situational --player "Burnes Corbin" --data test/fixtures/savant-csv-sample.csv --format json` and gets:
+
+```
+✗ Adapter "stdin" threw while fetching "matchup-situational" (player=Burnes Corbin, season=2026):
+  Cannot read properties of undefined (reading 'plateAppearances')
+```
+
+The v0.10.0 `assertFields` retrofit covered the 9 templates we knew were at risk (`pitcher-arsenal` plus 8 more documented in the v0.10.0 CHANGELOG Fixed section). `matchup-situational` is the first discovered miss — it dereferences a `.plateAppearances`-gated field on an intermediate object that the stdin fixture doesn't produce, so it throws the unactionable `TypeError` instead of the retrofit's "missing field X — see `PitchData` / `PlayerStats` schema" message.
+
+**What ships:**
+- **(1)** Add `assertFields` to `src/templates/queries/matchup-situational.ts` with the exact fields the transform dereferences (likely `plateAppearances` + whatever it chains on).
+- **(2)** Parameterize `test/templates/assert-fields-retrofit.test.ts` to cover `matchup-situational` as the 10th template (3 tests × 10 = 30).
+- **(3)** One-pass audit of the remaining ~12 templates not in the retrofit list — `matchup-pitcher-vs-hitter` (already retrofitted but worth re-verifying), `pitcher-raw-pitches`, `pitcher-recent-form`, `pitcher-by-count`, `pitcher-tto`, `hitter-zone-grid`, `hitter-raw-bip`, `hitter-batted-ball`, `pitcher-season-profile`, `hitter-season-profile`, `trend-year-over-year` — for the same class of unguarded dereference on thin stdin. Add to retrofit where warranted.
+
+**Acceptance:** Q.15 preflight C row returns an actionable missing-field error (exit non-zero, message names the template + missing field, points at schema).
+
+### P4.8 — Reject unknown `--audience` values on `report` — **Pending, surfaced 2026-04-21**
+
+**Issue:** `/release-preflight` step 6 §3A R.A7 expects `bbdata report pro-pitcher-eval --audience bogus` to exit non-zero with a message listing accepted values. Actual: exits 0, silently coerces `meta.audience = "analyst"`, renders the report. This is a student-hostile failure mode — typos ("fronoffice", "preesentation") silently produce the wrong styling without any warning, and the course teaches a 6-value audience vocabulary so there's real surface area for typos.
+
+**What ships:**
+- Audience resolution site is `src/commands/report.ts:85–106` per CLAUDE.md reference. Add an enum validator (Zod-style or hand-rolled) that accepts the 6-value input vocabulary — canonical (`coach`, `gm`, `scout`, `analyst`) + aliases (`frontoffice` → `gm`, `presentation` → `analyst`) — and throws with a helpful "expected one of: …" message on anything else.
+- Mirror the check on `viz` (`--audience` flag) if it has the same silent-coercion behavior (preflight only exercised the report path in R.A7; viz coercion lives in `src/viz/types.ts::resolveVizAudience` and does fall through to `analyst` on unknown input — same fix shape).
+- New test cases in `test/commands/report.test.ts` (and `test/commands/viz.test.ts` if viz is included): one per accepted value + one rejecting an unknown value with the expected message shape.
+
+**Semver impact:** Technically breaking for any programmatic caller that relied on unknown-audience fall-through to `analyst` — but that's an under-documented pre-existing behavior the course never advertises. Likely a minor-bump behavior change, same reasoning as R1.1.
+
+**Acceptance:** R.A7 preflight C row passes; existing audience coverage rows R.A1–R.A6 still pass.
+
+### P4.9 — COURSE_TEST_PLAN wording accuracy fixes — **Pending, surfaced 2026-04-21**
+
+**Issue:** `/release-preflight` step 6 v0.10.0 C-row run surfaced three false-positive FAILs that are purely test-plan wording drift — the CLI behavior is correct; the expected-column text is off.
+
+**Edits to `COURSE_TEST_PLAN.md`:**
+- **R.7 `advance-sp`:** Expected heading reads "Times Through Order"; the `advance-sp.hbs` template renders "Times Through **the** Order". Update the row to match the template's actual text (or normalize to case-insensitive substring match on "Times Through").
+- **F.22 `--colorblind`:** Expected assertion is "SVG source contains viridis palette hex codes". Vega-Lite emits viridis scheme colors as `rgb(59, 82, 139)` / `rgb(33, 145, 141)` / `rgb(93, 201, 99)` (three category samples on the movement chart), not as `#440154`-style hex. Update the assertion to match `rgb\(` forms OR the viridis scheme's rgb triplets specifically.
+- **F.19 `--source baseball-reference`:** Row currently says "Exit non-zero with 'no adapter for baseball-reference' OR exit 0 with `meta.source === 'baseball-reference'`". Actual behavior surfaced in the v0.10.0 run is a third outcome: **exit 1 with a helpful "disabled in config" error pointing at `~/.bbdata/config.json → sources.baseballReference.enabled = true`**. This is actually the *correct* R2.1 behavior shipped in v0.9.0. Update the row to accept the config-gated error as a third valid outcome.
+
+**Acceptance:** next `/release-preflight` run reports zero false-positive FAILs on R.7 / F.22 / F.19.
+
+---
+
 ### P4.4 — `/build-model equivalent` fake query names — **Migrated 2026-04-21**
 
 Moved to `../ai-baseball-data-analyst/Tasks.md` under "Course audit follow-ups" on 2026-04-21. The recommended resolutions (a course-side remap or simply dropping the 8 callouts) are pure content edits in `Modules/05 - Code & Model Building/Deliverables/Model Template Library.md`. The bbdata fallback — a CLI-side alias layer — is only revisited if both course-side options are rejected.
@@ -110,7 +170,7 @@ Moved to `../ai-baseball-data-analyst/Tasks.md` under "Course audit follow-ups" 
 
 **Chose (b) over (a):** per the original triage. Silent degradation ("Unknown" rows, NaN-filled stats) is worse than a fail-fast error with a schema pointer — analyst-user payloads should round-trip cleanly or die explicitly, not return dashboards full of dashes.
 
-**Other templates with the same pattern — Shipped (unreleased).** The nine peer templates (`pitcher-velocity-trend`, `trend-rolling-average`, `hitter-handedness-splits`, `hitter-hot-cold-zones`, `hitter-vs-pitch-type`, `leaderboard-comparison`, `leaderboard-custom`, `matchup-pitcher-vs-hitter`, `pitcher-handedness-splits`) were retrofitted in commit `f6989fa` and covered by the parameterized suite at `test/templates/assert-fields-retrofit.test.ts`. See Unreleased bullet above.
+**Other templates with the same pattern — Shipped in v0.10.0.** The nine peer templates (`pitcher-velocity-trend`, `trend-rolling-average`, `hitter-handedness-splits`, `hitter-hot-cold-zones`, `hitter-vs-pitch-type`, `leaderboard-comparison`, `leaderboard-custom`, `matchup-pitcher-vs-hitter`, `pitcher-handedness-splits`) were retrofitted in commit `f6989fa` and covered by the parameterized suite at `test/templates/assert-fields-retrofit.test.ts`. See the "Shipped in v0.10.0" section above. (P4.7 captures the now-discovered straggler: `matchup-situational` still throws the unactionable `TypeError` on thin stdin.)
 
 ---
 
@@ -240,9 +300,9 @@ Feature extension surfaced by scout-app but requiring bbdata-side work. Numbered
 
 | ID   | Title                                                 | Status   | Priority | Effort   | Notes                                                        |
 |------|-------------------------------------------------------|----------|----------|----------|--------------------------------------------------------------|
-| F1.1 | Wire pro-pitcher-eval rolling-trend chart             | Shipped (Unreleased) | P2 | — | 2026-04-21 — new `pitcher-rolling-trend` query + `pitcher-rolling` chart type; `embed.ts` re-routed. Splits-chart half of the original scope was descoped — no dormant block existed. |
+| F1.1 | Wire pro-pitcher-eval rolling-trend chart             | Shipped  | P2       | —        | v0.10.0 — 2026-04-21 — new `pitcher-rolling-trend` query + `pitcher-rolling` chart type; `embed.ts` re-routed. Splits-chart half of the original scope was descoped — no dormant block existed. |
 
-### F1.1 — Wire pro-pitcher-eval rolling-trend chart — **Shipped 2026-04-21 (Unreleased)**
+### F1.1 — Wire pro-pitcher-eval rolling-trend chart — **Shipped v0.10.0 (2026-04-21)**
 
 **Issue (resolved):** `pro-pitcher-eval.hbs` had a `{{#if graphs.rollingChart}}` block at line 69 that was wired at both ends (template guard + `embed.ts` slot) but always rendered empty. The generic `rolling` chart type consumed `trend-rolling-average`, whose `buildQuery` hardcodes `stat_type: 'batting'` and whose transform computes hitter metrics (AVG/SLG/K%/Avg EV/Hard Hit %). Invoking it for a pitcher returned zero batting PAs → the chart fell through to the "Insufficient data" text mark on every pro-pitcher-eval report.
 
@@ -270,6 +330,6 @@ Feature extension surfaced by scout-app but requiring bbdata-side work. Numbered
 
 ## Suggested sequencing
 
-Phase A (P1.1, P1.2b, P1.3, P3.2, P3.3, P4.1, P4.2, P4.3) shipped in v0.7.0; Phase B (P3.1) in v0.7.1; Phase C (P3.4) in v0.7.2. Phase D (R1.1, R1.2, R1.3, R2.1, R4.1, R5.0, P4.5) shipped in v0.9.0 on 2026-04-19. P2.x cancelled 2026-04-14 via course-side rewrite. P4.4 migrated to course-side Tasks.md on 2026-04-21. F1.1 shipped (Unreleased) 2026-04-21.
+Phase A (P1.1, P1.2b, P1.3, P3.2, P3.3, P4.1, P4.2, P4.3) shipped in v0.7.0; Phase B (P3.1) in v0.7.1; Phase C (P3.4) in v0.7.2. Phase D (R1.1, R1.2, R1.3, R2.1, R4.1, R5.0, P4.5) shipped in v0.9.0 on 2026-04-19. P2.x cancelled 2026-04-14 via course-side rewrite. P4.4 migrated to course-side Tasks.md on 2026-04-21. Phase E (F1.1 + vega/vega-lite 5→6 + assertFields retrofit + G.1/G.7 + footer partial wiring + viz `--help` drift fix) shipped in v0.10.0 on 2026-04-21.
 
-No open bbdata work in the Px / Rx / Fx backlog. Next release bundles the Unreleased items (F1.1 + the vega/vega-lite 5→6 bump + assertFields retrofit + G.1/G.7 gap fixes + footer partial wiring) into a 0.10.0 minor bump when it's time to publish.
+Open P4 backlog from the v0.10.0 preflight: P4.6 (fixture thickening), P4.7 (matchup-situational assertFields + straggler audit), P4.8 (report `--audience` enum validation), P4.9 (COURSE_TEST_PLAN wording fixes). All are P4 follow-ups, none blocks a release; bundle into the next minor when convenient or ship individually as spare-cycles work.
