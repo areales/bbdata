@@ -40,11 +40,11 @@ This is `prepublishOnly` minus `npm publish`. Any failure stops the release. (CL
 
 Grep `TASKS.md` for `## Unreleased`. The bullet list below it must be non-empty. If empty, either there's nothing to release, or items need to be added before bumping.
 
-## 6. TEST_PLAN.md has a section for the target version
+## 6. COURSE_TEST_PLAN.md sections covering this release's changes have been re-run
 
-Ask the user what bump type (`patch` / `minor` / `major`) and compute the target version from `package.json`. The target version should already have a `TEST_PLAN.md` section with smoke-test rows for any new feature/flag this release (CLAUDE.md: "Every release also updates `TEST_PLAN.md`").
+Ask the user what bump type (`patch` / `minor` / `major`) and summarize which sections of `COURSE_TEST_PLAN.md` are affected by this release (e.g., a viz flag change → §4A and §5; a new query template → §2 and §1). List them and ask the user to confirm the "C" rows in those sections pass (`A` rows are optional on patch, required on minor/major).
 
-If the section is missing, STOP and ask the user to add it before bumping.
+If any affected "C" row is failing, STOP and ask the user whether to fix or defer.
 
 ## 7. Dependency section moves since last tag
 
