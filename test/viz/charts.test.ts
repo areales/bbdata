@@ -4,6 +4,7 @@ import { movementBinnedBuilder } from '../../src/viz/charts/movement-binned.js';
 import { sprayBuilder } from '../../src/viz/charts/spray.js';
 import { zoneBuilder } from '../../src/viz/charts/zone.js';
 import { rollingBuilder } from '../../src/viz/charts/rolling.js';
+import { pitcherRollingBuilder } from '../../src/viz/charts/pitcher-rolling.js';
 import { getChartBuilder, listChartTypes } from '../../src/viz/charts/index.js';
 import type { ResolvedVizOptions } from '../../src/viz/types.js';
 
@@ -244,13 +245,101 @@ describe('rollingBuilder', () => {
   });
 });
 
+describe('pitcherRollingBuilder', () => {
+  it('declares the pitcher-rolling-trend requirement', () => {
+    expect(pitcherRollingBuilder.id).toBe('pitcher-rolling');
+    expect(pitcherRollingBuilder.dataRequirements).toHaveLength(1);
+    expect(pitcherRollingBuilder.dataRequirements[0]?.queryTemplate).toBe('pitcher-rolling-trend');
+  });
+
+  it('pivots pitcher wide rows to tidy metric/value pairs', () => {
+    const rows = {
+      'pitcher-rolling-trend': [
+        { 'Window End': '2025-05-01', 'Avg Velo': '95.2 mph', 'Whiff %': '30.5%' },
+        { 'Window End': '2025-05-08', 'Avg Velo': '95.5 mph', 'Whiff %': '32.1%' },
+      ],
+    };
+    const spec = pitcherRollingBuilder.buildSpec(rows, {
+      ...baseOptions,
+      type: 'pitcher-rolling',
+    }) as {
+      data: { values: Array<{ window_end: string; metric: string; value: number }> };
+    };
+    const tidy = spec.data.values;
+    expect(tidy).toHaveLength(4); // 2 rows × 2 metrics
+    const velo = tidy.filter((r) => r.metric === 'Avg Velo');
+    expect(velo).toHaveLength(2);
+    expect(velo[0]?.value).toBeCloseTo(95.2);
+  });
+
+  it('excludes Starts from metric auto-detection', () => {
+    const rows = {
+      'pitcher-rolling-trend': [
+        { 'Window End': '2025-05-01', Starts: 5, 'Avg Velo': '95.2 mph' },
+        { 'Window End': '2025-05-08', Starts: 5, 'Avg Velo': '95.5 mph' },
+      ],
+    };
+    const spec = pitcherRollingBuilder.buildSpec(rows, {
+      ...baseOptions,
+      type: 'pitcher-rolling',
+    }) as {
+      data: { values: Array<{ metric: string }> };
+    };
+    const metrics = new Set(spec.data.values.map((r) => r.metric));
+    expect(metrics.has('Avg Velo')).toBe(true);
+    expect(metrics.has('Starts')).toBe(false);
+  });
+
+  it('produces a faceted spec with independent y scales per metric', () => {
+    const rows = {
+      'pitcher-rolling-trend': [
+        { 'Window End': '2025-05-01', 'Avg Velo': '95.2 mph', 'CSW %': '30.5%' },
+        { 'Window End': '2025-05-08', 'Avg Velo': '95.5 mph', 'CSW %': '32.1%' },
+      ],
+    };
+    const spec = pitcherRollingBuilder.buildSpec(rows, {
+      ...baseOptions,
+      type: 'pitcher-rolling',
+    }) as {
+      facet?: { row?: { field: string } };
+      resolve?: { scale?: { y?: string } };
+    };
+    expect(spec.facet?.row?.field).toBe('metric');
+    expect(spec.resolve?.scale?.y).toBe('independent');
+  });
+
+  it('emits a graceful message spec referencing starts when tidy dataset is empty', () => {
+    const rows = {
+      'pitcher-rolling-trend': [
+        { Window: 'Insufficient data', 'Window End': '', Starts: 3, 'Avg Velo': '—' },
+      ],
+    };
+    const spec = pitcherRollingBuilder.buildSpec(rows, {
+      ...baseOptions,
+      type: 'pitcher-rolling',
+    }) as {
+      mark?: { type: string };
+      data: { values: Array<{ msg?: string }> };
+    };
+    expect(spec.mark?.type).toBe('text');
+    expect(spec.data.values[0]?.msg).toMatch(/5\+ starts/);
+  });
+});
+
 describe('chart registry', () => {
-  it('listChartTypes returns all five chart types', () => {
+  it('listChartTypes returns all six chart types', () => {
     const types = listChartTypes();
     expect(types).toEqual(
-      expect.arrayContaining(['movement', 'movement-binned', 'spray', 'zone', 'rolling']),
+      expect.arrayContaining([
+        'movement',
+        'movement-binned',
+        'spray',
+        'zone',
+        'rolling',
+        'pitcher-rolling',
+      ]),
     );
-    expect(types).toHaveLength(5);
+    expect(types).toHaveLength(6);
   });
 
   it('getChartBuilder returns the correct builder for each type', () => {
@@ -259,6 +348,7 @@ describe('chart registry', () => {
     expect(getChartBuilder('spray').id).toBe('spray');
     expect(getChartBuilder('zone').id).toBe('zone');
     expect(getChartBuilder('rolling').id).toBe('rolling');
+    expect(getChartBuilder('pitcher-rolling').id).toBe('pitcher-rolling');
   });
 
   it('getChartBuilder throws for unknown types', () => {

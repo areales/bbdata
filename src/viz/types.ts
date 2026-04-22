@@ -1,7 +1,7 @@
 import type { Audience } from '../templates/reports/registry.js';
 import type { StdinAdapter } from '../adapters/stdin.js';
 
-export type ChartType = 'movement' | 'movement-binned' | 'spray' | 'zone' | 'rolling';
+export type ChartType = 'movement' | 'movement-binned' | 'spray' | 'zone' | 'rolling' | 'pitcher-rolling';
 export type VizFormat = 'svg' | 'png' | 'pdf' | 'html';
 
 /**

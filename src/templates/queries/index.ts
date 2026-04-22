@@ -12,6 +12,7 @@ import './leaderboard-custom.js';
 import './leaderboard-comparison.js';
 import './trend-rolling-average.js';
 import './trend-year-over-year.js';
+import './pitcher-rolling-trend.js';
 import './pitcher-raw-pitches.js';
 import './hitter-raw-bip.js';
 import './hitter-zone-grid.js';

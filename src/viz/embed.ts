@@ -21,7 +21,12 @@ const REPORT_GRAPH_MAP: Record<
   ],
   'pro-pitcher-eval': [
     { slot: 'movementChart', type: 'movement' },
-    { slot: 'rollingChart', type: 'rolling' },
+    // F1.1: pro-pitcher-eval uses the pitcher-specific rolling chart, which
+    // sources from `pitcher-rolling-trend` (FB velo + Whiff/K/CSW %). The
+    // generic `rolling` chart is hitter-only — its query template hardcodes
+    // `stat_type: 'batting'` and returns AVG/SLG/K%/Avg EV, which is empty
+    // for pitchers.
+    { slot: 'rollingChart', type: 'pitcher-rolling' },
   ],
   'pro-hitter-eval': [
     { slot: 'sprayChart', type: 'spray' },

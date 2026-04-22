@@ -5,10 +5,28 @@ All notable changes to `bbdata` are documented here. This project follows
 
 ## Unreleased
 
-No CLI flag / output-schema changes since 0.9.0. The vega/vega-lite major
-bump is the largest item but is transparent to CLI users — emitted SVG /
-PNG / PDF is byte-identical for the 5 canonical chart types that ship
-today.
+Additive feature work on top of 0.9.0. One new chart type, one new query
+template. No breaking changes. The vega/vega-lite major bump below is
+transparent to CLI users — emitted SVG / PNG / PDF is byte-identical for
+the 5 pre-existing canonical chart types.
+
+### Added
+
+- **F1.1 — pro-pitcher-eval rolling trend chart.** New query template
+  `pitcher-rolling-trend` (5-start sliding window; Avg Velo from
+  fastball-family pitches, Whiff %, K %, CSW %) and new chart type
+  `pitcher-rolling` that consumes it. `src/viz/embed.ts` now routes
+  `pro-pitcher-eval`'s `rollingChart` slot to the new chart type so the
+  dormant `{{#if graphs.rollingChart}}` block in
+  `src/templates/reports/pro-pitcher-eval.hbs` finally renders with
+  pitcher-appropriate metrics. The generic `rolling` chart type remains
+  hitter-only (hardcodes `stat_type: 'batting'`) and still powers
+  `pro-hitter-eval`. Outings with fewer than 10 tracked pitches are
+  excluded from the rolling window so position-player innings and
+  one-batter relief appearances don't poison per-start averages.
+  Registry expands from 21 → 22 query templates and 5 → 6 chart types;
+  `bbdata query --help` and `--list` surface the new template
+  automatically (course-audit gap G.1 guard).
 
 ### Changed
 

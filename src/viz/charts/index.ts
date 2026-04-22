@@ -4,6 +4,7 @@ import { movementBinnedBuilder } from './movement-binned.js';
 import { sprayBuilder } from './spray.js';
 import { zoneBuilder } from './zone.js';
 import { rollingBuilder } from './rolling.js';
+import { pitcherRollingBuilder } from './pitcher-rolling.js';
 
 const builders: Record<ChartType, ChartBuilder> = {
   movement: movementBuilder,
@@ -11,6 +12,7 @@ const builders: Record<ChartType, ChartBuilder> = {
   spray: sprayBuilder,
   zone: zoneBuilder,
   rolling: rollingBuilder,
+  'pitcher-rolling': pitcherRollingBuilder,
 };
 
 /**

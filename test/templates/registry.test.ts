@@ -10,18 +10,19 @@ import {
 } from '../../src/templates/queries/registry.js';
 
 describe('query template registry', () => {
-  it('has all 21 templates registered', () => {
+  it('has all 22 templates registered', () => {
     const all = getAllTemplates();
     // 12 original + 3 viz-raw (pitcher-raw-pitches, hitter-raw-bip, hitter-zone-grid)
     // + 1 hitter-handedness-splits
     // + 3 BBDATA-011 advance-sp tactical (pitcher-recent-form, pitcher-by-count, pitcher-tto)
     // + 2 BBDATA-003/004 FanGraphs season profiles (pitcher-season-profile, hitter-season-profile)
-    expect(all.length).toBe(21);
+    // + 1 F1.1 pro-pitcher-eval rolling chart (pitcher-rolling-trend)
+    expect(all.length).toBe(22);
   });
 
   it('listTemplates returns id, name, category, description for each', () => {
     const list = listTemplates();
-    expect(list.length).toBe(21);
+    expect(list.length).toBe(22);
 
     for (const t of list) {
       expect(t).toHaveProperty('id');

@@ -26,7 +26,7 @@ Source: `../ai-baseball-data-analyst/course-audit.md` (2026-04-13). CLI-side ite
 | P2.4 | `comparison-table` viz type                  | Cancelled | P2      | —         | 2026-04-14 — course rewrite marked template #9 AI-prompt-only           |
 | P2.5 | `team-dashboard` viz type                    | Cancelled | P2      | —         | 2026-04-14 — course rewrite marked template #12 AI-prompt-only          |
 | P2.6 | `release-point` chart variant                | Cancelled | P2      | —         | 2026-04-14 — course rewrite marked template #4 AI-prompt-only           |
-| P4.4 | Fix `/build-model equivalent` fake query IDs | Decide   | P4       | S–M       | 3 options below; leaning (c) remove callouts                            |
+| P4.4 | Fix `/build-model equivalent` fake query IDs | Migrated | P4       | —         | Moved to `../ai-baseball-data-analyst/Tasks.md` 2026-04-21 — course-side edit, no bbdata work unless options (a)+(c) are rejected |
 | P4.5 | Friendly error for minimal-field stdin JSON  | Shipped  | P4       | —         | v0.9.0 — 2026-04-19 — new `assertFields()` helper in `src/utils/validate-records.ts`; applied to `pitcher-arsenal.transform()` with the fields it dereferences; error names every missing field + points at the PitchData schema |
 
 **P2.x are cancelled, not pending.** The course-side rewrite (2026-04-14) is the resolution the conditional was waiting on. Detail lives in the "Cancelled" section below.
@@ -37,6 +37,7 @@ Source: `../ai-baseball-data-analyst/course-audit.md` (2026-04-13). CLI-side ite
 
 Accumulates items completed after v0.9.0 ship; renamed to `Shipped in vX.Y.Z` on the next `npm version`.
 
+- **F1.1 — pro-pitcher-eval rolling trend chart.** New query template `pitcher-rolling-trend` (5-start sliding window; Avg Velo from fastball family, Whiff %, K %, CSW %) and new chart type `pitcher-rolling`. `src/viz/embed.ts` re-routes `pro-pitcher-eval`'s `rollingChart` slot to the pitcher-specific chart; the generic `rolling` chart stays hitter-only and still powers `pro-hitter-eval`. Outings with <10 tracked pitches are filtered before windowing. Registry grows 21→22 query templates and 5→6 chart types. Full detail in the F1.1 section below.
 - **Footer partial wiring fix.** `src/templates/reports/partials/footer.hbs` existed with `{{cliVersion}}` but was never registered and no `.hbs` template referenced it — reports rendered without any version line (and without the AI-assistance disclaimer the partial carries). Fixed by registering the partial once at module load in `src/commands/report.ts` and converting all 13 report templates + the `generateFallbackTemplate` fallback to `{{> footer}}`. Regression test at `test/commands/report.test.ts` reads version from `package.json` and asserts it appears in the rendered output, so future refactors can't re-orphan the partial.
 - **`assertFields` retrofit + regression coverage across 9 query templates.** The P4.5 helper shipped in v0.9.0 on `pitcher-arsenal` is now applied to the nine other templates that dereference optional-in-stdin fields (`hitter-handedness-splits`, `hitter-hot-cold-zones`, `hitter-vs-pitch-type`, `leaderboard-comparison`, `leaderboard-custom`, `matchup-pitcher-vs-hitter`, `pitcher-handedness-splits`, `pitcher-velocity-trend`, `trend-rolling-average`) — retrofit landed in commit `f6989fa`, regression guard at `test/templates/assert-fields-retrofit.test.ts` parameterizes one suite across all nine (3 tests × 9 templates = 27). Also fixes a placement bug in `pitcher-velocity-trend`: `assertFields` ran *after* a fastball filter that silently dropped sparse records, so the guard was unreachable — moved to run on the raw input with `game_date` added to its required fields.
 - **COURSE_TEST_PLAN.md + TEST_PLAN.md consolidation.** New standing test plan `COURSE_TEST_PLAN.md` cross-references every bbdata claim in `ai-baseball-data-analyst/.claude/skills/*/SKILL.md` + deliverables against the actual CLI surface. 8 sections, ~100 rows, tagged **C** (Claude-automatable structural check) or **A** (needs Aaron — perceptual/live-network). Replaces the versioned `TEST_PLAN.md`, which had begun to drift (v0.9.0 section referenced a nonexistent `fixtures/burnes-2025.json`). Release smoke is now a subset of COURSE_TEST_PLAN rows re-run against the sections a release touches — see "Release smoke process" section and the updated `.claude/commands/release-preflight.md` step 6.
@@ -95,14 +96,9 @@ If student survey signal later justifies promoting any of these into `bbdata viz
 
 ## Pending — details
 
-### P4.4 — `/build-model equivalent` fake query names — **Decide**
-- **Why:** `ai-baseball-data-analyst/Modules/05 - Code & Model Building/Deliverables/Model Template Library.md` has 8 `/build-model equivalent` callouts (lines 89, 152, 216, 279, 358, 423, 490) with `bbdata-cli query <name>` invocations that reference 6 template IDs not present in `src/templates/queries/`: `pitcher-stats`, `statcast-pitches`, `hitter-stats`, `hitter-splits`, `pitcher-game-logs`, `hitter-statcast`. Verified 2026-04-14 via direct grep over every `id: '...'` line in the queries registry. Students copying these bash lines hit "template not found". The course shipped with the wrong names; bbdata didn't drift. Analogous to P1.2 for viz types.
-- **Options:**
-  - **(a) Course-side rewrite** — remap each fake name to the closest real template (e.g., `hitter-stats` → `hitter-season-profile`; `statcast-pitches` → `pitcher-raw-pitches`; `hitter-splits` → `hitter-handedness-splits`; `pitcher-game-logs` → `pitcher-recent-form`). Zero CLI work, ~30min course edit.
-  - **(b) bbdata alias layer** — register the 6 fake names as aliases for closest-fitting real templates. Preserves course content verbatim. Some mappings (`hitter-stats`) are ambiguous enough that any alias choice will confuse half the use cases. Effort M (~1h).
-  - **(c) Drop the callouts entirely** — `/build-model` is flagged in course audit Section A as "Shipped (by design)" — it generates Python / prompts, not CLI calls. So the "CLI equivalent" callouts may not be load-bearing; removing them is cleaner than a rewrite or alias layer.
-- **Recommendation:** (c) if `/build-model` is Python-generation rather than CLI-passthrough. (a) is the fallback if the callouts are load-bearing for some student workflow.
-- **Files:** (a/c) `ai-baseball-data-analyst/Modules/05 - Code & Model Building/Deliverables/Model Template Library.md`; (b) new alias layer in `src/templates/queries/index.ts`.
+### P4.4 — `/build-model equivalent` fake query names — **Migrated 2026-04-21**
+
+Moved to `../ai-baseball-data-analyst/Tasks.md` under "Course audit follow-ups" on 2026-04-21. The recommended resolutions (a course-side remap or simply dropping the 8 callouts) are pure content edits in `Modules/05 - Code & Model Building/Deliverables/Model Template Library.md`. The bbdata fallback — a CLI-side alias layer — is only revisited if both course-side options are rejected.
 
 ### P4.5 — Friendly error for minimal-field stdin JSON — **Shipped 2026-04-19**
 
@@ -116,19 +112,6 @@ If student survey signal later justifies promoting any of these into `bbdata viz
 **Chose (b) over (a):** per the original triage. Silent degradation ("Unknown" rows, NaN-filled stats) is worse than a fail-fast error with a schema pointer — analyst-user payloads should round-trip cleanly or die explicitly, not return dashboards full of dashes.
 
 **Other templates with the same pattern — Shipped (unreleased).** The nine peer templates (`pitcher-velocity-trend`, `trend-rolling-average`, `hitter-handedness-splits`, `hitter-hot-cold-zones`, `hitter-vs-pitch-type`, `leaderboard-comparison`, `leaderboard-custom`, `matchup-pitcher-vs-hitter`, `pitcher-handedness-splits`) were retrofitted in commit `f6989fa` and covered by the parameterized suite at `test/templates/assert-fields-retrofit.test.ts`. See Unreleased bullet above.
-
----
-
-## Non-bbdata items from the audit (reference only)
-
-All course-side fixes — no bbdata work:
-
-- Rewrite `Modules/04/Deliverables/Visualization Template Library.md`
-- Fix `/viz --type compare|dashboard|heatmap|barrel|percentile` across Module 04 Lesson/Outline/Deliverables
-- Correct survey figures: "83 analysts" → 67 in `Project Dashboard.md:46`; Coach 16 → 11 at `:50`; "68" → "67" across Module READMEs
-- Rewrite `.claude/skills/viz/SKILL.md` "12 templates" → "5 CLI + 7 Python prompts"
-- Add `audience` reference table to Module 04 Lesson 4
-- Rewrite or remove the 8 `/build-model equivalent` callouts (see P4.4 for options)
 
 ---
 
@@ -258,25 +241,36 @@ Feature extension surfaced by scout-app but requiring bbdata-side work. Numbered
 
 | ID   | Title                                                 | Status   | Priority | Effort   | Notes                                                        |
 |------|-------------------------------------------------------|----------|----------|----------|--------------------------------------------------------------|
-| F1.1 | Wire dormant splits + rolling-trend SVGs on pitcher eval | Pending | P2    | S (~2h)  | Template scaffolding already in `pro-pitcher-eval.hbs`; needs query + embed slot |
+| F1.1 | Wire pro-pitcher-eval rolling-trend chart             | Shipped (Unreleased) | P2 | — | 2026-04-21 — new `pitcher-rolling-trend` query + `pitcher-rolling` chart type; `embed.ts` re-routed. Splits-chart half of the original scope was descoped — no dormant block existed. |
 
-### F1.1 — Wire dormant splits + rolling-trend SVGs in `pro-pitcher-eval` — **Pending**
+### F1.1 — Wire pro-pitcher-eval rolling-trend chart — **Shipped 2026-04-21 (Unreleased)**
 
-- **Why:** `pro-pitcher-eval.hbs` has ready-but-unwired Handlebars blocks for a pitcher platoon-splits chart and a rolling-trend (per-start velo / whiff%) chart (see `{{#if graphs.rollingChart}}` at line 69 and the splits table at line 47). They're dormant because `embed.ts` doesn't register the corresponding slots. Wiring them up gives pitcher reports parity with `pro-hitter-eval` (already renders 3 inline SVGs including a rolling trend). Closes the hitter/pitcher parity gap — pitcher reports currently feel thinner.
-- **What ships:**
-  1. `src/queries/` — add `pitcher-rolling-trend` query (per-start or per-month velocity + whiff%), extend `pitcher-handedness-splits` if needed.
-  2. `src/embed.ts` — register the new slots for `pro-pitcher-eval`.
-  3. `src/templates/reports/pro-pitcher-eval.hbs` — existing `{{#if graphs.rollingChart}}` guard already makes this graceful; no template edits required if slot names match.
-  4. After shipping: bump `bbdata` dep in `../scout-app/package.json`, smoke via `pro pitcher eval for Gerrit Cole 2024` in `/chat` (expect byte count ~835KB → ~1.0–1.2MB).
-- **Open question:** rolling-trend granularity — per-start risks noise for starters with 3–4-day rest gaps; per-month smooths too aggressively for reliever-heavy usage. Leaning per-start with a minimum sample floor.
-- **Origin:** moved from `../scout-app/TASKS.md` #11 on 2026-04-21 — scout-app is the consumer surface but the code change lives here.
+**Issue (resolved):** `pro-pitcher-eval.hbs` had a `{{#if graphs.rollingChart}}` block at line 69 that was wired at both ends (template guard + `embed.ts` slot) but always rendered empty. The generic `rolling` chart type consumed `trend-rolling-average`, whose `buildQuery` hardcodes `stat_type: 'batting'` and whose transform computes hitter metrics (AVG/SLG/K%/Avg EV/Hard Hit %). Invoking it for a pitcher returned zero batting PAs → the chart fell through to the "Insufficient data" text mark on every pro-pitcher-eval report.
+
+**What shipped:**
+- **New query template** `src/templates/queries/pitcher-rolling-trend.ts` — 5-start sliding window with `stat_type: 'pitching'`, returning Avg Velo (fastball family only — FF / SI / FC), Whiff %, K %, CSW %. Step = `max(1, floor(window/3))` matching `trend-rolling-average`. Outings with <10 tracked pitches are dropped before windowing (filters position-player innings + one-batter relief). Registered in `src/templates/queries/index.ts`.
+- **New chart type** `src/viz/charts/pitcher-rolling.ts` — sibling to `rolling.ts`, same wide→tidy pivot + faceted small-multiples structure, excluded metric key is `Starts` (instead of `Games`), fallback message references "5+ starts". `ChartType` union in `src/viz/types.ts` extended; registered in `src/viz/charts/index.ts`.
+- **Embed wiring** `src/viz/embed.ts` — `pro-pitcher-eval`'s `rollingChart` slot now uses `type: 'pitcher-rolling'`; `pro-hitter-eval` still uses the hitter-only `rolling` type.
+- **Tests:** `test/templates/pitcher-rolling-trend.test.ts` (11 tests, mirrors `pitcher-recent-form` patterns); 5 new `pitcherRollingBuilder` cases in `test/viz/charts.test.ts` covering pivot correctness, metric-key exclusion, facet spec, and graceful fallback; registry count bumped 21→22 in `test/templates/registry.test.ts`; `listChartTypes` expectation bumped 5→6.
+
+**Descoped:** The "dormant splits chart" mentioned in the original F1.1 description did not actually exist — `pro-pitcher-eval.hbs` only has a splits *table*, no `{{#if graphs.splitsChart}}` block. Adding one would have been new scope (new template block + new chart type + new slot) rather than wiring. If you decide a pitcher splits chart is worth shipping, open a follow-up F-item.
+
+**Granularity decision:** Per-start with a min-pitches-per-outing floor. The TASKS.md open question asked per-start vs per-month — per-start won because (a) it matches the hitter side's per-game granularity and (b) irregular x-axis spacing from starter rest days is handled naturally by the temporal encoding. Reliever-heavy usage is mitigated by the 10-pitch outing floor.
+
+**Verification:**
+- `npm run typecheck` — clean.
+- `npm run lint` — clean.
+- `npm test` — 309 / 309 pass (up from 253).
+- `npm run build` — clean tsup build.
+
+**Next:** bump `bbdata` dep in `../scout-app/package.json` after the next `npm version` + publish; smoke via `pro pitcher eval for Gerrit Cole 2024` in `/chat` (expected byte count lift to ~1.0–1.2MB once the third inline SVG fills in).
+
+**Origin:** moved from `../scout-app/TASKS.md` #11 on 2026-04-21.
 
 ---
 
 ## Suggested sequencing
 
-Phase A (P1.1, P1.2b, P1.3, P3.2, P3.3, P4.1, P4.2, P4.3) shipped in v0.7.0; Phase B (P3.1) in v0.7.1; Phase C (P3.4) in v0.7.2. Phase D (R1.1, R1.2, R1.3, R2.1, R4.1, R5.0, P4.5) shipped in v0.9.0 on 2026-04-19. P2.x cancelled 2026-04-14 via course-side rewrite.
+Phase A (P1.1, P1.2b, P1.3, P3.2, P3.3, P4.1, P4.2, P4.3) shipped in v0.7.0; Phase B (P3.1) in v0.7.1; Phase C (P3.4) in v0.7.2. Phase D (R1.1, R1.2, R1.3, R2.1, R4.1, R5.0, P4.5) shipped in v0.9.0 on 2026-04-19. P2.x cancelled 2026-04-14 via course-side rewrite. P4.4 migrated to course-side Tasks.md on 2026-04-21. F1.1 shipped (Unreleased) 2026-04-21.
 
-Remaining, in rough order:
-1. **P4.4** — course-side edit only. Pick option (c) (drop the 8 `/build-model equivalent` callouts in Module 05) unless they turn out to be load-bearing, in which case option (a) (remap to real template IDs). No bbdata work either way.
-2. **F1.1** — wire dormant pitcher splits + rolling-trend SVGs (~2h). Pure bbdata change; scout-app bumps the dep after.
+No open bbdata work in the Px / Rx / Fx backlog. Next release bundles the Unreleased items (F1.1 + the vega/vega-lite 5→6 bump + assertFields retrofit + G.1/G.7 gap fixes + footer partial wiring) into a 0.10.0 minor bump when it's time to publish.
