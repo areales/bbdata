@@ -85,21 +85,44 @@ export class StdinAdapter implements DataAdapter {
       throw new Error('Stdin adapter has no data — pipe JSON via stdin with --stdin flag');
     }
 
+    // Honor `query.pitch_type` on pitch-level records so `--pitch-type FF` works
+    // the same way with `--data` / `--stdin` as with network adapters (gap G.7
+    // in COURSE_TEST_PLAN). Other query fields (season, team, date range) are
+    // not applied — the stdin payload is expected to already be scoped.
+    const filtered = this.applyPitchTypeFilter(this.data, query);
+
     // TS variance: `(PitchData | PlayerStats)[]` is not assignable to
-    // `PitchData[] | PlayerStats[]`. At runtime every record in `this.data`
-    // came from a single payload so the array is homogeneous — cast to the
-    // adapter result type.
+    // `PitchData[] | PlayerStats[]`. At runtime every record came from a
+    // single payload so the array is homogeneous — cast to the adapter
+    // result type.
     return {
-      data: this.data as PitchData[] | PlayerStats[],
+      data: filtered as PitchData[] | PlayerStats[],
       source: 'stdin',
       cached: false,
       fetchedAt: new Date().toISOString(),
       meta: {
-        rowCount: this.data.length,
+        rowCount: filtered.length,
         season: query.season,
         query,
       },
     };
+  }
+
+  private applyPitchTypeFilter(
+    records: (PitchData | PlayerStats)[],
+    query: AdapterQuery,
+  ): (PitchData | PlayerStats)[] {
+    const allowed = query.pitch_type;
+    if (!allowed || allowed.length === 0) return records;
+
+    // Only pitch-level records carry `pitch_type`. Season-aggregate PlayerStats
+    // rows pass through untouched — the filter is a no-op on that shape.
+    const wanted = new Set(allowed.map((p) => p.toUpperCase()));
+    return records.filter((record) => {
+      const pt = (record as PitchData).pitch_type;
+      if (pt === undefined) return true;
+      return wanted.has(pt.toUpperCase());
+    });
   }
 
   async resolvePlayer(name: string): Promise<PlayerId | null> {

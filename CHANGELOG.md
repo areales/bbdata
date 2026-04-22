@@ -33,7 +33,17 @@ today.
   now name the template and every absent field in a single message
   pointing at the `PitchData` / `PlayerStats` schema, instead of the prior
   `TypeError: Cannot read properties of undefined (reading 'includes')`
-  or a silent cascade of empty / NaN rows.
+  or a silent cascade of empty / NaN rows. Regression coverage lands in
+  `test/templates/assert-fields-retrofit.test.ts` — one parameterized
+  suite, 27 tests (3 per template).
+- **`pitcher-velocity-trend` guard placement.** `assertFields` previously
+  ran *after* a fastball filter that silently dropped records lacking
+  `pitch_type` or `release_speed`, so the guard was unreachable — sparse
+  input returned `[]` instead of erroring, and the real crash site
+  (`pitch.game_date.slice(0, 7)` inside the month-grouping loop) surfaced
+  as a `TypeError` on `game_date`. Moved the check before the filter and
+  added `game_date` to the template's required fields, matching the
+  `pitcher-arsenal` pattern.
 
 ### Admin
 

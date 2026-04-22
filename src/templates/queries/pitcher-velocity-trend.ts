@@ -3,7 +3,7 @@ import { assertFields } from '../../utils/validate-records.js';
 import type { PitchData } from '../../adapters/types.js';
 
 
-const REQUIRED_FIELDS = ['pitch_type', 'release_speed'];
+const REQUIRED_FIELDS = ['pitch_type', 'release_speed', 'game_date'];
 
 const template: QueryTemplate = {
   id: 'pitcher-velocity-trend',
@@ -30,13 +30,14 @@ const template: QueryTemplate = {
   },
 
   transform(data) {
-    const pitches = (data as PitchData[]).filter(
+    const raw = data as PitchData[];
+    if (raw.length === 0) return [];
+    assertFields(raw, REQUIRED_FIELDS, 'pitcher-velocity-trend');
+
+    const pitches = raw.filter(
       (p) => ['FF', 'SI', 'FC'].includes(p.pitch_type) && p.release_speed > 0,
     );
-
     if (pitches.length === 0) return [];
-    assertFields(pitches, REQUIRED_FIELDS, 'pitcher-velocity-trend');
-
 
     // Group by month
     const byMonth = new Map<string, PitchData[]>();

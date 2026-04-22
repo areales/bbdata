@@ -38,6 +38,10 @@ Source: `../ai-baseball-data-analyst/course-audit.md` (2026-04-13). CLI-side ite
 Accumulates items completed after v0.9.0 ship; renamed to `Shipped in vX.Y.Z` on the next `npm version`.
 
 - **Footer partial wiring fix.** `src/templates/reports/partials/footer.hbs` existed with `{{cliVersion}}` but was never registered and no `.hbs` template referenced it — reports rendered without any version line (and without the AI-assistance disclaimer the partial carries). Fixed by registering the partial once at module load in `src/commands/report.ts` and converting all 13 report templates + the `generateFallbackTemplate` fallback to `{{> footer}}`. Regression test at `test/commands/report.test.ts` reads version from `package.json` and asserts it appears in the rendered output, so future refactors can't re-orphan the partial.
+- **`assertFields` retrofit + regression coverage across 9 query templates.** The P4.5 helper shipped in v0.9.0 on `pitcher-arsenal` is now applied to the nine other templates that dereference optional-in-stdin fields (`hitter-handedness-splits`, `hitter-hot-cold-zones`, `hitter-vs-pitch-type`, `leaderboard-comparison`, `leaderboard-custom`, `matchup-pitcher-vs-hitter`, `pitcher-handedness-splits`, `pitcher-velocity-trend`, `trend-rolling-average`) — retrofit landed in commit `f6989fa`, regression guard at `test/templates/assert-fields-retrofit.test.ts` parameterizes one suite across all nine (3 tests × 9 templates = 27). Also fixes a placement bug in `pitcher-velocity-trend`: `assertFields` ran *after* a fastball filter that silently dropped sparse records, so the guard was unreachable — moved to run on the raw input with `game_date` added to its required fields.
+- **COURSE_TEST_PLAN.md + TEST_PLAN.md consolidation.** New standing test plan `COURSE_TEST_PLAN.md` cross-references every bbdata claim in `ai-baseball-data-analyst/.claude/skills/*/SKILL.md` + deliverables against the actual CLI surface. 8 sections, ~100 rows, tagged **C** (Claude-automatable structural check) or **A** (needs Aaron — perceptual/live-network). Replaces the versioned `TEST_PLAN.md`, which had begun to drift (v0.9.0 section referenced a nonexistent `fixtures/burnes-2025.json`). Release smoke is now a subset of COURSE_TEST_PLAN rows re-run against the sections a release touches — see "Release smoke process" section and the updated `.claude/commands/release-preflight.md` step 6.
+- **G.1 — `bbdata query --help` enumerates all registered templates.** Previous hardcoded help string listed 12 of 21 templates; students discovering templates via `--help` missed the 9 bonus templates shipped across v0.7.x–v0.9.0 (`pitcher-raw-pitches`, `pitcher-recent-form`, `pitcher-by-count`, `pitcher-tto`, `pitcher-season-profile`, `hitter-zone-grid`, `hitter-raw-bip`, `hitter-season-profile`, `hitter-handedness-splits`). New `formatTemplateList()` helper in `src/commands/query.ts` buckets the live registry by `QueryCategory` at help-render time. Regression test: `test/commands/query-help.test.ts`.
+- **G.7 — `--pitch-type` filter works with `--data` and `--stdin`.** Previously the flag was silently a no-op on the stdin path — passing `--pitch-type FF --data fixture.csv` returned all pitch types. Network adapters honored the filter; stdin adapter didn't. Fixed in `src/adapters/stdin.ts` by applying `query.pitch_type` (case-insensitive set) to pitch-level records before returning; no-op on `PlayerStats` records (which don't carry `pitch_type`). Regression tests: 4 new cases in `test/adapters/stdin.test.ts`. Discovered via COURSE_TEST_PLAN row F.12 spot-check.
 
 ---
 
@@ -47,7 +51,7 @@ Codex senior-eng review cleanup + one course-audit follow-up. **Breaking**
 for library consumers that imported `getStdinAdapter()` / relied on
 `loadDataFile()` being void (R1.3). CLI surface (flags, args, output) is
 unchanged. See `CHANGELOG.md` for the full migration guide and
-`TEST_PLAN.md` v0.9.0 section for live smoke coverage.
+`COURSE_TEST_PLAN.md` §2–§5 for cross-reference coverage.
 
 - **R1.1 — caching actually works.** `fetchWithCache(adapter, query, policy)` at `src/cache/fetch-with-cache.ts`; `query()` threads a per-invocation `CachePolicy` derived from `config.cache.enabled && options.cache !== false` + `config.cache.maxAgeDays`. `--no-cache` and the config toggles now behave as documented (they were silent no-ops before). Tests: `test/cache/fetch-with-cache.test.ts`.
 - **R1.2 — `report --data` no longer hits the network.** Closed as a side effect of R1.3 — `--stdin` and `--data` now populate the same per-invocation adapter, threaded through `generateReportGraphs({ stdinAdapter })` into embedded viz.
@@ -111,7 +115,7 @@ If student survey signal later justifies promoting any of these into `bbdata viz
 
 **Chose (b) over (a):** per the original triage. Silent degradation ("Unknown" rows, NaN-filled stats) is worse than a fail-fast error with a schema pointer — analyst-user payloads should round-trip cleanly or die explicitly, not return dashboards full of dashes.
 
-**Other templates with the same pattern:** `src/templates/queries/` has 9 other files that use `.includes()` on optional-in-stdin fields (`pitcher-velocity-trend`, `trend-rolling-average`, `hitter-handedness-splits`, `hitter-hot-cold-zones`, `hitter-vs-pitch-type`, `leaderboard-comparison`, `leaderboard-custom`, `matchup-pitcher-vs-hitter`, `pitcher-handedness-splits`). `assertFields` is ready for them — adoption is a drop-in when they next get touched or when a student hits the same crash. Out of scope for P4.5 since the original triage named only pitcher-arsenal.
+**Other templates with the same pattern — Shipped (unreleased).** The nine peer templates (`pitcher-velocity-trend`, `trend-rolling-average`, `hitter-handedness-splits`, `hitter-hot-cold-zones`, `hitter-vs-pitch-type`, `leaderboard-comparison`, `leaderboard-custom`, `matchup-pitcher-vs-hitter`, `pitcher-handedness-splits`) were retrofitted in commit `f6989fa` and covered by the parameterized suite at `test/templates/assert-fields-retrofit.test.ts`. See Unreleased bullet above.
 
 ---
 
@@ -172,7 +176,7 @@ Source: Codex CLI rescue, job `task-mo52xq64-55apez`, session `019da353-7cd8-704
 
 **Codex had flagged this separately** with a narrower suggested fix ("force `source: 'stdin'` when either is set"). Fixing the underlying pattern (R1.3) turned the symptom into a non-issue without needing the narrower patch — a reminder that R5.0's strategic refactor direction is well-aimed.
 
-**TEST_PLAN coverage:** v0.9.0 row RP.2 (`report --data` end-to-end with embedded graphs) validates this scenario.
+**Test coverage:** `COURSE_TEST_PLAN.md` §3 (report smoke rows R.1–R.13) exercises `report --data` end-to-end including embedded graphs.
 
 ### R1.3 — Global mutable stdin adapter introduces cross-call state leakage — **Shipped 2026-04-19**
 
@@ -246,10 +250,33 @@ Source: Codex CLI rescue, job `task-mo52xq64-55apez`, session `019da353-7cd8-704
 
 ---
 
+## From scout-app backlog (2026-04-21)
+
+Feature extension surfaced by scout-app but requiring bbdata-side work. Numbered Fx to distinguish from audit (Px) and Codex-review (Rx) buckets.
+
+### Status at a glance
+
+| ID   | Title                                                 | Status   | Priority | Effort   | Notes                                                        |
+|------|-------------------------------------------------------|----------|----------|----------|--------------------------------------------------------------|
+| F1.1 | Wire dormant splits + rolling-trend SVGs on pitcher eval | Pending | P2    | S (~2h)  | Template scaffolding already in `pro-pitcher-eval.hbs`; needs query + embed slot |
+
+### F1.1 — Wire dormant splits + rolling-trend SVGs in `pro-pitcher-eval` — **Pending**
+
+- **Why:** `pro-pitcher-eval.hbs` has ready-but-unwired Handlebars blocks for a pitcher platoon-splits chart and a rolling-trend (per-start velo / whiff%) chart (see `{{#if graphs.rollingChart}}` at line 69 and the splits table at line 47). They're dormant because `embed.ts` doesn't register the corresponding slots. Wiring them up gives pitcher reports parity with `pro-hitter-eval` (already renders 3 inline SVGs including a rolling trend). Closes the hitter/pitcher parity gap — pitcher reports currently feel thinner.
+- **What ships:**
+  1. `src/queries/` — add `pitcher-rolling-trend` query (per-start or per-month velocity + whiff%), extend `pitcher-handedness-splits` if needed.
+  2. `src/embed.ts` — register the new slots for `pro-pitcher-eval`.
+  3. `src/templates/reports/pro-pitcher-eval.hbs` — existing `{{#if graphs.rollingChart}}` guard already makes this graceful; no template edits required if slot names match.
+  4. After shipping: bump `bbdata` dep in `../scout-app/package.json`, smoke via `pro pitcher eval for Gerrit Cole 2024` in `/chat` (expect byte count ~835KB → ~1.0–1.2MB).
+- **Open question:** rolling-trend granularity — per-start risks noise for starters with 3–4-day rest gaps; per-month smooths too aggressively for reliever-heavy usage. Leaning per-start with a minimum sample floor.
+- **Origin:** moved from `../scout-app/TASKS.md` #11 on 2026-04-21 — scout-app is the consumer surface but the code change lives here.
+
+---
+
 ## Suggested sequencing
 
 Phase A (P1.1, P1.2b, P1.3, P3.2, P3.3, P4.1, P4.2, P4.3) shipped in v0.7.0; Phase B (P3.1) in v0.7.1; Phase C (P3.4) in v0.7.2. Phase D (R1.1, R1.2, R1.3, R2.1, R4.1, R5.0, P4.5) shipped in v0.9.0 on 2026-04-19. P2.x cancelled 2026-04-14 via course-side rewrite.
 
 Remaining, in rough order:
 1. **P4.4** — course-side edit only. Pick option (c) (drop the 8 `/build-model equivalent` callouts in Module 05) unless they turn out to be load-bearing, in which case option (a) (remap to real template IDs). No bbdata work either way.
-2. **Opportunistic:** adopt `assertFields` (shipped in v0.9.0 as P4.5's helper) in the 9 other templates that use `.includes()` on optional stdin fields — listed in the P4.5 "Other templates with the same pattern" note above. Drop-in when those templates next get touched.
+2. **F1.1** — wire dormant pitcher splits + rolling-trend SVGs (~2h). Pure bbdata change; scout-app bumps the dep after.

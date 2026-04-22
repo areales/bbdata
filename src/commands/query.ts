@@ -6,7 +6,9 @@ import { format, type OutputFormat } from '../formatters/index.js';
 import { log } from '../utils/logger.js';
 import {
   getTemplate,
+  getAllTemplates,
   listTemplates,
+  type QueryCategory,
   type QueryTemplateParams,
   type QueryResult as TemplateQueryResult,
 } from '../templates/queries/index.js';
@@ -66,6 +68,32 @@ const VALID_SOURCE_MAP = {
 } satisfies Record<DataSource, true>;
 
 const VALID_SOURCES = Object.keys(VALID_SOURCE_MAP) as DataSource[];
+
+// Generated from the live template registry so new templates surface in
+// `bbdata query --help` automatically — the previous hand-written list drifted
+// and only showed 12 of the 21 shipped templates (gap G.1 in COURSE_TEST_PLAN).
+const CATEGORY_LABELS: Record<QueryCategory, string> = {
+  pitcher:     'Pitcher',
+  hitter:      'Hitter',
+  matchup:     'Matchup',
+  leaderboard: 'Leaderboard',
+  trend:       'Trend',
+};
+const CATEGORY_ORDER: QueryCategory[] = ['pitcher', 'hitter', 'matchup', 'leaderboard', 'trend'];
+
+export function formatTemplateList(): string {
+  const byCategory = new Map<QueryCategory, string[]>();
+  for (const t of getAllTemplates()) {
+    const bucket = byCategory.get(t.category) ?? [];
+    bucket.push(t.id);
+    byCategory.set(t.category, bucket);
+  }
+  const labelWidth = Math.max(...CATEGORY_ORDER.map((c) => CATEGORY_LABELS[c].length)) + 1;
+  return CATEGORY_ORDER
+    .filter((c) => byCategory.has(c))
+    .map((c) => `  ${(CATEGORY_LABELS[c] + ':').padEnd(labelWidth + 1)} ${byCategory.get(c)!.join(', ')}`)
+    .join('\n');
+}
 /**
  * Programmatic API — skills and agents call this directly.
  */
@@ -254,7 +282,7 @@ export function registerQueryCommand(program: Command): void {
     .option('--no-cache', 'Bypass cache')
     .option('--stdin', 'Read pre-fetched JSON data from stdin instead of fetching from APIs')
     .option('--data <path>', 'Load data from a local .json or .csv file (Savant CSV schema) instead of fetching')
-    .addHelpText('after', `
+    .addHelpText('after', () => `
 Examples:
   bbdata query pitcher-arsenal --player "Corbin Burnes" --season 2025
   bbdata query hitter-batted-ball --player "Aaron Judge" --format table
@@ -262,11 +290,7 @@ Examples:
   bbdata query hitter-hot-cold-zones --player "Shohei Ohtani"
 
 Available templates:
-  Pitcher:     pitcher-arsenal, pitcher-velocity-trend, pitcher-handedness-splits
-  Hitter:      hitter-batted-ball, hitter-vs-pitch-type, hitter-hot-cold-zones
-  Matchup:     matchup-pitcher-vs-hitter, matchup-situational
-  Leaderboard: leaderboard-custom, leaderboard-comparison
-  Trend:       trend-rolling-average, trend-year-over-year
+${formatTemplateList()}
 `)
     .action(async (templateId, opts) => {
       if (!templateId) {
