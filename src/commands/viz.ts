@@ -142,6 +142,32 @@ export async function viz(options: VizOptions): Promise<VizResult> {
   };
 }
 
+// Generated from the live chart-builder registry so new chart types surface
+// in `bbdata viz --help` automatically — mirrors the G.1 fix on query --help.
+// Keyed by ChartType so the compiler forces a description update whenever a
+// new chart is added to src/viz/charts/index.ts.
+const CHART_TYPE_DESCRIPTIONS: Record<ChartType, string> = {
+  movement:          'pitch movement plot (H break vs V break, per pitch type)',
+  'movement-binned': 'binned density variant of movement for compact inline use',
+  spray:             'spray chart (batted ball landing positions on a field)',
+  zone:              '3x3 zone profile heatmap (xwOBA per plate region)',
+  rolling:           'rolling performance trend for hitters (xwOBA, xwOBAcon)',
+  'pitcher-rolling': '5-start rolling trend for pitchers (velo, Whiff %, K %, CSW %)',
+};
+
+export function formatChartTypeList(): string {
+  const types = listChartTypes();
+  const aliases = listChartAliases();
+  const nameWidth = Math.max(...types.map((t) => t.length), ...Object.keys(aliases).map((a) => a.length));
+  const typeLines = types
+    .map((t) => `  ${t.padEnd(nameWidth)}  — ${CHART_TYPE_DESCRIPTIONS[t]}`)
+    .join('\n');
+  const aliasLines = Object.entries(aliases)
+    .map(([alias, canonical]) => `  ${alias.padEnd(nameWidth)}  →  ${canonical}`)
+    .join('\n');
+  return `Chart types (canonical):\n${typeLines}\n\nAliases:\n${aliasLines}`;
+}
+
 /**
  * CLI registration — Commander calls this.
  */
@@ -167,7 +193,7 @@ export function registerVizCommand(program: Command): void {
     .option('--source <src>', 'Force a data source (savant, fangraphs, ...)')
     .option('--stdin', 'Read pre-fetched JSON data from stdin')
     .option('--data <path>', 'Load data from a local .json or .csv file (Savant CSV schema) instead of fetching')
-    .addHelpText('after', `
+    .addHelpText('after', () => `
 Examples:
   bbdata viz movement --player "Corbin Burnes" --season 2025 -o burnes_movement.svg
   bbdata viz spray    --player "Aaron Judge" --audience coach --format png -o judge_spray.png
@@ -175,18 +201,7 @@ Examples:
   bbdata viz rolling  --player "Freddie Freeman" --window 5
   bbdata viz spray    --player "Aaron Judge" --format pdf -o judge_spray.pdf
 
-Chart types (canonical + aliases):
-  movement              — pitch movement plot (H break vs V break, per pitch type)
-  movement-binned       — binned density variant of movement for compact inline use
-  spray                 — spray chart (batted ball landing positions on a field)
-  zone                  — 3x3 zone profile heatmap (xwOBA per plate region)
-  rolling               — rolling performance trend (time-series)
-
-Aliases:
-  pitching-movement  →  movement
-  hitting-spray      →  spray
-  hitting-zones      →  zone
-  trend-rolling      →  rolling
+${formatChartTypeList()}
 `)
     .action(async (typeArg, opts) => {
       const type = (typeArg ?? opts.type) as string | undefined;

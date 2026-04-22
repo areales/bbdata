@@ -3,7 +3,7 @@
 All notable changes to `bbdata` are documented here. This project follows
 [Semantic Versioning](https://semver.org/).
 
-## Unreleased
+## 0.10.0 — 2026-04-21
 
 Additive feature work plus a batch of course-audit gap closures on top
 of 0.9.0. One new chart type, one new query template, two student-facing
@@ -109,6 +109,20 @@ pre-existing canonical chart types.
   Covered by 4 new cases in `test/adapters/stdin.test.ts`. Discovered
   via the new `COURSE_TEST_PLAN.md` row F.12 spot-check — an early win
   for the surface-oriented plan format.
+- **`bbdata viz --help` enumerates all registered chart types.** F1.1
+  above added `pitcher-rolling` to the chart-builder registry at
+  `src/viz/charts/index.ts` but the hand-written "Chart types (canonical
+  + aliases)" block in `src/commands/viz.ts` still listed only the
+  original 5 — so the new chart rendered correctly but was invisible to
+  students discovering the CLI via `--help`. Same class as the G.1 bug
+  for `query --help` fixed elsewhere in this release. New
+  `formatChartTypeList()` helper generates the block from
+  `listChartTypes()` + `listChartAliases()` against a
+  `Record<ChartType, string>` description map, so adding a new chart
+  type to `src/viz/types.ts` forces a compile-time description entry
+  and the help text can't drift again. Regression coverage in
+  `test/commands/viz-help.test.ts` (3 tests). Discovered via
+  COURSE_TEST_PLAN `--help` spot-check during release preflight.
 
 ### Admin
 

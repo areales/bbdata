@@ -62,12 +62,12 @@ The top-level `bbdata` binary and its three subcommands must exist and print the
 | H.2 | C | `node dist/bin/bbdata.js --help` | Lists three commands: `query`, `report`, `viz`. | ☐ |
 | H.3 | C | `node dist/bin/bbdata.js query --help` | Lists `--player`, `--players`, `--season`, `--format`, `--source`, `--stat`, `--pitch-type`, `--min-pa`, `--min-ip`, `--top`, `--seasons`, `--no-cache`, `--stdin`, `--data`. | ☐ |
 | H.4 | C | `node dist/bin/bbdata.js report --help` | Lists `--player`, `--team`, `--season`, `--audience`, `--format`, `--validate`, `--no-strict`, `--stdin`, `--data`. Audience line must advertise `frontoffice→gm` and `presentation→analyst` aliases (from P4.3). | ☐ |
-| H.5 | C | `node dist/bin/bbdata.js viz --help` | Lists `--type`, `--player`, `--players`, `--season`, `--audience`, `--format {svg,png,html,pdf}`, `--dpi`, `--pdf-mode`, `--window`, `--size`, `--colorblind`, `-o/--output`, `--source`, `--stdin`, `--data`. Lists the 5 canonical chart types + 4 aliases. | ☐ |
-| H.6 | C | `node dist/bin/bbdata.js query --help` | "Available templates" section lists **all 21** shipped query templates, not just the original 12 (known gap — see §6). | ☐ |
+| H.5 | C | `node dist/bin/bbdata.js viz --help` | Lists `--type`, `--player`, `--players`, `--season`, `--audience`, `--format {svg,png,html,pdf}`, `--dpi`, `--pdf-mode`, `--window`, `--size`, `--colorblind`, `-o/--output`, `--source`, `--stdin`, `--data`. Lists the 6 canonical chart types (`movement`, `movement-binned`, `spray`, `zone`, `rolling`, `pitcher-rolling`) + 4 aliases. | ☐ |
+| H.6 | C | `node dist/bin/bbdata.js query --help` | "Available templates" section lists **all 22** shipped query templates (21 pre-F1.1 + `pitcher-rolling-trend`), generated dynamically from the registry. | ☐ |
 
 ---
 
-## §2 — Query templates (21)
+## §2 — Query templates (22)
 
 One row per template. Sanity check: the template is registered, accepts the course-advertised flags, and returns a well-formed `{data, meta}` envelope with `meta.source === 'stdin'` (no live-network required for the C rows).
 
@@ -93,6 +93,7 @@ The **C-test command** uses `--data test/fixtures/savant-csv-sample.csv` where t
 | Q.14 | C | `matchup-pitcher-vs-hitter` | `--players "Burnes Corbin,Judge Aaron"` | Exit 0. `data` has matchup rows. | ☐ |
 | Q.15 | C | `matchup-situational` | `--player "Burnes Corbin"` | Exit 0. `data` has situational rows. | ☐ |
 | Q.16 | C | `trend-rolling-average` | same | Exit 0. `data` has windowed rows **or** a single "Insufficient data" row (fixture may be too small). Either is acceptable — the assertion is exit 0. | ☐ |
+| Q.22 | C | `pitcher-rolling-trend` (F1.1) | `node dist/bin/bbdata.js query pitcher-rolling-trend --player "Burnes Corbin" --data test/fixtures/savant-csv-sample.csv --format json` | Exit 0. `meta.source === "stdin"`. `data` is an array of 5-start rolling windows (or empty if fixture has fewer than 5 outings). Outings with <10 tracked pitches are filtered before windowing. | ☐ |
 
 ### 2B — Season-aggregate templates (need live network; stdin not meaningful)
 
@@ -148,7 +149,7 @@ C-rows: smoke that the template is **registered** and renders without fetching a
 
 ---
 
-## §4 — Viz chart types (5 canonical + 4 aliases)
+## §4 — Viz chart types (6 canonical + 4 aliases)
 
 | # | Who | Type | Command | Expected | ✓ |
 |---|---|---|---|---|---|
@@ -157,6 +158,7 @@ C-rows: smoke that the template is **registered** and renders without fetching a
 | V.3 | C | `spray` | same, `--player "Judge Aaron"` | Exit 0. Valid SVG. | ☐ |
 | V.4 | C | `zone` | same | Exit 0. Valid SVG. | ☐ |
 | V.5 | C | `rolling` | same + `--window 5` | Exit 0. Valid SVG. | ☐ |
+| V.6 | C | `pitcher-rolling` (F1.1) | `... viz pitcher-rolling --data test/fixtures/savant-csv-sample.csv --player "Burnes Corbin" --season 2025 --format svg -o .tmp/v-pitcher-rolling.svg` | Exit 0. Valid SVG. Surfaces in `bbdata viz --help` via `formatChartTypeList()` regression guard (`test/commands/viz-help.test.ts`). | ☐ |
 | V.A1 | C | alias `pitching-movement` | resolves to `movement` | Exit 0. Byte-diff vs V.1 output — should match (same input, same canonical). | ☐ |
 | V.A2 | C | alias `hitting-spray` | resolves to `spray` | Exit 0. Byte-diff vs V.3. | ☐ |
 | V.A3 | C | alias `hitting-zones` | resolves to `zone` | Exit 0. Byte-diff vs V.4. | ☐ |
