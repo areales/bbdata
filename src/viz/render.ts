@@ -1,4 +1,4 @@
-import { parse as vegaParse, View, Warn } from 'vega';
+import { Error as VegaError, parse as vegaParse, View, Warn } from 'vega';
 import { compile } from 'vega-lite';
 import type { TopLevelSpec } from 'vega-lite';
 import PDFDocument from 'pdfkit';
@@ -18,7 +18,10 @@ export async function specToSvg(vlSpec: object): Promise<string> {
   const { spec: vgSpec } = compile(vlSpec as TopLevelSpec);
   const runtime = vegaParse(vgSpec);
   const view = new View(runtime, { renderer: 'none' });
-  view.logLevel(Warn);
+  // Empty-data specs legitimately trigger Vega "Infinite extent" warnings.
+  // Keep those out of normal CLI/test stderr while preserving the full warning
+  // stream for debugging sessions.
+  view.logLevel(process.env.BBDATA_DEBUG ? Warn : VegaError);
   const svg = await view.toSVG();
   view.finalize();
   return ensureTextPaintOrder(svg);

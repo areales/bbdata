@@ -25,6 +25,34 @@ import type { Audience } from '../templates/reports/registry.js';
 
 const SUPPORTED_FORMATS: VizFormat[] = ['svg', 'png', 'html', 'pdf'];
 
+async function renderVizPayload(
+  svg: string,
+  spec: object,
+  resolved: ResolvedVizOptions,
+  options: Pick<VizOptions, 'dpi' | 'pdfMode'>,
+): Promise<string | Buffer> {
+  switch (resolved.format) {
+    case 'png': {
+      const rasterWidth = options.dpi
+        ? Math.round(resolved.width * (options.dpi / 96))
+        : resolved.width * 2;
+      return rasterizeSvg(svg, { width: rasterWidth });
+    }
+    case 'pdf':
+      return specToPdf(svg, {
+        width: resolved.width,
+        height: resolved.height,
+        mode: options.pdfMode ?? 'vector',
+        ...(options.dpi != null ? { dpi: options.dpi } : {}),
+      });
+    case 'html':
+      return specToHtml(svg, spec, { title: resolved.title });
+    case 'svg':
+    default:
+      return svg;
+  }
+}
+
 /**
  * Programmatic API — skills and agents call this directly.
  */
@@ -101,36 +129,25 @@ export async function viz(options: VizOptions): Promise<VizResult> {
 
   const spec = builder.buildSpec(rows, resolved);
   const svg = await specToSvg(spec);
+  const formatted = await renderVizPayload(svg, spec, resolved, options);
 
   if (options.output) {
     const outputPath = resolvePath(options.output);
-    if (format === 'png') {
-      const rasterWidth = options.dpi ? Math.round(width * (options.dpi / 96)) : width * 2;
-      const png = rasterizeSvg(svg, { width: rasterWidth });
-      writeFileSync(outputPath, png);
-    } else if (format === 'pdf') {
-      // DPI applies only when a caller opts into the raster fallback via
-      // VizOptions.pdfMode; default is the vector path where dpi is meaningless.
-      const pdf = await specToPdf(svg, {
-        width,
-        height,
-        mode: options.pdfMode ?? 'vector',
-        ...(options.dpi != null ? { dpi: options.dpi } : {}),
-      });
-      writeFileSync(outputPath, pdf);
-    } else if (format === 'html') {
-      writeFileSync(outputPath, specToHtml(svg, spec, { title: resolved.title }), 'utf-8');
+    if (Buffer.isBuffer(formatted)) {
+      writeFileSync(outputPath, formatted);
     } else {
-      writeFileSync(outputPath, svg, 'utf-8');
+      writeFileSync(outputPath, formatted, 'utf-8');
     }
     log.success(`Wrote ${options.output}`);
   }
 
   return {
+    formatted,
     svg,
     spec,
     meta: {
       chartType,
+      format,
       player,
       season,
       audience,
@@ -260,25 +277,11 @@ ${formatChartTypeList()}
               process.exitCode = 1;
               return;
             }
-            const effectiveWidth = width ?? result.meta.width;
-            const effectiveHeight = height ?? result.meta.height;
-            if (format === 'png') {
-              const rasterWidth = opts.dpi ? Math.round(effectiveWidth * (opts.dpi / 96)) : effectiveWidth * 2;
-              const png = rasterizeSvg(result.svg, { width: rasterWidth });
-              process.stdout.write(png);
-            } else {
-              const pdf = await specToPdf(result.svg, {
-                width: effectiveWidth,
-                height: effectiveHeight,
-                mode: (opts.pdfMode as 'vector' | 'raster' | undefined) ?? 'vector',
-                ...(Number.isFinite(opts.dpi) ? { dpi: opts.dpi } : {}),
-              });
-              process.stdout.write(pdf);
-            }
+            process.stdout.write(result.formatted as Buffer);
           } else if (format === 'html') {
-            log.data(specToHtml(result.svg, result.spec, { title: (result.spec as { title?: string }).title ?? `${result.meta.player} — ${result.meta.chartType}` }));
+            log.data(result.formatted as string);
           } else {
-            log.data(result.svg + '\n');
+            log.data((result.formatted as string) + '\n');
           }
         }
       } catch (error) {

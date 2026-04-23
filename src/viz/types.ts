@@ -50,10 +50,12 @@ export interface VizOptions {
 }
 
 export interface VizResult {
+  formatted: string | Buffer;
   svg: string;
   spec: object;
   meta: {
     chartType: ChartType;
+    format: VizFormat;
     player: string;
     season: number;
     audience: VizAudience;

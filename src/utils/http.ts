@@ -7,6 +7,28 @@ export interface FetchOptions {
 const DEFAULT_TIMEOUT = 30_000;
 const DEFAULT_RETRIES = 2;
 
+class HttpStatusError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'HttpStatusError';
+  }
+}
+
+function isRetryableStatus(status: number): boolean {
+  return status === 408 || status === 425 || status === 429 || status >= 500;
+}
+
+function shouldRetry(error: Error): boolean {
+  if (error instanceof HttpStatusError) {
+    return isRetryableStatus(error.status);
+  }
+
+  return error.name === 'AbortError' || error instanceof TypeError;
+}
+
 export async function fetchWithRetry(
   url: string,
   options: FetchOptions = {},
@@ -16,29 +38,35 @@ export async function fetchWithRetry(
   let lastError: Error | undefined;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeout);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
 
+    try {
       const response = await fetch(url, {
         headers,
         signal: controller.signal,
       });
 
-      clearTimeout(timer);
-
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText} — ${url}`);
+        throw new HttpStatusError(
+          response.status,
+          `HTTP ${response.status}: ${response.statusText} — ${url}`,
+        );
       }
 
       return response;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
 
-      if (attempt < retries) {
+      if (attempt < retries && shouldRetry(lastError)) {
         // Exponential backoff: 1s, 2s
         await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+        continue;
       }
+
+      throw lastError;
+    } finally {
+      clearTimeout(timer);
     }
   }
 

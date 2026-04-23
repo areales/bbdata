@@ -90,7 +90,9 @@ describe('viz command', () => {
     expect(runQuery).toHaveBeenCalledTimes(1);
     expect(vi.mocked(runQuery).mock.calls[0]![0].template).toBe('pitcher-raw-pitches');
     expect(result.svg).toBe('<svg data-test="stub"/>');
+    expect(result.formatted).toBe('<svg data-test="stub"/>');
     expect(result.meta.chartType).toBe('movement');
+    expect(result.meta.format).toBe('svg');
     expect(result.meta.player).toBe('Corbin Burnes');
     expect(result.meta.audience).toBe('analyst');
     expect(result.meta.rowCount).toBe(2);
@@ -140,12 +142,13 @@ describe('viz command', () => {
   });
 
   it('writes a PDF binary when format=pdf with --output (vector default)', async () => {
-    await viz({
+    const result = await viz({
       type: 'movement',
       player: 'Test',
       format: 'pdf',
       output: '/tmp/test.pdf',
     });
+    expect(Buffer.isBuffer(result.formatted)).toBe(true);
     expect(specToPdf).toHaveBeenCalledTimes(1);
     const call = vi.mocked(specToPdf).mock.calls[0]!;
     expect(call[1].mode).toBe('vector');
@@ -198,12 +201,13 @@ describe('viz command', () => {
   });
 
   it('rasterizes to PNG and writes a binary file when format=png with --output', async () => {
-    await viz({
+    const result = await viz({
       type: 'movement',
       player: 'Test',
       format: 'png',
       output: '/tmp/test.png',
     });
+    expect(Buffer.isBuffer(result.formatted)).toBe(true);
     expect(rasterizeSvg).toHaveBeenCalledTimes(1);
     expect(writeFileSync).toHaveBeenCalled();
     const firstCall = vi.mocked(writeFileSync).mock.calls[0]!;
@@ -225,12 +229,14 @@ describe('viz command', () => {
   });
 
   it('writes an HTML wrapper when format=html with --output', async () => {
-    await viz({
+    const result = await viz({
       type: 'movement',
       player: 'Test',
       format: 'html',
       output: '/tmp/test.html',
     });
+    expect(typeof result.formatted).toBe('string');
+    expect(result.formatted).toContain('<!doctype html>');
     const call = vi.mocked(writeFileSync).mock.calls.find(
       (c) => typeof c[1] === 'string' && String(c[1]).includes('<!doctype html>'),
     );

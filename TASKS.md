@@ -174,6 +174,28 @@ Moved to `../ai-baseball-data-analyst/Tasks.md` under "Course audit follow-ups" 
 
 ---
 
+## From Codex repo review (2026-04-23)
+
+Source: in-repo review run on 2026-04-23 after `npm run lint`, `npm run typecheck`, and `npm test` all passed. These are smaller contract / maintenance follow-ups, distinct from the course-audit backlog above.
+
+### Status at a glance
+
+| ID   | Title                                                | Status  | Priority | Effort | Notes |
+|------|------------------------------------------------------|---------|----------|--------|-------|
+| R6.1 | `viz()` programmatic return contract matches `format` | Shipped | P2       | S–M    | 2026-04-23 — branch `review-followups-2026-04-23`; add in-memory `formatted` payload + `meta.format` so `png` / `pdf` / `html` aren't write-only for library consumers |
+| R6.2 | Retry only transient HTTP failures + clear timers     | Shipped | P2       | S      | 2026-04-23 — branch `review-followups-2026-04-23`; no retry on permanent 4xx, always clear abort timers, keep 429 / 5xx / network retries |
+| R6.3 | Honor report `paramMapping` in sub-query dispatch     | Shipped | P3       | S      | 2026-04-23 — branch `review-followups-2026-04-23`; `report()` now derives query options from each template's mapping instead of ignoring the field |
+| R6.4 | Suppress expected Vega empty-data warnings            | Shipped | P4       | XS     | 2026-04-23 — branch `review-followups-2026-04-23`; default render path logs errors only, with full Vega warnings still available under `BBDATA_DEBUG` |
+
+### What shipped
+
+- `R6.1` closes the mismatch where `VizOptions.format` accepted `png` / `pdf` / `html` but `viz()` only returned `{ svg, spec }` unless the caller also wrote a file. The programmatic API now exposes the rendered payload in-memory so library consumers can use the same formats as the CLI.
+- `R6.2` hardens `src/utils/http.ts`: abort timers are cleared in all paths, permanent HTTP failures stop immediately, and retries stay focused on transient errors (`429`, `5xx`, aborts, and network failures).
+- `R6.3` turns `paramMapping` in `src/templates/reports/registry.ts` into live configuration. Existing templates still behave the same, but future report templates can remap report-scope inputs into sub-query params without patching `report.ts`.
+- `R6.4` removes noisy `Infinite extent` Vega warnings from empty-data render tests and normal CLI runs, while preserving the verbose warning stream when `BBDATA_DEBUG` is set.
+
+---
+
 ## From Codex senior-eng review (2026-04-19)
 
 Source: Codex CLI rescue, job `task-mo52xq64-55apez`, session `019da353-7cd8-7042-8f2d-9bc2ebfc3926`. These are correctness / hygiene items distinct from the course-audit backlog above. Numbering continues the Px scheme.

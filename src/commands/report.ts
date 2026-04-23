@@ -217,15 +217,34 @@ export async function report(options: ReportOptions): Promise<ReportResult> {
 
   for (const req of template.dataRequirements) {
     try {
-        const result = await runQuery({
-          template: req.queryTemplate,
-          resolveTemplateId: req.queryTemplate,
-          player: options.player,
-          team: options.team,
-          season,
-        format: 'json',
-        ...(context.stdinAdapter ? { source: 'stdin', stdinAdapter: context.stdinAdapter } : {}),
-      });
+      const reportParams = {
+        player: options.player,
+        team: options.team,
+        season,
+      };
+      // Forward the base report-scope params by default so report templates
+      // whose paramMapping only declares some of {player, team, season} still
+      // see the others. paramMapping then acts as an additive override layer
+      // (e.g. `{ player: 'team' }` routes the report's team into the sub-query's
+      // player slot) and can introduce new param names beyond the base trio.
+      const queryOptions = {
+        template: req.queryTemplate,
+        resolveTemplateId: req.queryTemplate,
+        player: options.player,
+        team: options.team,
+        season,
+        format: 'json' as const,
+        ...(context.stdinAdapter ? { source: 'stdin' as const, stdinAdapter: context.stdinAdapter } : {}),
+      } as Parameters<typeof runQuery>[0] & Record<string, unknown>;
+
+      for (const [queryParam, reportParam] of Object.entries(req.paramMapping)) {
+        const value = reportParams[reportParam as keyof typeof reportParams];
+        if (value !== undefined) {
+          queryOptions[queryParam] = value;
+        }
+      }
+
+      const result = await runQuery(queryOptions);
       dataResults[req.queryTemplate] = result.data;
       if (!dataSources.includes(result.meta.source)) {
         dataSources.push(result.meta.source);
