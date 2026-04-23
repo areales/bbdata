@@ -22,7 +22,7 @@ describe('fetchWithRetry', () => {
   it('retries on failure and succeeds on second attempt', async () => {
     const mockResponse = new Response('ok', { status: 200 });
     vi.mocked(fetch)
-      .mockRejectedValueOnce(new Error('Network error'))
+      .mockRejectedValueOnce(new TypeError('Network error'))
       .mockResolvedValueOnce(mockResponse);
 
     const result = await fetchWithRetry('https://example.com/data', { retries: 2 });
@@ -31,7 +31,7 @@ describe('fetchWithRetry', () => {
   });
 
   it('throws after exhausting all retries', async () => {
-    vi.mocked(fetch).mockRejectedValue(new Error('Network error'));
+    vi.mocked(fetch).mockRejectedValue(new TypeError('Network error'));
 
     await expect(
       fetchWithRetry('https://example.com/data', { retries: 1 }),
@@ -48,6 +48,42 @@ describe('fetchWithRetry', () => {
     await expect(
       fetchWithRetry('https://example.com/data', { retries: 0 }),
     ).rejects.toThrow('HTTP 404');
+  });
+
+  it('does not retry permanent HTTP failures even when retries are available', async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response('Not Found', { status: 404, statusText: 'Not Found' }),
+    );
+
+    await expect(
+      fetchWithRetry('https://example.com/data', { retries: 2 }),
+    ).rejects.toThrow('HTTP 404');
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries transient HTTP failures such as 503', async () => {
+    const ok = new Response('ok', { status: 200 });
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(
+        new Response('Busy', { status: 503, statusText: 'Service Unavailable' }),
+      )
+      .mockResolvedValueOnce(ok);
+
+    const result = await fetchWithRetry('https://example.com/data', { retries: 1 });
+    expect(result).toBe(ok);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('clears the abort timer on failed attempts', async () => {
+    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
+    vi.mocked(fetch).mockRejectedValue(new Error('Network error'));
+
+    await expect(
+      fetchWithRetry('https://example.com/data', { retries: 0 }),
+    ).rejects.toThrow('Network error');
+
+    expect(clearTimeoutSpy).toHaveBeenCalled();
   });
 });
 

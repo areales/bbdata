@@ -32,6 +32,7 @@ vi.mock('../../src/config/config.js', () => ({
 
 import { report } from '../../src/commands/report.js';
 import { query as runQuery } from '../../src/commands/query.js';
+import { getReportTemplate } from '../../src/templates/reports/registry.js';
 
 describe('report command', () => {
   beforeEach(() => {
@@ -236,6 +237,48 @@ describe('report command', () => {
     const parsed = JSON.parse(result.formatted);
     expect(parsed).toHaveProperty('content');
     expect(parsed).toHaveProperty('meta');
+  });
+
+  it('derives sub-query parameters from each data requirement paramMapping', async () => {
+    const template = getReportTemplate('relief-pitcher-quick');
+    expect(template).toBeDefined();
+    const requirement = template!.dataRequirements[0]!;
+    const original = { ...requirement.paramMapping };
+    requirement.paramMapping = { player: 'team' };
+
+    try {
+      await report({
+        template: 'relief-pitcher-quick',
+        player: 'Edwin Diaz',
+        team: 'NYM',
+        season: 2025,
+      });
+
+      const firstCall = vi.mocked(runQuery).mock.calls[0]![0];
+      expect(firstCall.player).toBe('NYM');
+      expect(firstCall.season).toBe(2025);
+    } finally {
+      requirement.paramMapping = original;
+    }
+  });
+
+  it('forwards --team to sub-queries even when paramMapping does not mention team', async () => {
+    // Regression: paramMapping should be additive on top of the base trio
+    // (player, team, season), not a replacement. A sub-query that reads
+    // params.team must still see the report-level --team value when the
+    // template's paramMapping only declares { player: 'player' } (which is
+    // the case for every currently-registered template).
+    await report({
+      template: 'relief-pitcher-quick',
+      player: 'Edwin Diaz',
+      team: 'NYM',
+      season: 2025,
+    });
+
+    const firstCall = vi.mocked(runQuery).mock.calls[0]![0];
+    expect(firstCall.player).toBe('Edwin Diaz');
+    expect(firstCall.team).toBe('NYM');
+    expect(firstCall.season).toBe(2025);
   });
 
   it('propagates --team into the advance-lineup render context (BBDATA-012)', async () => {

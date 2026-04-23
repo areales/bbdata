@@ -1,5 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { specToSvg, specToHtml, normalizeSvg, ensureTextPaintOrder } from '../../src/viz/render.js';
+
+afterEach(() => {
+  delete process.env.BBDATA_DEBUG;
+});
 
 describe('specToSvg', () => {
   it('compiles a trivial Vega-Lite spec to SVG', async () => {
@@ -30,6 +34,24 @@ describe('specToSvg', () => {
     };
     const svg = await specToSvg(spec);
     expect(svg).toContain('<svg');
+  });
+
+  it('suppresses expected Vega warnings for empty data in non-debug mode', async () => {
+    delete process.env.BBDATA_DEBUG;
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const spec = {
+      $schema: 'https://vega.github.io/schema/vega-lite/v6.json',
+      data: { values: [] },
+      mark: 'point',
+      encoding: {
+        x: { field: 'x', type: 'quantitative' },
+        y: { field: 'y', type: 'quantitative' },
+      },
+    };
+
+    await specToSvg(spec);
+    expect(warnSpy).not.toHaveBeenCalled();
   });
 });
 
