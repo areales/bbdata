@@ -127,6 +127,42 @@ describe('pitcher-arsenal template', () => {
     const rows = template.transform(pitches, { player: 'Burnes' });
     expect(rows[0]['Whiff %']).toBe('50.0%');
   });
+
+  it('counts balls in play as swings in the whiff denominator (P1.7 regression)', () => {
+    // Statcast's description for a batted ball is `hit_into_play` — the old
+    // swing/foul substring pair missed it, so this used to report 100%.
+    const pitches: PitchData[] = [
+      makePitch({ pitch_type: 'SL', description: 'swinging_strike' }),
+      makePitch({ pitch_type: 'SL', description: 'hit_into_play', events: 'single' }),
+    ];
+
+    const rows = template.transform(pitches, { player: 'Burnes' });
+    expect(rows[0]['Whiff %']).toBe('50.0%');
+  });
+
+  it('computes Put Away % as strikeouts per two-strike pitch (P1.7 regression)', () => {
+    // 3 two-strike pitches, 1 ending in a strikeout → 33.3%. The old
+    // formula (whiffs / all pitches) reported whiff share, not put-away rate.
+    const pitches: PitchData[] = [
+      makePitch({ pitch_type: 'SL', description: 'foul', strikes: 2 }),
+      makePitch({ pitch_type: 'SL', description: 'ball', strikes: 2 }),
+      makePitch({ pitch_type: 'SL', description: 'swinging_strike', strikes: 2, events: 'strikeout' }),
+      makePitch({ pitch_type: 'SL', description: 'called_strike', strikes: 0 }),
+    ];
+
+    const rows = template.transform(pitches, { player: 'Burnes' });
+    expect(rows[0]['Put Away %']).toBe('33.3%');
+  });
+
+  it('renders Put Away % as em-dash when count state is absent', () => {
+    // Sparse stdin payloads may omit `strikes`; degrade instead of guessing.
+    const pitches: PitchData[] = [
+      makePitch({ pitch_type: 'SL', description: 'swinging_strike' }),
+    ];
+
+    const rows = template.transform(pitches, { player: 'Burnes' });
+    expect(rows[0]['Put Away %']).toBe('—');
+  });
 });
 
 function makePitch(overrides: Partial<PitchData> = {}): PitchData {

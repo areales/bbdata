@@ -74,8 +74,12 @@ export class SavantAdapter implements DataAdapter {
         : { game_date_lt: `${query.season}-12-31` }),
     });
 
+    // P1.15: like hfGT above, the CSV endpoint silently ignores a plain
+    // `pitch_type` param — only `hfPT` (pipe-delimited codes with a
+    // trailing pipe, e.g. `SL|`) actually filters. The previous
+    // `pitch_type=SL` form returned byte-identical unfiltered output.
     if (query.pitch_type?.length) {
-      params.set('pitch_type', query.pitch_type.join(','));
+      params.set('hfPT', query.pitch_type.map((t) => t.toUpperCase()).join('|') + '|');
     }
 
     const url = `${SAVANT_SEARCH_URL}?${params}`;
@@ -96,7 +100,15 @@ export class SavantAdapter implements DataAdapter {
 
     // Parse CSV into typed PitchData objects. Shared with the `--data <path>.csv`
     // input path so both entry points stay field-for-field in sync.
-    const data = parseSavantCsv(csvText);
+    let data = parseSavantCsv(csvText);
+
+    // Client-side guarantee for the pitch-type filter: if Savant ever
+    // stops honoring hfPT the way it ignores `pitch_type`, the filter
+    // must not silently degrade to the full arsenal again (P1.15).
+    if (query.pitch_type?.length) {
+      const wanted = new Set(query.pitch_type.map((t) => t.toUpperCase()));
+      data = data.filter((p) => wanted.has(p.pitch_type.toUpperCase()));
+    }
 
     // Log when headers present but no data rows (player may not have played in date range)
     if (data.length === 0 && csvText.trim().length > 50) {

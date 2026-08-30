@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { ExecutionContext } from '../context/execution.js';
 import type { StdinAdapter } from '../adapters/stdin.js';
-import type { DataSource } from '../adapters/types.js';
+import type { DataSource, PitchData, PlayerStats } from '../adapters/types.js';
 import { format, type OutputFormat } from '../formatters/index.js';
 import { log } from '../utils/logger.js';
 import {
@@ -95,6 +95,26 @@ export function formatTemplateList(): string {
     .join('\n');
 }
 /**
+ * Enforce `pitch_type` on pitch-level rows regardless of where they came
+ * from (live fetch or cache). Mirrors the stdin adapter's G.7 filter:
+ * case-insensitive, and rows without a `pitch_type` field (PlayerStats)
+ * pass through untouched.
+ */
+function applyPitchTypeFilter(
+  data: PitchData[] | PlayerStats[],
+  pitchTypes: string[] | undefined,
+): PitchData[] | PlayerStats[] {
+  if (!pitchTypes || pitchTypes.length === 0) return data;
+  const wanted = new Set(pitchTypes.map((t) => t.toUpperCase()));
+  const records = data as (PitchData | PlayerStats)[];
+  return records.filter((record) => {
+    const pt = (record as PitchData).pitch_type;
+    if (pt === undefined) return true;
+    return wanted.has(pt.toUpperCase());
+  }) as PitchData[] | PlayerStats[];
+}
+
+/**
  * Programmatic API — skills and agents call this directly.
  */
 export async function query(options: QueryOptions): Promise<QueryResult> {
@@ -181,7 +201,14 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
       log.info(`Querying ${adapter.source}...`);
       const adapterResult = await fetchWithCache(adapter, adapterQuery, context.cachePolicy);
 
-      const rows = template.transform(adapterResult.data, params);
+      // P1.15 defense-in-depth: enforce the pitch-type filter on whatever
+      // the fetch produced, including cache hits. Entries cached before
+      // the hfPT fix hold unfiltered payloads under filtered keys for up
+      // to maxAgeDays, and a cache hit never reaches the adapter's own
+      // filter. No-op on PlayerStats rows (no pitch_type field).
+      const adapterData = applyPitchTypeFilter(adapterResult.data, adapterQuery.pitch_type);
+
+      const rows = template.transform(adapterData, params);
       const columns = template.columns(params);
       const columnFormats = template.columnFormats?.(params);
 

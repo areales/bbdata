@@ -89,6 +89,30 @@ All notable changes to `bbdata` are documented here. This project follows
   comments in `src/adapters/types.ts` (which claimed inches) are
   corrected to feet.
 
+- **P1.15 — `--pitch-type` was silently ignored on savant queries.**
+  Same endpoint gotcha as the documented `hfGT` game-type discovery:
+  Baseball Savant's CSV search ignores a plain `pitch_type` URL param,
+  so `--pitch-type SL` returned the full arsenal, byte-identical to the
+  unfiltered call, with exit 0 and no warning. The adapter now sends
+  `hfPT=SL|` (the param the endpoint actually honors) and filters
+  post-parse as a guard. The query layer additionally enforces the
+  filter after the cache lookup, because entries cached before this fix
+  hold unfiltered payloads under filtered keys for up to `maxAgeDays`
+  and a warm hit never reaches the adapter. Filter semantics mirror the
+  stdin adapter's: case-insensitive, season-aggregate rows unaffected.
+
+- **P1.7 — `pitcher-arsenal` whiff % inflated; Put Away % renamed to
+  its own definition.** The swing denominator matched only `swing` and
+  `foul` substrings; Statcast describes a batted ball as
+  `hit_into_play`, so every ball in play was missing from every whiff
+  denominator (Skubal's 2025 changeup reported 63.6% against Savant's
+  ~46%). Balls in play now count as swings. `Put Away %` was
+  `whiffs / all pitches` — not put-away rate under any definition —
+  guarded by a dead filter (`description` never contains `strikeout`).
+  It is now strikeouts per two-strike pitch of that type, computed from
+  the `strikes` count state and `events`, rendering `—` when count
+  data is absent from the payload.
+
 ## 0.10.0 — 2026-04-21
 
 Additive feature work plus a batch of course-audit gap closures on top

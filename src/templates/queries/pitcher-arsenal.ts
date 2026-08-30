@@ -67,14 +67,24 @@ const template: QueryTemplate = {
     return Array.from(byType.entries())
       .map(([type, group]) => {
         const count = group.length;
+        // Balls in play are swings: Statcast's description for them is
+        // `hit_into_play`, which the old swing/foul substring pair missed,
+        // inflating whiff % for every pitch of every pitcher (P1.7).
         const swings = group.filter((p) =>
-          p.description.includes('swing') || p.description.includes('foul'),
+          p.description.includes('swing') ||
+          p.description.includes('foul') ||
+          p.description.includes('hit_into_play'),
         );
         const whiffs = group.filter((p) =>
           p.description.includes('swinging_strike'),
         );
-        const twoStrikes = group.filter((p) =>
-          p.description.includes('strikeout') || p.description.includes('swinging_strike'),
+        // Put-away rate: strikeouts per two-strike pitch of this type.
+        // `strikes` is the count before the pitch; `events` marks the
+        // PA-ending pitch (`strikeout` / `strikeout_double_play`).
+        // Absent count data (sparse stdin payloads) renders as —.
+        const twoStrikePitches = group.filter((p) => p.strikes === 2);
+        const putAways = twoStrikePitches.filter((p) =>
+          p.events != null && p.events.startsWith('strikeout'),
         );
 
         const avgVelo = meanOf(group.map((p) => p.release_speed));
@@ -93,8 +103,8 @@ const template: QueryTemplate = {
           'Whiff %': swings.length > 0
             ? ((whiffs.length / swings.length) * 100).toFixed(1) + '%'
             : '—',
-          'Put Away %': twoStrikes.length > 0
-            ? ((whiffs.length / count) * 100).toFixed(1) + '%'
+          'Put Away %': twoStrikePitches.length > 0
+            ? ((putAways.length / twoStrikePitches.length) * 100).toFixed(1) + '%'
             : '—',
           'Pitches': count,
         };
