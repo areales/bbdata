@@ -3,6 +3,49 @@
 All notable changes to `bbdata` are documented here. This project follows
 [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+Seven facts-gate correctness fixes from the P1 backlog (see `TASKS.md`,
+"Fixed on branch — unreleased"). All change values in the `{ data, meta }`
+JSON envelope or the report/adapter layer, so they reach students, agents,
+and `scout-app` — several numbers that lesson facts gates had to bar from
+screen are correct after this.
+
+### Fixed
+
+- **P1.4 / P1.5 — rate stats off by 100×.** `pitcher-season-profile`
+  (`K-BB%`) and `hitter-season-profile` (`BB%`, `K%`) rendered FanGraphs
+  ratio-form rates without scaling (`0.2%` instead of `18.6%`). The
+  duplicated `fmtPercent` helper is replaced by a shared, normalize-guarded
+  one in `src/utils/format.ts`.
+- **P1.10 / P1.17 — stat-key collisions in `leaderboard-comparison`.**
+  The normalized key scan matched `BB` (walk total) for `BB%` and `wRC`
+  (weighted runs created) for `wRC+`, which is why the template reported
+  walk counts as rates and disagreed with `hitter-season-profile` on wRC+
+  by 41 points. Exact-key match now runs first.
+- **P1.11 — fabricated zeros for untracked pitches.** `savant-csv` coerced
+  blank `release_speed`, `release_spin_rate`, `pfx_x`, `pfx_z`, `plate_x`,
+  and `plate_z` cells to `0` (`Number('') === 0`); a tracking dropout became
+  a measured 0 rpm and dragged every mean toward zero. The six fields are
+  now nullable end to end: blank cells parse to `null`, `pitcher-arsenal`
+  averages skip null fields, zone templates skip location-untracked
+  pitches, velocity trends filter null speeds, and movement charts drop
+  null-movement points instead of plotting them at the origin.
+- **P1.14 — reports dated in UTC.** `report` stamped `Generated:` with
+  `toISOString()`, so evening runs were dated tomorrow. Now local time via
+  `toLocaleDateString('en-CA')` (same `YYYY-MM-DD` shape).
+- **P1.16 — arsenal break in feet under an inches label.** `pitcher-arsenal`
+  rendered raw `pfx_*` feet with an `in` suffix (a "1.2 in" changeup break
+  that was really 14.4 in). Break means now scale ×12, matching the
+  `movement` chart's conversion and Savant's published figures.
+
+### Docs
+
+- **P4.9 — `COURSE_TEST_PLAN.md` wording drift.** R.7 expects the actual
+  "Times Through the Order" heading, F.22 asserts viridis colors as
+  `rgb(…)` triplets, and F.19 accepts the v0.9.0 config-gate error as a
+  valid outcome — removing three false-positive preflight FAILs.
+
 ## 0.10.0 — 2026-04-21
 
 Additive feature work plus a batch of course-audit gap closures on top
