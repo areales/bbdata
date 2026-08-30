@@ -121,7 +121,7 @@ C-rows: smoke that the template is **registered** and renders without fetching a
 | R.4 | C | `college-pitcher-draft` | same | Exit 0. Contains `Arsenal Grades`, `Projection`. | ☐ |
 | R.5 | C | `college-hitter-draft` | same | Exit 0. Contains `Tool Grades`, `Projection`. | ☐ |
 | R.6 | C | `hs-prospect` | same | Exit 0. Contains `Makeup`, `Signability`. | ☐ |
-| R.7 | C | `advance-sp` | `... report advance-sp --player "Burnes Corbin" --data test/fixtures/savant-csv-sample.csv --audience coach --no-strict` | Exit 0. Contains `Recent Form`, `Times Through Order`, `Platoon Vulnerabilities`, `How to Attack`. | ☐ |
+| R.7 | C | `advance-sp` | `... report advance-sp --player "Burnes Corbin" --data test/fixtures/savant-csv-sample.csv --audience coach --no-strict` | Exit 0. Contains `Recent Form`, `Times Through the Order` (the template's actual heading — match on the full phrase or case-insensitive `Times Through`), `Platoon Vulnerabilities`, `How to Attack`. | ☐ |
 | R.8 | C | `advance-lineup` | `... report advance-lineup --team NYY --no-strict` | Exit 0 OR fails cleanly with "team data not available" — `advance-lineup` has no stdin path. Accept either; record which. | ☐ |
 | R.9 | C | `dev-progress` | `... report dev-progress --player "Any Name" --no-strict` | Exit 0. Stub sections present. | ☐ |
 | R.10 | C | `post-promotion` | same | Exit 0. | ☐ |
@@ -224,10 +224,10 @@ Each row: one flag, one command, course citation + CLI confirmation.
 | F.16 | A | `--source savant` | query, viz | SKILL:70 | Yes | `... query pitcher-arsenal --player "Corbin Burnes" --source savant` | Exit 0. `meta.source === "savant"`. | ☐ |
 | F.17 | A | `--source fangraphs` | query | User Guide:256 | Yes | same, swap source | Exit 0. `meta.source === "fangraphs"`. | ☐ |
 | F.18 | A | `--source mlb-stats-api` | query | User Guide:256 | Yes | same | Exit 0. `meta.source === "mlb-stats-api"`. | ☐ |
-| F.19 | C | `--source baseball-reference` | — **course never uses** | — | Yes (CLI allows) | `... --source baseball-reference` | Exit non-zero with "no adapter for baseball-reference" OR exit 0 with `meta.source === "baseball-reference"`. Record which. (Potentially dead code.) | ☐ |
+| F.19 | C | `--source baseball-reference` | — **course never uses** | — | Yes (CLI allows) | `... --source baseball-reference` | Exit non-zero with "no adapter for baseball-reference" OR exit 0 with `meta.source === "baseball-reference"` OR exit 1 with the R2.1 config-gate error pointing at `~/.bbdata/config.json → sources.baseballReference.enabled = true` (correct behavior since v0.9.0). Record which. (Potentially dead code.) | ☐ |
 | F.20 | C | `--validate` | report | SKILL:50 | Yes | R.V1 | — | ☐ |
 | F.21 | C | `--no-strict` | report | — **not in course** | Yes (CLI only) | R.1–R.13 use it | — | ☐ |
-| F.22 | C | `--colorblind` | viz | SKILL:63 | Yes | `V.1 + --colorblind` | Exit 0. SVG source contains viridis palette hex codes. | ☐ |
+| F.22 | C | `--colorblind` | viz | SKILL:63 | Yes | `V.1 + --colorblind` | Exit 0. SVG source contains viridis scheme colors — Vega-Lite emits them as `rgb(…)` triplets (e.g. `rgb(59, 82, 139)`, `rgb(33, 145, 141)`), not `#440154`-style hex, so assert on `rgb(` forms. | ☐ |
 | F.23 | A | `--size WxH` | viz | SKILL:64 | Yes | `V.1 + --size 1200x800` | SVG `<svg width="1200">`. | ☐ |
 | F.24 | C | `--dpi <n>` | viz | User Guide:276 | Yes | `V.F.png + --dpi 300 -o .tmp/v-300.png` | File's PNG header reports pixel width ≈ chartWidth × 300/96. | ☐ |
 | F.25 | C | `--pdf-mode <mode>` | viz | User Guide:252 | Yes | V.F.pdf-raster | — | ☐ |

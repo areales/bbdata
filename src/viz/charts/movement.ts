@@ -1,5 +1,6 @@
 import type { ChartBuilder, ResolvedVizOptions } from '../types.js';
 import { audienceConfig } from '../audience.js';
+import { toMovementValues, type MovementPitch } from './movement-values.js';
 
 /**
  * Pitch Movement Plot
@@ -20,20 +21,8 @@ export const movementBuilder: ChartBuilder = {
   },
 
   buildSpec(rows, options: ResolvedVizOptions) {
-    const pitches = (rows['pitcher-raw-pitches'] ?? []) as Array<{
-      pitch_type: string;
-      pfx_x: number;
-      pfx_z: number;
-      release_speed: number;
-    }>;
-
-    // Convert inches and flip x for catcher POV (pitcher's glove side = negative)
-    const values = pitches.map((p) => ({
-      pitch_type: p.pitch_type,
-      hBreak: -p.pfx_x * 12, // feet → inches, flipped
-      vBreak: p.pfx_z * 12,
-      velo: p.release_speed,
-    }));
+    const pitches = (rows['pitcher-raw-pitches'] ?? []) as MovementPitch[];
+    const values = toMovementValues(pitches);
 
     return {
       $schema: 'https://vega.github.io/schema/vega-lite/v6.json',

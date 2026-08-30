@@ -78,7 +78,10 @@ All notable changes to `bbdata` are documented here. This project follows
   velocity/rolling trend templates guard their fastball filters, and
   both zone templates require a measured location before assigning a
   zone — previously a null location would have JS-coerced to 0 and
-  filed the pitch into the middle-in zone.
+  filed the pitch into the middle-in zone. The movement charts drop
+  null-movement pitches through a new shared `toMovementValues` helper
+  (both charts multiply `pfx` by 12 before Vega sees the data, so a
+  null would have coerced to 0 and plotted the pitch at the origin).
 
 - **P1.16 — `pitcher-arsenal` break columns now actually in inches.**
   `H Break`/`V Break` carried an `in` suffix but rendered raw `pfx`

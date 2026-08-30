@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { toMovementValues } from '../../src/viz/charts/movement-values.js';
 import { movementBuilder } from '../../src/viz/charts/movement.js';
 import { movementBinnedBuilder } from '../../src/viz/charts/movement-binned.js';
 import { sprayBuilder } from '../../src/viz/charts/spray.js';
@@ -354,5 +355,22 @@ describe('chart registry', () => {
   it('getChartBuilder throws for unknown types', () => {
     // @ts-expect-error — deliberately invalid type
     expect(() => getChartBuilder('nonexistent')).toThrow('Unknown chart type');
+  });
+});
+
+describe('toMovementValues', () => {
+  it('drops pitches with null movement instead of plotting them at the origin (P1.11)', () => {
+    // With nullable pfx (P1.11), `null * 12` would coerce to 0 and pin
+    // dropped-tracking pitches to (0, 0) on the movement charts.
+    const values = toMovementValues([
+      { pitch_type: 'FF', pfx_x: 0.5, pfx_z: 1.2, release_speed: 95.4 },
+      { pitch_type: 'SL', pfx_x: null, pfx_z: 0.3, release_speed: 87.0 },
+      { pitch_type: 'CH', pfx_x: -1.1, pfx_z: null, release_speed: 88.2 },
+    ]);
+    expect(values).toHaveLength(1);
+    expect(values[0].pitch_type).toBe('FF');
+    expect(values[0].hBreak).toBeCloseTo(-6); // feet → inches, flipped for catcher POV
+    expect(values[0].vBreak).toBeCloseTo(14.4);
+    expect(values[0].velo).toBe(95.4);
   });
 });
