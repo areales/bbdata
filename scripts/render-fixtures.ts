@@ -23,9 +23,11 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { movementBuilder } from '../src/viz/charts/movement.js';
+import { movementBinnedBuilder } from '../src/viz/charts/movement-binned.js';
 import { sprayBuilder } from '../src/viz/charts/spray.js';
 import { zoneBuilder } from '../src/viz/charts/zone.js';
 import { rollingBuilder } from '../src/viz/charts/rolling.js';
+import { pitcherRollingBuilder } from '../src/viz/charts/pitcher-rolling.js';
 import { specToSvg } from '../src/viz/render.js';
 import type { ChartBuilder, ResolvedVizOptions } from '../src/viz/types.js';
 import { rasterizeSvg } from '../src/viz/rasterize.js';
@@ -38,7 +40,7 @@ const OUTPUT_DIR = resolve(REPO_ROOT, '.reports/fixtures');
 
 interface ChartFixture {
   /** Chart type (used for output filenames) */
-  type: 'movement' | 'spray' | 'zone' | 'rolling';
+  type: 'movement' | 'movement-binned' | 'spray' | 'zone' | 'rolling' | 'pitcher-rolling';
   /** Chart builder to invoke */
   builder: ChartBuilder;
   /** Query template id the builder reads rows from */
@@ -51,12 +53,23 @@ interface ChartFixture {
   overrides?: Partial<ResolvedVizOptions>;
 }
 
-const FIXTURES: ChartFixture[] = [
+export const FIXTURES: ChartFixture[] = [
   {
     type: 'movement',
     builder: movementBuilder,
     queryKey: 'pitcher-raw-pitches',
     fixture: 'raw-pitches.sample.json',
+    player: 'Demo Pitcher',
+  },
+  {
+    // Full-season payload (551 pitches) rather than the 6-pitch
+    // raw-pitches sample — the binned density variant exists for exactly
+    // this data volume, and a handful of pitches renders a misleadingly
+    // empty grid.
+    type: 'movement-binned',
+    builder: movementBinnedBuilder,
+    queryKey: 'pitcher-raw-pitches',
+    fixture: 'season-pitches.sample.json',
     player: 'Demo Pitcher',
   },
   {
@@ -81,6 +94,16 @@ const FIXTURES: ChartFixture[] = [
     fixture: 'rolling-windows.sample.json',
     player: 'Demo Hitter',
     overrides: { width: 720, height: 360 },
+  },
+  {
+    // Taller than the hitter rolling chart — this one facets four metric
+    // panels (Avg Velo / Whiff % / K % / CSW %) instead of two.
+    type: 'pitcher-rolling',
+    builder: pitcherRollingBuilder,
+    queryKey: 'pitcher-rolling-trend',
+    fixture: 'pitcher-rolling-windows.sample.json',
+    player: 'Demo Pitcher',
+    overrides: { width: 720, height: 520 },
   },
 ];
 
@@ -141,7 +164,13 @@ async function main(): Promise<void> {
   console.log(`\nDone. Read ${OUTPUT_DIR}/<type>.png to inspect visually.`);
 }
 
-main().catch((err) => {
-  console.error('render-fixtures failed:', err);
-  process.exit(1);
-});
+// Only render when executed directly (npm run viz:fixtures) — the FIXTURES
+// list is also imported by test/scripts/render-fixtures.test.ts, which must
+// not trigger a full render pass.
+const invokedPath = process.argv[1] ? resolve(process.argv[1]) : '';
+if (invokedPath === __filename) {
+  main().catch((err) => {
+    console.error('render-fixtures failed:', err);
+    process.exit(1);
+  });
+}

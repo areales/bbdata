@@ -11,9 +11,11 @@ import { query as runQuery } from './query.js';
 import { ExecutionContext } from '../context/execution.js';
 import { generateReportGraphs } from '../viz/embed.js';
 import {
+  getAllReportTemplates,
   getReportTemplate,
   listReportTemplates,
   type Audience,
+  type ReportCategory,
 } from '../templates/reports/registry.js';
 import type { VizAudience } from '../viz/types.js';
 
@@ -422,6 +424,35 @@ function buildValidationBanner(validation: ValidationResult): string {
   return `<!-- bbdata validation: ${status} -->\n`;
 }
 
+// Category labels for the --help template list. A Record keyed by
+// ReportCategory (not a plain object) so the compiler forces a label
+// entry whenever a new category is added to the registry. Mirrors
+// formatTemplateList() in query.ts (G.1) and formatChartTypeList() in
+// viz.ts — the hand-written predecessor of this block is the same drift
+// class that left query --help showing 12 of 21 templates (P4.13).
+const CATEGORY_LABELS: Record<ReportCategory, string> = {
+  'pro-scouting':     'Pro Scouting',
+  'amateur-scouting': 'Amateur',
+  'advance':          'Advance',
+  'player-dev':       'Player Dev',
+  'executive':        'Executive',
+};
+const CATEGORY_ORDER: ReportCategory[] = ['pro-scouting', 'amateur-scouting', 'advance', 'player-dev', 'executive'];
+
+export function formatReportTemplateList(): string {
+  const byCategory = new Map<ReportCategory, string[]>();
+  for (const t of getAllReportTemplates()) {
+    const bucket = byCategory.get(t.category) ?? [];
+    bucket.push(t.id);
+    byCategory.set(t.category, bucket);
+  }
+  const labelWidth = Math.max(...CATEGORY_ORDER.map((c) => CATEGORY_LABELS[c].length)) + 1;
+  return CATEGORY_ORDER
+    .filter((c) => byCategory.has(c))
+    .map((c) => `  ${(CATEGORY_LABELS[c] + ':').padEnd(labelWidth + 1)} ${byCategory.get(c)!.join(', ')}`)
+    .join('\n');
+}
+
 /**
  * CLI registration — Commander calls this.
  */
@@ -438,18 +469,14 @@ export function registerReportCommand(program: Command): void {
     .option('--no-strict', 'Do not exit non-zero when required data queries fail (emit stub-shell output)')
     .option('--stdin', 'Read pre-fetched JSON data from stdin instead of fetching from APIs')
     .option('--data <path>', 'Load data from a local .json or .csv file (Savant CSV schema) instead of fetching')
-    .addHelpText('after', `
+    .addHelpText('after', () => `
 Examples:
   bbdata report pro-pitcher-eval --player "Corbin Burnes"
   bbdata report advance-sp --player "Gerrit Cole" --audience coach --validate
   bbdata report trade-target-onepager --player "Vladimir Guerrero Jr." --audience gm
 
 Available templates:
-  Pro Scouting:    pro-pitcher-eval, pro-hitter-eval, relief-pitcher-quick
-  Amateur:         college-pitcher-draft, college-hitter-draft, hs-prospect
-  Advance:         advance-sp, advance-lineup
-  Player Dev:      dev-progress, post-promotion
-  Executive:       trade-target-onepager, draft-board-card, draft-board-card-pitcher
+${formatReportTemplateList()}
 `)
     .action(async (templateId, opts) => {
       if (!templateId) {
