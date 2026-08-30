@@ -89,11 +89,12 @@ const template: QueryTemplate = {
       const windowDates = dates.slice(i, i + windowSize);
       const windowPitches = windowDates.flatMap((d) => byDate.get(d) ?? []);
 
-      const fbPitches = windowPitches.filter(
-        (p) => FASTBALL_FAMILY.has(p.pitch_type) && p.release_speed > 0,
-      );
-      const avgVelo = fbPitches.length > 0
-        ? fbPitches.reduce((s, p) => s + p.release_speed, 0) / fbPitches.length
+      const fbVelos = windowPitches
+        .filter((p) => FASTBALL_FAMILY.has(p.pitch_type))
+        .map((p) => p.release_speed)
+        .filter((v): v is number => v != null && v > 0);
+      const avgVelo = fbVelos.length > 0
+        ? fbVelos.reduce((s, v) => s + v, 0) / fbVelos.length
         : null;
 
       const swings = windowPitches.filter((p) => SWING_DESCRIPTIONS.has(p.description));

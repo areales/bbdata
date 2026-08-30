@@ -86,6 +86,36 @@ describe('pitcher-arsenal template', () => {
     }
   });
 
+  it('reports H/V break in inches, not raw pfx feet (P1.16 regression)', () => {
+    // pfx_x/pfx_z arrive in feet; Savant publishes break in inches. A
+    // 1.2 ft vertical break used to render as "1.2 in" — 12× off.
+    const pitches: PitchData[] = [
+      makePitch({ pitch_type: 'CH', pfx_x: 0.8, pfx_z: 1.2 }),
+    ];
+    const rows = template.transform(pitches, { player: 'Burnes' });
+    expect(rows[0]['H Break']).toBe('9.6 in');
+    expect(rows[0]['V Break']).toBe('14.4 in');
+  });
+
+  it('excludes tracking dropouts from averages instead of averaging zeros (P1.11 regression)', () => {
+    const pitches: PitchData[] = [
+      makePitch({ pitch_type: 'FF', release_spin_rate: 2400 }),
+      makePitch({ pitch_type: 'FF', release_spin_rate: null }),
+    ];
+    const rows = template.transform(pitches, { player: 'Burnes' });
+    // Mean over measured pitches only — a null must not drag 2400 to 1200.
+    expect(rows[0]['Avg Spin']).toBe('2400 rpm');
+  });
+
+  it('renders em-dash when a metric was never measured for a pitch type', () => {
+    const pitches: PitchData[] = [
+      makePitch({ pitch_type: 'FF', release_spin_rate: null }),
+      makePitch({ pitch_type: 'FF', release_spin_rate: null }),
+    ];
+    const rows = template.transform(pitches, { player: 'Burnes' });
+    expect(rows[0]['Avg Spin']).toBe('—');
+  });
+
   it('calculates whiff % correctly', () => {
     const pitches: PitchData[] = [
       // 2 swings (1 swinging_strike + 1 foul), 1 whiff → 50% whiff rate

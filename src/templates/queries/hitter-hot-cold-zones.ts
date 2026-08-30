@@ -51,6 +51,7 @@ const template: QueryTemplate = {
     return Object.entries(ZONES).map(([zoneName, bounds]) => {
       const inZone = pitches.filter(
         (p) =>
+          p.plate_x != null && p.plate_z != null &&
           p.plate_x >= bounds.xMin && p.plate_x < bounds.xMax &&
           p.plate_z >= bounds.zMin && p.plate_z < bounds.zMax,
       );

@@ -33,6 +33,23 @@ describe('parseSavantCsv', () => {
     expect(rows[0].strikes).toBe(0);
     expect(rows[0].outs_when_up).toBe(0);
   });
+
+  it('preserves null for blank tracking columns instead of zero-filling (P1.11 regression)', () => {
+    // Statcast leaves speed/spin/movement/location blank on tracking
+    // dropouts. `Number('') === 0` used to turn a missing spin rate into
+    // a measured 0 rpm.
+    const csv = `pitch_type,game_date,release_speed,release_spin_rate,pfx_x,pfx_z,plate_x,plate_z,player_name,pitcher,batter,description,game_type
+FF,2025-04-15,,,,,,,Burnes Corbin,669203,592450,called_strike,R
+`;
+    const rows = parseSavantCsv(csv);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].release_speed).toBeNull();
+    expect(rows[0].release_spin_rate).toBeNull();
+    expect(rows[0].pfx_x).toBeNull();
+    expect(rows[0].pfx_z).toBeNull();
+    expect(rows[0].plate_x).toBeNull();
+    expect(rows[0].plate_z).toBeNull();
+  });
 });
 
 describe('loadDataFile', () => {

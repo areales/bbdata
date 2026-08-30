@@ -5,6 +5,12 @@ All notable changes to `bbdata` are documented here. This project follows
 
 ## Unreleased
 
+> **Library-consumer note:** `PitchDataSchema` now declares
+> `release_speed`, `release_spin_rate`, `pfx_x`, `pfx_z`, `plate_x`, and
+> `plate_z` as nullable (P1.11 below). TypeScript consumers doing
+> arithmetic on these fields directly need null guards. CLI flags,
+> commands, and the `{ data, meta }` envelope shape are unchanged.
+
 ### Fixed
 
 - **P1.4 / P1.5 — season-profile rate stats off by 100×.** FanGraphs
@@ -57,6 +63,31 @@ All notable changes to `bbdata` are documented here. This project follows
   coverage in `test/templates/leaderboard-comparison.test.ts` pins both
   collisions with fixtures carrying the colliding keys in the order the
   FanGraphs API returns them.
+
+- **P1.11 — `savant-csv` no longer fabricates zeros for tracking
+  dropouts.** Six columns (`release_speed`, `release_spin_rate`,
+  `pfx_x`, `pfx_z`, `plate_x`, `plate_z`) were coerced with
+  `Number(x) || 0`, so a blank cell — routine in older seasons and
+  tracking outages — became a measured value: a 0 rpm spin rate, a
+  pitch located at the exact center origin. All six now parse through
+  the same null-preserving helper the file already used for
+  launch/coordinate fields, and `PitchDataSchema` declares them
+  nullable. Downstream consumers were updated to exclude dropouts from
+  denominators: `pitcher-arsenal` averages use a null-aware mean (an
+  unmeasured metric renders `—` instead of dragging toward zero), the
+  velocity/rolling trend templates guard their fastball filters, and
+  both zone templates require a measured location before assigning a
+  zone — previously a null location would have JS-coerced to 0 and
+  filed the pitch into the middle-in zone.
+
+- **P1.16 — `pitcher-arsenal` break columns now actually in inches.**
+  `H Break`/`V Break` carried an `in` suffix but rendered raw `pfx`
+  averages, which are in feet — a changeup showing `1.2 in` of
+  horizontal break was really 14+ inches, wrong by 12× under a
+  plausible-looking label. Break means are now multiplied by 12 at
+  format time, matching the unit Savant publishes. The `pfx_x`/`pfx_z`
+  comments in `src/adapters/types.ts` (which claimed inches) are
+  corrected to feet.
 
 ## 0.10.0 — 2026-04-21
 

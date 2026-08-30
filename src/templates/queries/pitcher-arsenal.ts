@@ -2,6 +2,7 @@ import { registerTemplate, type QueryTemplate } from './registry.js';
 import type { PitchData } from '../../adapters/types.js';
 import { pitchTypeName } from '../../adapters/types.js';
 import { assertFields } from '../../utils/validate-records.js';
+import { meanOf } from '../../utils/aggregate.js';
 
 const REQUIRED_FIELDS = [
   'description',
@@ -76,13 +77,19 @@ const template: QueryTemplate = {
           p.description.includes('strikeout') || p.description.includes('swinging_strike'),
         );
 
+        const avgVelo = meanOf(group.map((p) => p.release_speed));
+        const avgSpin = meanOf(group.map((p) => p.release_spin_rate));
+        // pfx values are in feet; Savant publishes break in inches (P1.16)
+        const hBreak = meanOf(group.map((p) => p.pfx_x));
+        const vBreak = meanOf(group.map((p) => p.pfx_z));
+
         return {
           'Pitch Type': pitchTypeName(type),
           'Usage %': ((count / total) * 100).toFixed(1) + '%',
-          'Avg Velo': (group.reduce((s, p) => s + p.release_speed, 0) / count).toFixed(1) + ' mph',
-          'Avg Spin': Math.round(group.reduce((s, p) => s + p.release_spin_rate, 0) / count) + ' rpm',
-          'H Break': (group.reduce((s, p) => s + p.pfx_x, 0) / count).toFixed(1) + ' in',
-          'V Break': (group.reduce((s, p) => s + p.pfx_z, 0) / count).toFixed(1) + ' in',
+          'Avg Velo': avgVelo != null ? avgVelo.toFixed(1) + ' mph' : '—',
+          'Avg Spin': avgSpin != null ? Math.round(avgSpin) + ' rpm' : '—',
+          'H Break': hBreak != null ? (hBreak * 12).toFixed(1) + ' in' : '—',
+          'V Break': vBreak != null ? (vBreak * 12).toFixed(1) + ' in' : '—',
           'Whiff %': swings.length > 0
             ? ((whiffs.length / swings.length) * 100).toFixed(1) + '%'
             : '—',
