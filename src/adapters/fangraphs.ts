@@ -88,16 +88,24 @@ export class FanGraphsAdapter implements DataAdapter {
   ): Promise<AdapterResult<PlayerStats[]>> {
     const statType = query.stat_type === 'batting' ? 'bat' : 'pit';
 
+    // Multi-season range (P1.9): season1 sets the range start and ind=1
+    // splits the response into one row per player-season, each carrying a
+    // `Season` field. A qual=0 multi-season pull is large, so widen the
+    // page — pageitems=500 would truncate it and silently drop players.
+    const multiSeason =
+      query.start_season != null && query.start_season !== query.season;
+
     const params = new URLSearchParams({
       pos: 'all',
       stats: statType,
       lg: 'all',
       qual: String(query.min_pa ?? query.min_ip ?? 0),
       season: String(query.season),
+      season1: String(query.start_season ?? query.season),
       month: '0',
-      ind: '0',
+      ind: multiSeason ? '1' : '0',
       team: query.team ? await this.resolveTeamId(query.team) : '',
-      pageitems: '500',
+      pageitems: multiSeason ? '2000' : '500',
       pagenum: '1',
       type: '8', // standard + advanced stats
     });
@@ -134,7 +142,8 @@ export class FanGraphsAdapter implements DataAdapter {
       player_id: String(row.xMLBAMID ?? row.playerid ?? ''),
       player_name: stripHtml(String(row.PlayerName ?? row.Name ?? '')),
       team: stripHtml(String(row.TeamNameAbb ?? row.TeamName ?? row.Team ?? '')),
-      season: query.season,
+      // ind=1 rows carry their own Season; single-season rows fall back
+      season: row.Season != null ? Number(row.Season) : query.season,
       stat_type: query.stat_type,
       stats: row as Record<string, string | number | null>,
     }));

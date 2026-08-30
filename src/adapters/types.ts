@@ -79,6 +79,13 @@ export interface AdapterQuery {
   player_id?: string;
   team?: string;
   season: number;
+  /**
+   * First season of a multi-season range (season = the last). Honored by
+   * the FanGraphs adapter, which returns one row per player-season with
+   * `PlayerStats.season` set from the row (P1.9). Other adapters ignore
+   * it and return single-season data.
+   */
+  start_season?: number;
   start_date?: string;       // YYYY-MM-DD
   end_date?: string;         // YYYY-MM-DD
   stat_type: 'batting' | 'pitching' | 'fielding';

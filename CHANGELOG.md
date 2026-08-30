@@ -128,6 +128,22 @@ All notable changes to `bbdata` are documented here. This project follows
   onward) claimed tomorrow's date. Now formatted with
   `toLocaleDateString('en-CA')` — same `YYYY-MM-DD` shape, local clock.
 
+- **P1.9 — `trend-year-over-year` actually compares years now.**
+  `--seasons 2024-2025` was ignored entirely (the fetch defaulted to
+  the current year and returned 0 rows), and the transform hardcoded
+  `Prior: '—'` — the comparison the template is named for had never
+  been implemented. `AdapterQuery` gains `start_season`; the FanGraphs
+  adapter fetches season ranges (`season1` + `ind=1`, one row per
+  player-season, with a wider page so multi-season pulls aren't
+  truncated at 500 rows); and the transform compares the two most
+  recent seasons with a per-metric `Change` column and a `⚠` flag on
+  moves greater than 10%. Stat lookup uses explicit key variants
+  instead of symbol stripping (which collided `wRC+` with `wRC` and
+  `BB%` with `BB`, the P1.10/P1.17 defect class). New `--stat pitching`
+  mode compares ERA/FIP/xFIP/WHIP/K%/BB%/K-BB%/IP/WAR; a pitcher
+  queried in the default batting mode gets an actionable "re-run with
+  `--stat pitching`" error instead of a table of 0.000s.
+
 ## 0.10.0 — 2026-04-21
 
 Additive feature work plus a batch of course-audit gap closures on top
