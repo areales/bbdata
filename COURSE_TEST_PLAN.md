@@ -37,7 +37,7 @@ For any `npm version` bump:
 5. Record nothing in this file per-release — the ✓ marks track *current* status, not a version history. Git log provides the version trail.
 
 Fixture conventions:
-- `test/fixtures/savant-csv-sample.csv` — shared Savant CSV fixture for pitcher-side stdin/--data tests. Works for `pitcher-*`, `matchup-*`, and `trend-rolling-average` inputs.
+- `test/fixtures/savant-csv-sample.csv` — shared Savant CSV fixture for pitcher-side stdin/--data tests. Works for `pitcher-*`, `matchup-pitcher-vs-hitter`, and `trend-rolling-average` inputs. **Not** valid for `matchup-situational` (season-aggregate template since P2.7 — pitch-level input errors actionably; see Q.15/Q.23). Carries `balls`/`strikes`/`inning`/`at_bat_number` (P4.6) so the count-state and TTO templates return rows.
 - `test/fixtures/viz/*.sample.json` — pre-shaped viz fixtures.
 - Live-network rows use "Corbin Burnes" (SP), "Aaron Judge" (OF), "Shohei Ohtani" (DH/SP) as canonical examples since those are the course's canonical names too.
 
@@ -60,7 +60,7 @@ The top-level `bbdata` binary and its three subcommands must exist and print the
 |---|---|---|---|---|
 | H.1 | C | `node dist/bin/bbdata.js --version` | Prints package version. Non-zero exit if missing. | ☐ |
 | H.2 | C | `node dist/bin/bbdata.js --help` | Lists three commands: `query`, `report`, `viz`. | ☐ |
-| H.3 | C | `node dist/bin/bbdata.js query --help` | Lists `--player`, `--players`, `--season`, `--format`, `--source`, `--stat`, `--pitch-type`, `--min-pa`, `--min-ip`, `--top`, `--seasons`, `--no-cache`, `--stdin`, `--data`. | ☐ |
+| H.3 | C | `node dist/bin/bbdata.js query --help` | Lists `--player`, `--players`, `--season`, `--format`, `--source`, `--stat`, `--pitch-type`, `--min-pa`, `--min-ip`, `--min-pitches`, `--top`, `--seasons`, `--no-cache`, `--stdin`, `--data`. | ☐ |
 | H.4 | C | `node dist/bin/bbdata.js report --help` | Lists `--player`, `--team`, `--season`, `--audience`, `--format`, `--validate`, `--no-strict`, `--stdin`, `--data`. Audience line must advertise `frontoffice→gm` and `presentation→analyst` aliases (from P4.3). | ☐ |
 | H.5 | C | `node dist/bin/bbdata.js viz --help` | Lists `--type`, `--player`, `--players`, `--season`, `--audience`, `--format {svg,png,html,pdf}`, `--dpi`, `--pdf-mode`, `--window`, `--size`, `--colorblind`, `-o/--output`, `--source`, `--stdin`, `--data`. Lists the 6 canonical chart types (`movement`, `movement-binned`, `spray`, `zone`, `rolling`, `pitcher-rolling`) + 4 aliases. | ☐ |
 | H.6 | C | `node dist/bin/bbdata.js query --help` | "Available templates" section lists **all 22** shipped query templates (21 pre-F1.1 + `pitcher-rolling-trend`), generated dynamically from the registry. | ☐ |
@@ -71,7 +71,7 @@ The top-level `bbdata` binary and its three subcommands must exist and print the
 
 One row per template. Sanity check: the template is registered, accepts the course-advertised flags, and returns a well-formed `{data, meta}` envelope with `meta.source === 'stdin'` (no live-network required for the C rows).
 
-The **C-test command** uses `--data test/fixtures/savant-csv-sample.csv` where the template accepts pitch-level input, and `--format json` throughout. For `PlayerStats`-shaped templates (`leaderboard-*`, `*-season-profile`), stdin smoke isn't meaningful — flag those as **A** rows requiring live network.
+The **C-test command** uses `--data test/fixtures/savant-csv-sample.csv` where the template accepts pitch-level input, and `--format json` throughout. For `PlayerStats`-shaped templates (`leaderboard-*`, `*-season-profile`, `matchup-situational`, `trend-year-over-year`), stdin smoke isn't meaningful — flag those as **A** rows requiring live network.
 
 ### 2A — Pitch-level templates (Savant CSV fixture is valid input)
 
@@ -84,14 +84,14 @@ The **C-test command** uses `--data test/fixtures/savant-csv-sample.csv` where t
 | Q.5 | C | `pitcher-recent-form` | same | Exit 0. `data` is game-level. | ☐ |
 | Q.6 | C | `pitcher-by-count` | same | Exit 0. `data` has count-state rows (e.g., `0-0`, `1-2`). | ☐ |
 | Q.7 | C | `pitcher-tto` | same | Exit 0. `data` has times-through-order rows. | ☐ |
-| Q.8 | C | `hitter-vs-pitch-type` | `--player "Judge Aaron"` (course says "Shohei Ohtani"; fixture is pitcher-side, so we accept any name that resolves to a `batter_*` field in the fixture) | Exit 0. `data` has per-pitch-type rows. | ☐ |
+| Q.8 | C | `hitter-vs-pitch-type` | `--player "Judge Aaron" --min-pitches 1` (course says "Shohei Ohtani"; fixture is pitcher-side, so we accept any name that resolves to a `batter_*` field in the fixture; `--min-pitches 1` because every fixture group is below the default 20-pitch floor from P3.5) | Exit 0. `data` has per-pitch-type rows. | ☐ |
 | Q.9 | C | `hitter-hot-cold-zones` | same | Exit 0. `data` has 9 zone rows. | ☐ |
 | Q.10 | C | `hitter-handedness-splits` | same | Exit 0. `data.length <= 2`. | ☐ |
 | Q.11 | C | `hitter-batted-ball` | same | Exit 0. `data` has batted-ball outcome rows. | ☐ |
 | Q.12 | C | `hitter-raw-bip` | same | Exit 0. `data` is BIP-level. | ☐ |
 | Q.13 | C | `hitter-zone-grid` | same | Exit 0. `data` has 9 zone rows (distinct from hot-cold-zones format). | ☐ |
 | Q.14 | C | `matchup-pitcher-vs-hitter` | `--players "Burnes Corbin,Judge Aaron"` | Exit 0. `data` has matchup rows. | ☐ |
-| Q.15 | C | `matchup-situational` | `--player "Burnes Corbin"` | Exit 0. `data` has situational rows. | ☐ |
+| Q.15 | C | `matchup-situational` | `--player "Burnes Corbin"` | Exit **non-zero** with the actionable assertFields error naming `"matchup-situational"` and missing field `"stats"` — the pitch-level fixture is not valid input for this season-aggregate template (P2.7 moved it to MLB statSplits; P4.7 made this error actionable instead of a `TypeError`). Live splits shape is Q.23. | ☐ |
 | Q.16 | C | `trend-rolling-average` | same | Exit 0. `data` has windowed rows **or** a single "Insufficient data" row (fixture may be too small). Either is acceptable — the assertion is exit 0. | ☐ |
 | Q.22 | C | `pitcher-rolling-trend` (F1.1) | `node dist/bin/bbdata.js query pitcher-rolling-trend --player "Burnes Corbin" --data test/fixtures/savant-csv-sample.csv --format json` | Exit 0. `meta.source === "stdin"`. `data` is an array of 5-start rolling windows (or empty if fixture has fewer than 5 outings). Outings with <10 tracked pitches are filtered before windowing. | ☐ |
 
@@ -103,7 +103,8 @@ The **C-test command** uses `--data test/fixtures/savant-csv-sample.csv` where t
 | Q.18 | A | `hitter-season-profile` | `... --player "Aaron Judge" ...` | Exit 0. | ☐ |
 | Q.19 | A | `leaderboard-custom` | `... leaderboard-custom --stat ERA --min-ip 50 --top 10 --format table` | Exit 0. Table has 10 rows sorted by ERA ascending. | ☐ |
 | Q.20 | A | `leaderboard-comparison` | `... leaderboard-comparison --players "Aaron Judge,Juan Soto,Mookie Betts" --format table` | Exit 0. Comparison table with 3 player columns. | ☐ |
-| Q.21 | A | `trend-year-over-year` | `... trend-year-over-year --player "Shohei Ohtani" --seasons 2023-2025 --format table` | Exit 0. Table has rows for 2023, 2024, 2025. | ☐ |
+| Q.21 | A | `trend-year-over-year` | `... trend-year-over-year --player "Shohei Ohtani" --seasons 2023-2025 --format table` | Exit 0. Metric/Prior/Current/Change table comparing the two most recent seasons in range (P1.9 shape — not per-year rows), with `⚠` flags on >10% relative moves. Pitchers need `--stat pitching`; a pitcher queried in default batting mode exits non-zero with the "re-run with `--stat pitching`" hint. | ☐ |
+| Q.23 | A | `matchup-situational` (P2.7 splits) | `... matchup-situational --player "Freddie Freeman" --season 2025 --format table` | Exit 0. Hits MLB Stats API. 7 rows: `Overall`, `Scoring Position`, `Scoring Position - 2 Outs`, `Bases Empty`, `Late / Close`, `Innings One to Six`, `Seventh or Later`. | ☐ |
 
 ---
 
@@ -182,6 +183,7 @@ C-rows: smoke that the template is **registered** and renders without fetching a
 |---|---|---|---|---|
 | V.A.gm | C | `V.1 + --audience gm` | Exit 0. Render completes. (`gm` → `frontoffice` on viz.) | ☐ |
 | V.A.scout | C | `V.1 + --audience scout` | Exit 0. (`scout` → `analyst` on viz.) | ☐ |
+| V.A.bogus | C | `V.1 + --audience bogus` | Exit **non-zero** listing the viz vocabulary (`coach, analyst, frontoffice, presentation` + `gm`/`scout` aliases) — P4.8 strict rejection, mirroring R.A7 on report. | ☐ |
 
 ### 4C — AI-prompt-only viz types (course-side, not CLI)
 
@@ -237,6 +239,7 @@ Each row: one flag, one command, course citation + CLI confirmation.
 | F.29 | C | `--stdin` | query, report, viz | User Guide:296 | Yes | `type test\fixtures\savant-csv-sample.csv | node dist/bin/bbdata.js query pitcher-arsenal --stdin --format json` — note: CSV pipe may not parse; prefer `--data` (see §6). | Exit 0 or a clear parse error. | ☐ |
 | F.30 | C | `--data <path>` | query, report, viz | — **CLI-only (not in course yet — P3.4)** | Yes | (covered by §2A, §3, §4) | — | ☐ |
 | F.31 | C | `-t / --team` | report | User Guide:340 | Yes | R.8 | — | ☐ |
+| F.32 | C | `--min-pitches <n>` | query (hitter-vs-pitch-type) | — **CLI-only (P3.5; course prompt says "at least 20 pitches faced")** | Yes | `... query hitter-vs-pitch-type --player "Judge Aaron" --data test/fixtures/savant-csv-sample.csv --min-pitches 1 --format json` | Exit 0 with per-pitch-type rows. Without the flag the 13-pitch fixture filters to 0 rows (default floor is 20) and exits non-zero — that is expected, not a failure. | ☐ |
 
 ---
 
@@ -250,7 +253,7 @@ These are things the audit **didn't** catch and that still matter. Each should e
 | G.2 | `TEST_PLAN.md v0.9.0` references `fixtures/burnes-2025.json` which doesn't exist in the repo. | `TEST_PLAN.md:59–69, 103`. | A-rows Aaron was meant to run are un-runnable as written — he'd hit ENOENT. | Either commit a fixture or rewrite those rows to use `test/fixtures/savant-csv-sample.csv`. S effort. |
 | G.3 | `--source baseball-reference` is accepted by the query flag parser but no adapter with that name appears to be registered. | `src/cli.ts` flag help lists `baseball-reference`; no adapter file. | Silent failure mode for anyone copy-pasting the flag. | F.19 test resolves this — either implement the adapter or drop the value from the help string. S effort if dropping. |
 | G.4 | Report's `--format pdf` — course's `Resources/bbdata User Guide.md:336` reference card implies PDF on viz *and* report; CLI report only accepts `markdown, json`. | `src/commands/report.ts`. | Students trying `bbdata report ... --format pdf` get a confusing error. | Either add PDF support to report (rendering markdown-to-PDF is non-trivial) or clarify the reference card to scope PDF to viz only. S–M effort. |
-| G.5 | Course's `--audience frontoffice` and `--audience presentation` work on viz (six-value set) but the normalization to `gm`/`analyst` only happens on report. | `src/commands/report.ts:85–106`. | Not a bug — but students who learn the six-value vocabulary on viz and then try it on report see different error behavior. | Documentation fix: add the audience-mapping table to both skills (audit rec #10 — still open). | 
+| G.5 | ~~Audience normalization only happens on report.~~ Since P4.8 both `report` (`src/commands/report.ts:29–47`) and `viz` (`src/viz/types.ts::resolveVizAudience`) normalize the six-value vocabulary **and reject unknown values** with an accepted-values error (R.A7 / V.A.bogus). | `src/commands/report.ts`, `src/viz/types.ts`. | Remaining gap is course-side only: the audience-mapping table still isn't in the skills. | Documentation fix: add the audience-mapping table to both skills (audit rec #10 — still open). | 
 | G.6 | `--stdin` with a piped CSV through pwsh's native pipeline corrupts text (known from `reference_pwsh_binary_stdout` memory). | pwsh shell quirk, not CLI. | v0.7.2 TEST_PLAN C.1e already notes this. | Document as "use `cmd /c` for piped CSV" in `bbdata User Guide.md` troubleshooting. S effort. |
 | G.7 | ~~`--pitch-type <type>` is only honored by network adapters (savant/fangraphs). The stdin/`--data` path bypasses the filter.~~ | `src/adapters/stdin.ts`. | ~~Student copy-pastes filter + fixture for iteration, sees unfiltered output, thinks flag is broken.~~ | **Shipped.** `StdinAdapter.fetch()` now applies `query.pitch_type` to pitch-level records; no-op on season-aggregate `PlayerStats`. Regression tests: `test/adapters/stdin.test.ts`. |
 
