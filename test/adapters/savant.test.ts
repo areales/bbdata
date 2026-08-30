@@ -162,6 +162,47 @@ describe('SavantAdapter', () => {
     expect(url).toContain('hfGT=R%7C');
   });
 
+  it('sends the pitch-type filter as hfPT, not the ignored pitch_type param (P1.15)', async () => {
+    vi.mocked(fetchJson).mockResolvedValueOnce(mlbSearchFixture);
+    vi.mocked(fetchText).mockResolvedValueOnce(sampleCsv);
+
+    await adapter.fetch({
+      player_name: 'Corbin Burnes',
+      season: 2025,
+      stat_type: 'pitching',
+      pitch_type: ['SL'],
+    });
+
+    // Like game_type (BBDATA-007), the CSV endpoint silently ignores a
+    // plain `pitch_type` param — only hfPT filters. `|` encodes as %7C.
+    const url = vi.mocked(fetchText).mock.calls[0]?.[0] as string;
+    expect(url).toContain('hfPT=SL%7C');
+    expect(url).not.toContain('pitch_type=');
+  });
+
+  it('post-parse filters to the requested pitch types (P1.15 defense-in-depth)', async () => {
+    vi.mocked(fetchJson).mockResolvedValueOnce(mlbSearchFixture);
+    // If Savant ever stops honoring hfPT, the adapter must still drop
+    // unrequested pitch types instead of silently returning the full arsenal.
+    const mixedCsv =
+      'pitch_type,game_date,release_speed,release_spin_rate,pfx_x,pfx_z,plate_x,plate_z,player_name,pitcher,batter,batter_name,description,events,bb_type,stand,p_throws,launch_speed,launch_angle,hc_x,hc_y,estimated_ba_using_speedangle,estimated_woba_using_speedangle,game_type\n' +
+      'FF,2025-04-01,96.0,2400,0.6,1.1,0,2.5,Pitcher A,111,592450,Aaron Judge,ball,,,R,R,,,,,,,R\n' +
+      'SL,2025-04-02,87.5,2500,-1.2,0.5,0.2,2.0,Pitcher A,111,592450,Aaron Judge,called_strike,,,R,R,,,,,,,R\n' +
+      'SL,2025-04-02,86.9,2510,-1.1,0.4,0.1,2.1,Pitcher A,111,592450,Aaron Judge,foul,,,R,R,,,,,,,R\n';
+    vi.mocked(fetchText).mockResolvedValueOnce(mixedCsv);
+
+    const result = await adapter.fetch({
+      player_name: 'Corbin Burnes',
+      season: 2025,
+      stat_type: 'pitching',
+      pitch_type: ['sl'],
+    });
+
+    expect(result.data).toHaveLength(2);
+    expect(result.data.every((p) => p.pitch_type === 'SL')).toBe(true);
+    expect(result.meta.rowCount).toBe(2);
+  });
+
   it('maps inning/balls/strikes/outs_when_up/at_bat_number/pitch_number from CSV (BBDATA-011)', async () => {
     vi.mocked(fetchJson).mockResolvedValueOnce(mlbSearchFixture);
     // Mini CSV with the 6 new columns. Row 1 has balls=0/strikes=0 (valid
@@ -209,6 +250,37 @@ describe('SavantAdapter', () => {
     expect(row3.outs_when_up).toBe(2);
     expect(row3.at_bat_number).toBe(27);
     expect(row3.pitch_number).toBe(6);
+  });
+
+  it('resolves opponent_name and filters server-side via batters_lookup (P1.8)', async () => {
+    // Primary player passed as an id so only the opponent consumes the
+    // resolve mock; the fixture resolves "Aaron Judge" → 592450.
+    vi.mocked(fetchJson).mockResolvedValueOnce(mlbSearchFixture);
+    vi.mocked(fetchText).mockResolvedValueOnce(sampleCsv);
+
+    await adapter.fetch({
+      player_id: '669203',
+      opponent_name: 'Aaron Judge',
+      season: 2024,
+      stat_type: 'pitching',
+    });
+
+    const url = vi.mocked(fetchText).mock.calls[0]?.[0] as string;
+    expect(url).toContain('pitchers_lookup%5B%5D=669203');
+    expect(url).toContain('batters_lookup%5B%5D=592450');
+  });
+
+  it('throws when the opponent cannot be resolved', async () => {
+    vi.mocked(fetchJson).mockResolvedValueOnce({ people: [] });
+
+    await expect(
+      adapter.fetch({
+        player_id: '669203',
+        opponent_name: 'Totally Fake Opponent',
+        season: 2024,
+        stat_type: 'pitching',
+      }),
+    ).rejects.toThrow('Opponent not found');
   });
 
   it('throws when player cannot be resolved', async () => {

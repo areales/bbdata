@@ -3,6 +3,173 @@
 All notable changes to `bbdata` are documented here. This project follows
 [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+> **Library-consumer note:** `PitchDataSchema` now declares
+> `release_speed`, `release_spin_rate`, `pfx_x`, `pfx_z`, `plate_x`, and
+> `plate_z` as nullable (P1.11 below). TypeScript consumers doing
+> arithmetic on these fields directly need null guards. CLI flags,
+> commands, and the `{ data, meta }` envelope shape are unchanged.
+
+### Fixed
+
+- **P1.4 / P1.5 — season-profile rate stats off by 100×.** FanGraphs
+  returns rate stats as ratios (`0.186` = 18.6%), but the duplicated
+  per-template `fmtPercent` copies in `pitcher-season-profile` and
+  `hitter-season-profile` rendered them without scaling, so `K-BB%`,
+  `BB%`, and `K%` all displayed as `0.2%`-style values in every output
+  format, including the JSON envelope. Both templates now use one shared
+  helper (`src/utils/stat-format.ts::fmtPercent`) with a
+  normalize-don't-multiply guard: values with `|v| ≤ 1` are treated as
+  ratios and scaled by 100, larger values pass through, so the fix
+  survives FanGraphs switching representation. Regression tests pin the
+  ratio representation the live adapter actually returns
+  (`test/utils/stat-format.test.ts`, `test/templates/season-profile.test.ts`).
+
+- **P1.6 — table/markdown formatters no longer guess percentages from
+  magnitude.** Both formatters rewrote every numeric cell in (−1, 1) as
+  a percentage, corrupting grid indices (`hitter-zone-grid` row/col `1`
+  → `100.0%`), ranks (`leaderboard-custom` Rank `1` → `100.0%`), counts
+  (an `In Play` count of `1` → `100.0%`), and rate stats (xwOBA `0.386`
+  → `38.6%`). The heuristic is removed — an audit of all 22 query
+  templates confirmed none relied on it, because every genuine
+  percentage is pre-formatted as a string inside the transform. Percent
+  rendering now requires a declared column type: query templates may
+  implement the new optional `columnFormats(params)` method returning
+  `Record<string, 'percent' | { decimals: n }>`, threaded through
+  `query()` into the table and markdown formatters (`'percent'` reuses
+  the shared `fmtPercent`). Unhinted defaults: integers render as
+  integers (table and markdown now agree — table previously rendered
+  small integers as `5.0`), sub-1 floats get 3 decimals (`.386`-style
+  rate-stat convention), everything else keeps 1. `pitcher-raw-pitches`
+  declares `{ decimals: 2 }` for `pfx_x`/`pfx_z`/`plate_x`/`plate_z` so
+  movement/location columns straddling 1.0 keep uniform precision.
+  JSON and CSV output were already correct and are unchanged.
+
+- **P1.10 / P1.17 — `leaderboard-comparison` stat-key collisions.** The
+  stat lookup stripped `%` and `+` from both the metric name and every
+  candidate key, so `BB%` matched FanGraphs' raw `BB` walk-count column
+  (rendering 127/124/109 under a `BB%` label) and `wRC+` matched `wRC`
+  (weighted runs created — the source of the 41-point disagreement with
+  `hitter-season-profile`: 162.8 vs 204 for the same player-season).
+  Lookup is now an exact case-insensitive match against explicit key
+  variants per metric (`wRC+`/`wRCplus`, `BB%`/`BB_pct`, `K%`/`K_pct`,
+  `HR`/`homeRuns`), and each metric formats through the shared
+  `stat-format.ts` helpers: `K%`/`BB%` render as percentages (`19.2%`,
+  not `0.192`), `wRC+`/`HR`/`RBI` as integers, and the slash line with
+  3 decimals (OPS `1.144`, previously chopped to `1.1`). `fmtFixed` and
+  `fmtInt` moved into `src/utils/stat-format.ts` alongside `fmtPercent`;
+  both season-profile templates import them from there. Regression
+  coverage in `test/templates/leaderboard-comparison.test.ts` pins both
+  collisions with fixtures carrying the colliding keys in the order the
+  FanGraphs API returns them.
+
+- **P1.11 — `savant-csv` no longer fabricates zeros for tracking
+  dropouts.** Six columns (`release_speed`, `release_spin_rate`,
+  `pfx_x`, `pfx_z`, `plate_x`, `plate_z`) were coerced with
+  `Number(x) || 0`, so a blank cell — routine in older seasons and
+  tracking outages — became a measured value: a 0 rpm spin rate, a
+  pitch located at the exact center origin. All six now parse through
+  the same null-preserving helper the file already used for
+  launch/coordinate fields, and `PitchDataSchema` declares them
+  nullable. Downstream consumers were updated to exclude dropouts from
+  denominators: `pitcher-arsenal` averages use a null-aware mean (an
+  unmeasured metric renders `—` instead of dragging toward zero), the
+  velocity/rolling trend templates guard their fastball filters, and
+  both zone templates require a measured location before assigning a
+  zone — previously a null location would have JS-coerced to 0 and
+  filed the pitch into the middle-in zone. The movement charts drop
+  null-movement pitches through a new shared `toMovementValues` helper
+  (both charts multiply `pfx` by 12 before Vega sees the data, so a
+  null would have coerced to 0 and plotted the pitch at the origin).
+
+- **P1.16 — `pitcher-arsenal` break columns now actually in inches.**
+  `H Break`/`V Break` carried an `in` suffix but rendered raw `pfx`
+  averages, which are in feet — a changeup showing `1.2 in` of
+  horizontal break was really 14+ inches, wrong by 12× under a
+  plausible-looking label. Break means are now multiplied by 12 at
+  format time, matching the unit Savant publishes. The `pfx_x`/`pfx_z`
+  comments in `src/adapters/types.ts` (which claimed inches) are
+  corrected to feet.
+
+- **P1.15 — `--pitch-type` was silently ignored on savant queries.**
+  Same endpoint gotcha as the documented `hfGT` game-type discovery:
+  Baseball Savant's CSV search ignores a plain `pitch_type` URL param,
+  so `--pitch-type SL` returned the full arsenal, byte-identical to the
+  unfiltered call, with exit 0 and no warning. The adapter now sends
+  `hfPT=SL|` (the param the endpoint actually honors) and filters
+  post-parse as a guard. The query layer additionally enforces the
+  filter after the cache lookup, because entries cached before this fix
+  hold unfiltered payloads under filtered keys for up to `maxAgeDays`
+  and a warm hit never reaches the adapter. Filter semantics mirror the
+  stdin adapter's: case-insensitive, season-aggregate rows unaffected.
+
+- **P1.7 — `pitcher-arsenal` whiff % inflated; Put Away % renamed to
+  its own definition.** The swing denominator matched only `swing` and
+  `foul` substrings; Statcast describes a batted ball as
+  `hit_into_play`, so every ball in play was missing from every whiff
+  denominator (Skubal's 2025 changeup reported 63.6% against Savant's
+  ~46%). Balls in play now count as swings. `Put Away %` was
+  `whiffs / all pitches` — not put-away rate under any definition —
+  guarded by a dead filter (`description` never contains `strikeout`).
+  It is now strikeouts per two-strike pitch of that type, computed from
+  the `strikes` count state and `events`, rendering `—` when count
+  data is absent from the payload.
+
+- **P1.12 — `leaderboard-custom --stat barrel_rate` returned 0 rows.**
+  The stat key never resolved against FanGraphs' `Barrel%` column, every
+  player filtered out, and the empty result masqueraded as an adapter
+  0-row error whose "try an earlier --season" hint could never help —
+  on the template's own first documented example and the course
+  lesson's showcase command. Course-vocabulary aliases now map
+  `barrel_rate`, `hard_hit_rate`, `k_rate`, and `bb_rate` to their
+  FanGraphs keys, an unresolvable stat throws an error listing every
+  available stat key, and `%`-keyed stats render as percentages.
+
+- **P1.14 — report header dated in UTC.** `report` stamped
+  `**Generated:**` from `toISOString()`, so every evening run (5pm PDT
+  onward) claimed tomorrow's date. Now formatted with
+  `toLocaleDateString('en-CA')` — same `YYYY-MM-DD` shape, local clock.
+
+- **P1.13 — `report --validate` no longer passes hollow reports.** The
+  only error-severity validation check looked for placeholder sentinels
+  (`Data pending`) that the shipped `.hbs` templates never emit — they
+  degrade per-section with prose like `*Arsenal data not available*` —
+  so a report rendered with every required query failing still
+  validated green. A new `required-data` check receives the
+  failed-required-query list directly and raises one error per failure,
+  so `--no-strict --validate` banners `failed` and names what's
+  missing. The strict-mode error text also stops promising a
+  "stub-shell report with placeholders" that never existed.
+
+- **P1.8 — `matchup-pitcher-vs-hitter` finds real matchups.** The
+  template fetched the pitcher's full season and filtered by
+  `batter_name` client-side, but the live Savant search CSV has no
+  batter-name column — every row fell back to `Unknown (#id)` and the
+  filter matched nothing for any matchup, ever. The Savant adapter now
+  resolves the new `AdapterQuery.opponent_name` and filters server-side
+  with `batters_lookup[]`, so only head-to-head pitches come back; the
+  transform keeps its name filter for stdin payloads and accepts a
+  single-batter payload as the matchup. Also fixed while verifying:
+  AVG and SLG were computed per plate appearance instead of per at-bat
+  (a 4-for-8-with-2-walks line rendered `.400` instead of `.500`).
+
+- **P1.9 — `trend-year-over-year` actually compares years now.**
+  `--seasons 2024-2025` was ignored entirely (the fetch defaulted to
+  the current year and returned 0 rows), and the transform hardcoded
+  `Prior: '—'` — the comparison the template is named for had never
+  been implemented. `AdapterQuery` gains `start_season`; the FanGraphs
+  adapter fetches season ranges (`season1` + `ind=1`, one row per
+  player-season, with a wider page so multi-season pulls aren't
+  truncated at 500 rows); and the transform compares the two most
+  recent seasons with a per-metric `Change` column and a `⚠` flag on
+  moves greater than 10%. Stat lookup uses explicit key variants
+  instead of symbol stripping (which collided `wRC+` with `wRC` and
+  `BB%` with `BB`, the P1.10/P1.17 defect class). New `--stat pitching`
+  mode compares ERA/FIP/xFIP/WHIP/K%/BB%/K-BB%/IP/WAR; a pitcher
+  queried in the default batting mode gets an actionable "re-run with
+  `--stat pitching`" error instead of a table of 0.000s.
+
 ## 0.10.0 — 2026-04-21
 
 Additive feature work plus a batch of course-audit gap closures on top

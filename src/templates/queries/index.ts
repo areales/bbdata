@@ -33,4 +33,5 @@ export {
   type QueryTemplateParams,
   type QueryResult,
   type QueryCategory,
+  type ColumnFormat,
 } from './registry.js';

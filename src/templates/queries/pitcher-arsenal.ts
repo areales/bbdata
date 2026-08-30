@@ -2,6 +2,7 @@ import { registerTemplate, type QueryTemplate } from './registry.js';
 import type { PitchData } from '../../adapters/types.js';
 import { pitchTypeName } from '../../adapters/types.js';
 import { assertFields } from '../../utils/validate-records.js';
+import { meanOf } from '../../utils/aggregate.js';
 
 const REQUIRED_FIELDS = [
   'description',
@@ -66,28 +67,44 @@ const template: QueryTemplate = {
     return Array.from(byType.entries())
       .map(([type, group]) => {
         const count = group.length;
+        // Balls in play are swings: Statcast's description for them is
+        // `hit_into_play`, which the old swing/foul substring pair missed,
+        // inflating whiff % for every pitch of every pitcher (P1.7).
         const swings = group.filter((p) =>
-          p.description.includes('swing') || p.description.includes('foul'),
+          p.description.includes('swing') ||
+          p.description.includes('foul') ||
+          p.description.includes('hit_into_play'),
         );
         const whiffs = group.filter((p) =>
           p.description.includes('swinging_strike'),
         );
-        const twoStrikes = group.filter((p) =>
-          p.description.includes('strikeout') || p.description.includes('swinging_strike'),
+        // Put-away rate: strikeouts per two-strike pitch of this type.
+        // `strikes` is the count before the pitch; `events` marks the
+        // PA-ending pitch (`strikeout` / `strikeout_double_play`).
+        // Absent count data (sparse stdin payloads) renders as —.
+        const twoStrikePitches = group.filter((p) => p.strikes === 2);
+        const putAways = twoStrikePitches.filter((p) =>
+          p.events != null && p.events.startsWith('strikeout'),
         );
+
+        const avgVelo = meanOf(group.map((p) => p.release_speed));
+        const avgSpin = meanOf(group.map((p) => p.release_spin_rate));
+        // pfx values are in feet; Savant publishes break in inches (P1.16)
+        const hBreak = meanOf(group.map((p) => p.pfx_x));
+        const vBreak = meanOf(group.map((p) => p.pfx_z));
 
         return {
           'Pitch Type': pitchTypeName(type),
           'Usage %': ((count / total) * 100).toFixed(1) + '%',
-          'Avg Velo': (group.reduce((s, p) => s + p.release_speed, 0) / count).toFixed(1) + ' mph',
-          'Avg Spin': Math.round(group.reduce((s, p) => s + p.release_spin_rate, 0) / count) + ' rpm',
-          'H Break': (group.reduce((s, p) => s + p.pfx_x, 0) / count).toFixed(1) + ' in',
-          'V Break': (group.reduce((s, p) => s + p.pfx_z, 0) / count).toFixed(1) + ' in',
+          'Avg Velo': avgVelo != null ? avgVelo.toFixed(1) + ' mph' : '—',
+          'Avg Spin': avgSpin != null ? Math.round(avgSpin) + ' rpm' : '—',
+          'H Break': hBreak != null ? (hBreak * 12).toFixed(1) + ' in' : '—',
+          'V Break': vBreak != null ? (vBreak * 12).toFixed(1) + ' in' : '—',
           'Whiff %': swings.length > 0
             ? ((whiffs.length / swings.length) * 100).toFixed(1) + '%'
             : '—',
-          'Put Away %': twoStrikes.length > 0
-            ? ((whiffs.length / count) * 100).toFixed(1) + '%'
+          'Put Away %': twoStrikePitches.length > 0
+            ? ((putAways.length / twoStrikePitches.length) * 100).toFixed(1) + '%'
             : '—',
           'Pitches': count,
         };

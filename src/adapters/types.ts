@@ -13,12 +13,15 @@ export const PitchDataSchema = z.object({
   batter_name: z.string(),
   game_date: z.string(),
   pitch_type: z.string(),          // FF, SL, CH, CU, SI, FC, KC, FS, etc.
-  release_speed: z.number(),       // mph
-  release_spin_rate: z.number(),   // rpm
-  pfx_x: z.number(),              // horizontal movement (inches)
-  pfx_z: z.number(),              // vertical movement (inches)
-  plate_x: z.number(),            // horizontal location
-  plate_z: z.number(),            // vertical location
+  // Tracking fields are nullable: Statcast drops them routinely (older
+  // seasons, tracking outages) and a fabricated 0 is indistinguishable
+  // from real data downstream (P1.11).
+  release_speed: z.number().nullable(),       // mph
+  release_spin_rate: z.number().nullable(),   // rpm
+  pfx_x: z.number().nullable(),   // horizontal movement (feet; Savant publishes inches = 12×)
+  pfx_z: z.number().nullable(),   // vertical movement (feet; Savant publishes inches = 12×)
+  plate_x: z.number().nullable(), // horizontal location (feet)
+  plate_z: z.number().nullable(), // vertical location (feet)
   launch_speed: z.number().nullable(),   // exit velocity (mph)
   launch_angle: z.number().nullable(),   // degrees
   hc_x: z.number().nullable(),    // Statcast hit coordinate x (horizontal)
@@ -76,6 +79,20 @@ export interface AdapterQuery {
   player_id?: string;
   team?: string;
   season: number;
+  /**
+   * First season of a multi-season range (season = the last). Honored by
+   * the FanGraphs adapter, which returns one row per player-season with
+   * `PlayerStats.season` set from the row (P1.9). Other adapters ignore
+   * it and return single-season data.
+   */
+  start_season?: number;
+  /**
+   * The other player in a head-to-head matchup (P1.8). Honored by the
+   * Savant adapter: for a pitching query it resolves this name and adds
+   * `batters_lookup[]` (and vice versa for batting), so only matchup
+   * pitches come back. Other adapters ignore it.
+   */
+  opponent_name?: string;
   start_date?: string;       // YYYY-MM-DD
   end_date?: string;         // YYYY-MM-DD
   stat_type: 'batting' | 'pitching' | 'fielding';

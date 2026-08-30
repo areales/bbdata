@@ -19,9 +19,12 @@ const template: QueryTemplate = {
   ],
 
   buildQuery(params) {
-    // Query for the pitcher's data — we'll filter for the specific batter in transform
+    // The savant adapter resolves opponent_name and filters server-side
+    // (batters_lookup[]) — the live CSV has no batter-name column, so
+    // the matchup cannot be reconstructed client-side (P1.8).
     return {
       player_name: params.players?.[0],
+      opponent_name: params.players?.[1],
       season: params.season ?? new Date().getFullYear(),
       stat_type: 'pitching',
     };
@@ -38,10 +41,20 @@ const template: QueryTemplate = {
 
     const hitterName = (params.players?.[1] ?? '').toLowerCase();
 
-    // Filter to only PAs against the target hitter
-    const matchup = pitches.filter((p) =>
+    // Name filter serves stdin / --data payloads that carry batter_name.
+    let matchup = pitches.filter((p) =>
       p.batter_name.toLowerCase().includes(hitterName),
     );
+
+    // Live Savant payloads have no batter names (every row falls back to
+    // "Unknown (#id)"), but the adapter already filtered server-side to
+    // the matchup — a single-batter payload is the matchup (P1.8).
+    if (matchup.length === 0) {
+      const batterIds = new Set(pitches.map((p) => p.batter_id));
+      if (batterIds.size === 1) {
+        matchup = pitches;
+      }
+    }
 
     if (matchup.length === 0) {
       return [{ Metric: 'Note', Value: `No matchup data found for ${params.players?.[1] ?? 'hitter'}` }];
@@ -51,7 +64,13 @@ const template: QueryTemplate = {
     const hits = pas.filter((p) => ['single', 'double', 'triple', 'home_run'].includes(p.events ?? ''));
     const hrs = pas.filter((p) => p.events === 'home_run');
     const ks = pas.filter((p) => p.events === 'strikeout');
-    const bbs = pas.filter((p) => ['walk', 'hit_by_pitch'].includes(p.events ?? ''));
+    const bbs = pas.filter((p) => ['walk', 'intent_walk', 'hit_by_pitch'].includes(p.events ?? ''));
+    // AVG/SLG are per at-bat, not per plate appearance — walks and sac
+    // flies don't belong in the denominator (same convention as
+    // hitter-vs-pitch-type).
+    const abs = pas.filter(
+      (p) => !['walk', 'intent_walk', 'hit_by_pitch', 'sac_fly', 'sac_bunt'].includes(p.events ?? ''),
+    );
     const totalBases = pas.reduce((sum, p) => {
       if (p.events === 'single') return sum + 1;
       if (p.events === 'double') return sum + 2;
@@ -78,8 +97,8 @@ const template: QueryTemplate = {
       { Metric: 'Home Runs', Value: hrs.length },
       { Metric: 'Strikeouts', Value: ks.length },
       { Metric: 'Walks', Value: bbs.length },
-      { Metric: 'AVG', Value: pas.length > 0 ? (hits.length / pas.length).toFixed(3) : '—' },
-      { Metric: 'SLG', Value: pas.length > 0 ? (totalBases / pas.length).toFixed(3) : '—' },
+      { Metric: 'AVG', Value: abs.length > 0 ? (hits.length / abs.length).toFixed(3) : '—' },
+      { Metric: 'SLG', Value: abs.length > 0 ? (totalBases / abs.length).toFixed(3) : '—' },
       { Metric: 'Most Common Pitches', Value: topPitches },
     ];
   },

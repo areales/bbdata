@@ -119,5 +119,45 @@ describe('FanGraphsAdapter', () => {
       expect(result.data.length).toBe(1);
       expect(result.data[0].player_name).toBe('Jo Adell');
     });
+
+    it('fetches a season range with season1 + ind=1 and maps per-row seasons (P1.9)', async () => {
+      const rangeJson = JSON.stringify({
+        data: [
+          { PlayerName: 'Corbin Carroll', xMLBAMID: 682998, Season: 2025, AVG: 0.259, HR: 31 },
+          { PlayerName: 'Corbin Carroll', xMLBAMID: 682998, Season: 2024, AVG: 0.231, HR: 22 },
+        ],
+      });
+      vi.mocked(fetchText).mockResolvedValueOnce(rangeJson);
+
+      const result = await adapter.fetch({
+        player_name: 'Corbin Carroll',
+        season: 2025,
+        start_season: 2024,
+        stat_type: 'batting',
+      });
+
+      // URL carries the range params, split-by-season mode, and a page
+      // wide enough that a qual=0 multi-season pull isn't truncated.
+      const url = vi.mocked(fetchText).mock.calls[0]?.[0] as string;
+      expect(url).toContain('season=2025');
+      expect(url).toContain('season1=2024');
+      expect(url).toContain('ind=1');
+      expect(url).toContain('pageitems=2000');
+
+      expect(result.data).toHaveLength(2);
+      const seasons = result.data.map((p) => p.season).sort();
+      expect(seasons).toEqual([2024, 2025]);
+    });
+
+    it('keeps single-season fetches on ind=0 with the default page size', async () => {
+      vi.mocked(fetchText).mockResolvedValueOnce(sampleJson);
+
+      await adapter.fetch({ season: 2025, stat_type: 'batting' });
+
+      const url = vi.mocked(fetchText).mock.calls[0]?.[0] as string;
+      expect(url).toContain('ind=0');
+      expect(url).toContain('season1=2025');
+      expect(url).toContain('pageitems=500');
+    });
   });
 });

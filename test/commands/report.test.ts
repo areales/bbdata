@@ -353,6 +353,46 @@ describe('report command', () => {
     expect(result.meta.template).toBe('pro-pitcher-eval');
   });
 
+  it('--no-strict --validate fails validation when required data is missing (P1.13 regression)', async () => {
+    // Reproduced live 2026-08-25: five templates rendered with both
+    // required queries returning 0 rows and still validated green,
+    // because the .hbs per-section fallbacks never emit the placeholder
+    // sentinels the placeholder-free check looks for. The required-data
+    // check validates the data outcome directly.
+    vi.mocked(runQuery).mockRejectedValue(new Error('Adapter "savant" returned 0 rows'));
+
+    const result = await report({
+      template: 'pro-pitcher-eval',
+      player: 'Corbin Burnes',
+      season: 2026,
+      strict: false,
+      validate: true,
+    });
+
+    expect(result.validation).toBeDefined();
+    expect(result.validation!.passed).toBe(false);
+    expect(result.validation!.checks).toContain('required-data');
+    const dataErrors = result.validation!.issues.filter(
+      (i) => i.severity === 'error' && i.message.includes('was not available'),
+    );
+    expect(dataErrors.length).toBeGreaterThan(0);
+    // The banner reflects the failure in raw markdown too.
+    expect(result.content).toContain('<!-- bbdata validation: failed');
+  });
+
+  it('--no-strict --validate still passes when all required data resolves', async () => {
+    const result = await report({
+      template: 'relief-pitcher-quick',
+      player: 'Edwin Diaz',
+      season: 2025,
+      strict: false,
+      validate: true,
+    });
+
+    expect(result.validation!.passed).toBe(true);
+    expect(result.validation!.checks).toContain('required-data');
+  });
+
   it('draft-board-card-pitcher renders with pitcher tool grades (BBDATA-013)', async () => {
     const result = await report({
       template: 'draft-board-card-pitcher',

@@ -56,6 +56,25 @@ describe('pitcher-season-profile template', () => {
     expect(byMetric.get('WAR')).toBe('4.2');
   });
 
+  it('renders K-BB% correctly when FanGraphs sends a ratio (P1.4 regression)', () => {
+    // The live FanGraphs leaderboard API returns rate stats as ratios
+    // (0.186 = 18.6%), not scaled percentages. Logan Webb 2023 rendered
+    // as "0.2%" before the normalize guard.
+    const input: PlayerStats[] = [
+      {
+        player_id: '657277',
+        player_name: 'Logan Webb',
+        team: 'SFG',
+        season: 2023,
+        stat_type: 'pitching',
+        stats: { 'K-BB%': 0.186 },
+      },
+    ];
+    const rows = template.transform(input, { player: 'Logan Webb' });
+    const byMetric = new Map(rows.map((r) => [r.Metric, r.Value]));
+    expect(byMetric.get('K-BB%')).toBe('18.6%');
+  });
+
   it('renders em-dash for missing stats', () => {
     const input: PlayerStats[] = [
       {
@@ -127,6 +146,25 @@ describe('hitter-season-profile template', () => {
     expect(byMetric.get('BB%')).toBe('18.8%');
     expect(byMetric.get('K%')).toBe('25.4%');
     expect(byMetric.get('WAR')).toBe('10.8');
+  });
+
+  it('renders BB% and K% correctly when FanGraphs sends ratios (P1.5 regression)', () => {
+    // Same defect as P1.4 on the hitter side: Aaron Judge 2023 rendered
+    // BB% as "0.2%" and K% as "0.3%" before the normalize guard.
+    const input: PlayerStats[] = [
+      {
+        player_id: '592450',
+        player_name: 'Aaron Judge',
+        team: 'NYY',
+        season: 2023,
+        stat_type: 'batting',
+        stats: { 'BB%': 0.185, 'K%': 0.28 },
+      },
+    ];
+    const rows = template.transform(input, { player: 'Aaron Judge' });
+    const byMetric = new Map(rows.map((r) => [r.Metric, r.Value]));
+    expect(byMetric.get('BB%')).toBe('18.5%');
+    expect(byMetric.get('K%')).toBe('28.0%');
   });
 
   it('returns empty array when adapter produced no rows', () => {

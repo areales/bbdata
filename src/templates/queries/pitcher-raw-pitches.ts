@@ -40,6 +40,17 @@ const template: QueryTemplate = {
     ];
   },
 
+  columnFormats() {
+    // Movement/location values (feet) straddle 1.0, so without a fixed
+    // precision the same column would mix "0.950" and "1.1" rows.
+    return {
+      pfx_x: { decimals: 2 },
+      pfx_z: { decimals: 2 },
+      plate_x: { decimals: 2 },
+      plate_z: { decimals: 2 },
+    };
+  },
+
   transform(data) {
     const pitches = data as PitchData[];
     if (pitches.length === 0) return [];

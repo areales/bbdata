@@ -24,7 +24,19 @@ export interface QueryResult {
   description: string;
   source: DataSource;
   cached: boolean;
+  columnFormats?: Record<string, ColumnFormat>;
 }
+
+/**
+ * Display hint for a numeric column, consumed by the table/markdown
+ * formatters. Without a hint, numbers render as-is (integers stay
+ * integers; sub-1 floats get 3 decimals, others 1). A magnitude
+ * heuristic cannot distinguish a ratio from an index or a count, so
+ * percent rendering only ever happens when a template declares it.
+ */
+export type ColumnFormat =
+  | 'percent' // ratio 0.186 → "18.6%" (already-scaled values pass through)
+  | { decimals: number }; // fixed decimal places, e.g. { decimals: 2 } → "0.95"
 
 export interface QueryTemplate {
   id: string;
@@ -44,6 +56,9 @@ export interface QueryTemplate {
 
   /** Column names for display */
   columns(params: QueryTemplateParams): string[];
+
+  /** Optional per-column display hints for table/markdown output */
+  columnFormats?(params: QueryTemplateParams): Record<string, ColumnFormat>;
 }
 
 // Template registry

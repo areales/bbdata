@@ -260,6 +260,38 @@ describe('query command', () => {
       expect(result.meta.cached).toBe(true);
     });
 
+    it('filters cached payloads by pitch type on a warm hit (P1.15 defense-in-depth)', async () => {
+      // Entries cached before the hfPT fix hold the full unfiltered
+      // arsenal under filtered keys for up to maxAgeDays; a warm hit
+      // skips the adapter's own filter, so the query layer must enforce it.
+      const mockAdapter = makeMockAdapter();
+      const cachedPayload = JSON.stringify({
+        data: [
+          { ...MOCK_PITCH, pitch_type: 'FF' },
+          { ...MOCK_PITCH, pitch_type: 'SL' },
+          { ...MOCK_PITCH, pitch_type: 'sl' },
+          { ...MOCK_PITCH, pitch_type: 'CH' },
+        ],
+        source: 'savant',
+        cached: false,
+        fetchedAt: '2026-08-29T00:00:00Z',
+        meta: { rowCount: 4, season: 2025, query: {} },
+      });
+      vi.mocked(getCached).mockResolvedValueOnce(cachedPayload);
+      vi.mocked(resolveAdapters).mockReturnValue([mockAdapter]);
+
+      const result = await query({
+        template: 'pitcher-raw-pitches',
+        player: 'Test Player',
+        season: 2025,
+        pitchType: 'SL',
+      });
+
+      expect(mockAdapter.fetch).not.toHaveBeenCalled();
+      expect(result.data).toHaveLength(2);
+      expect(result.data.every((r) => String(r.pitch_type).toUpperCase() === 'SL')).toBe(true);
+    });
+
     it('bypasses cache when options.cache === false (--no-cache)', async () => {
       const mockAdapter = makeMockAdapter();
       vi.mocked(resolveAdapters).mockReturnValue([mockAdapter]);
