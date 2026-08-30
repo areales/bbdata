@@ -47,11 +47,12 @@ these are one fix, not several:
    every ball in play, inflating whiff % for every pitcher.
 5. **Zero-row failures on the course's own printed examples — P1.8, P1.9, P1.12.**
    Each is a command a student runs verbatim from a lesson and gets nothing back.
-6. **Then P1.13, P1.14, P2.7, P3.5, P3.6** and the v0.10.0 preflight P4 backlog:
-   P4.6 (fixture thickening), P4.7 (`matchup-situational` assertFields + straggler
-   audit), P4.8 (`report --audience` enum validation), P4.9 (COURSE_TEST_PLAN
-   wording), P4.10 (`SO` missing from `pitcher-season-profile`), P4.11 (raw-pitches
-   field gaps — a scope decision, not a bug).
+6. **Then P1.13, P1.14 ✅ (fixed 2026-08-29), P2.7, P3.5, P3.6** and the v0.10.0
+   preflight P4 backlog: P4.6 (fixture thickening), P4.7 (`matchup-situational`
+   assertFields + straggler audit), P4.8 (`report --audience` enum validation),
+   P4.9 ✅ (COURSE_TEST_PLAN wording — fixed 2026-08-29), P4.10 (`SO` missing from
+   `pitcher-season-profile`), P4.11 (raw-pitches field gaps — a scope decision,
+   not a bug).
 
 **Two things to know before starting.** Fixes in `src/templates/` and
 `src/adapters/` land in the JSON envelope, so they reach students, agents and
@@ -267,7 +268,9 @@ The v0.10.0 `assertFields` retrofit covered the 9 templates we knew were at risk
 
 **Acceptance:** R.A7 preflight C row passes; existing audience coverage rows R.A1–R.A6 still pass.
 
-### P4.9 — COURSE_TEST_PLAN wording accuracy fixes — **Pending, surfaced 2026-04-21**
+### P4.9 — COURSE_TEST_PLAN wording accuracy fixes — **Fixed 2026-08-29 (unreleased), surfaced 2026-04-21**
+
+All three edits below landed on branch `claude/easy-tasks-review-689f49` (PR #26). Acceptance pending the next `/release-preflight` run.
 
 **Issue:** `/release-preflight` step 6 v0.10.0 C-row run surfaced three false-positive FAILs that are purely test-plan wording drift — the CLI behavior is correct; the expected-column text is off.
 
