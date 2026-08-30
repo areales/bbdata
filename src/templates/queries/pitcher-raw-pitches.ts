@@ -32,10 +32,14 @@ const template: QueryTemplate = {
       'pitch_type',
       'release_speed',
       'release_spin_rate',
+      'release_pos_x',
+      'release_pos_z',
       'pfx_x',
       'pfx_z',
       'plate_x',
       'plate_z',
+      'balls',
+      'strikes',
       'game_date',
     ];
   },
@@ -44,6 +48,8 @@ const template: QueryTemplate = {
     // Movement/location values (feet) straddle 1.0, so without a fixed
     // precision the same column would mix "0.950" and "1.1" rows.
     return {
+      release_pos_x: { decimals: 2 },
+      release_pos_z: { decimals: 2 },
       pfx_x: { decimals: 2 },
       pfx_z: { decimals: 2 },
       plate_x: { decimals: 2 },
@@ -55,16 +61,23 @@ const template: QueryTemplate = {
     const pitches = data as PitchData[];
     if (pitches.length === 0) return [];
 
+    // Count state and release point (P4.11): pass-throughs that let the
+    // course's Pitch Mix by Count and Release Point Plot templates build
+    // from bbdata output instead of requiring a raw Savant export.
     return pitches
       .filter((p) => p.pitch_type)
       .map((p) => ({
         pitch_type: p.pitch_type,
         release_speed: p.release_speed,
         release_spin_rate: p.release_spin_rate,
+        release_pos_x: p.release_pos_x ?? null,
+        release_pos_z: p.release_pos_z ?? null,
         pfx_x: p.pfx_x,
         pfx_z: p.pfx_z,
         plate_x: p.plate_x,
         plate_z: p.plate_z,
+        balls: p.balls ?? null,
+        strikes: p.strikes ?? null,
         game_date: p.game_date,
       }));
   },

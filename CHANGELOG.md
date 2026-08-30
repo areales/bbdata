@@ -26,6 +26,27 @@ All notable changes to `bbdata` are documented here. This project follows
   handful of pitches faced no longer render sample-free 100%-style
   rates; pass `--min-pitches 1` for the previous full table.
 
+- **P4.10 — `pitcher-season-profile` gains `SO` and `BB`.** The
+  strikeout total — the most-requested line-score stat in the course
+  material — was absent from the template entirely; both counting
+  stats now sit in the traditional block after GS.
+
+- **P4.11 — `pitcher-raw-pitches` carries count state and release
+  point.** New pass-through columns `balls`, `strikes`,
+  `release_pos_x`, `release_pos_z` (the release coordinates join
+  `PitchData` as optional nullable fields, parsed from the Savant
+  CSV). The course's Pitch Mix by Count and Release Point Plot
+  templates can now build from bbdata output instead of requiring a
+  raw Savant export.
+
+### Changed
+
+- **P4.8 — unknown `--audience` values are rejected** on both `report`
+  and `viz` with an error listing the accepted values and aliases,
+  instead of silently coercing to analyst styling. Technically
+  breaking for callers that relied on the fall-through; the course
+  never advertised it.
+
 ### Fixed
 
 - **P3.6 — `hitter-raw-bip` counts now match the season profile.**

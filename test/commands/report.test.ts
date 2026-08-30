@@ -226,6 +226,37 @@ describe('report command', () => {
     expect(result.content.startsWith('<!-- bbdata validation:')).toBe(false);
   });
 
+  it('rejects unknown --audience values with the accepted list (P4.8 regression)', async () => {
+    // --audience bogus used to exit 0 and silently render analyst styling.
+    await expect(
+      report({
+        template: 'relief-pitcher-quick',
+        player: 'Edwin Diaz',
+        season: 2025,
+        audience: 'bogus',
+      }),
+    ).rejects.toThrow(/Unknown --audience "bogus".*coach, gm, scout, analyst/);
+  });
+
+  it('accepts every canonical audience and both aliases', async () => {
+    for (const [input, resolved] of [
+      ['coach', 'coach'],
+      ['gm', 'gm'],
+      ['scout', 'scout'],
+      ['analyst', 'analyst'],
+      ['frontoffice', 'gm'],
+      ['presentation', 'analyst'],
+    ] as const) {
+      const result = await report({
+        template: 'relief-pitcher-quick',
+        player: 'Edwin Diaz',
+        season: 2025,
+        audience: input,
+      });
+      expect(result.meta.audience).toBe(resolved);
+    }
+  });
+
   it('returns JSON format when requested', async () => {
     const result = await report({
       template: 'relief-pitcher-quick',

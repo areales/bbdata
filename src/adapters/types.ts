@@ -41,6 +41,11 @@ export const PitchDataSchema = z.object({
   inning: z.number().nullable().optional(),
   balls: z.number().nullable().optional(),         // balls before the pitch
   strikes: z.number().nullable().optional(),       // strikes before the pitch
+  // Release point (P4.11) — feet, catcher POV. Optional+nullable for the
+  // same reason as the BBDATA-011 fields: pre-existing stdin payloads
+  // without them must keep type-checking.
+  release_pos_x: z.number().nullable().optional(),
+  release_pos_z: z.number().nullable().optional(),
   outs_when_up: z.number().nullable().optional(),  // outs at start of PA
   at_bat_number: z.number().nullable().optional(), // PA index within the game
   pitch_number: z.number().nullable().optional(),  // pitch index within the PA
