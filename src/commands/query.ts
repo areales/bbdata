@@ -24,6 +24,7 @@ export interface QueryOptions {
   pitchType?: string;
   minPa?: number;
   minIp?: number;
+  minPitches?: number;
   top?: number;
   seasons?: string;
   /** Rolling-window size (games) — only meaningful for trend-rolling-average. */
@@ -139,6 +140,7 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
     pitchType: options.pitchType,
     minPa: options.minPa,
     minIp: options.minIp,
+    minPitches: options.minPitches,
     top: options.top,
     seasons: options.seasons,
     window: options.window,
@@ -306,6 +308,7 @@ export function registerQueryCommand(program: Command): void {
     .option('--pitch-type <type>', 'Filter by pitch type (e.g., FF, SL)')
     .option('--min-pa <n>', 'Minimum plate appearances', parseInt)
     .option('--min-ip <n>', 'Minimum innings pitched', parseInt)
+    .option('--min-pitches <n>', 'Minimum pitches faced per pitch type (hitter-vs-pitch-type; default 20)', parseInt)
     .option('--top <n>', 'Number of results for leaderboards', parseInt)
     .option('--seasons <range>', 'Season range (e.g., 2023-2025)')
     .option('--no-cache', 'Bypass cache')
@@ -344,6 +347,7 @@ ${formatTemplateList()}
           pitchType: opts.pitchType,
           minPa: opts.minPa,
           minIp: opts.minIp,
+          minPitches: opts.minPitches,
           top: opts.top,
           seasons: opts.seasons,
           format: opts.format as OutputFormat,

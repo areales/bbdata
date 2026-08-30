@@ -13,9 +13,10 @@ const template: QueryTemplate = {
   description: 'Swing rate, whiff rate, exit velocity, and outcomes by pitch type faced',
   preferredSources: ['savant'],
   requiredParams: ['player'],
-  optionalParams: ['season'],
+  optionalParams: ['season', 'minPitches'],
   examples: [
     'bbdata query hitter-vs-pitch-type --player "Mookie Betts" --season 2025',
+    'bbdata query hitter-vs-pitch-type --player "Shohei Ohtani" --min-pitches 1',
   ],
 
   buildQuery(params) {
@@ -30,7 +31,7 @@ const template: QueryTemplate = {
     return ['Pitch Type', 'Seen', 'Swing %', 'Whiff %', 'Foul %', 'In Play', 'Avg EV', 'SLG'];
   },
 
-  transform(data) {
+  transform(data, params) {
     const pitches = data as PitchData[];
     if (pitches.length === 0) return [];
     assertFields(pitches, REQUIRED_FIELDS, 'hitter-vs-pitch-type');
@@ -44,7 +45,13 @@ const template: QueryTemplate = {
       byType.set(p.pitch_type, group);
     }
 
+    // P3.5: the course prompt this template mirrors says "only include
+    // pitch types with at least 20 pitches faced" — a 3-pitch junk tail
+    // renders 100%-style rates with no sample behind them.
+    const minPitches = params.minPitches ?? 20;
+
     return Array.from(byType.entries())
+      .filter(([, group]) => group.length >= minPitches)
       .map(([type, group]) => {
         const swings = group.filter((p) =>
           p.description.includes('swing') || p.description.includes('foul') || p.description.includes('hit_into_play'),

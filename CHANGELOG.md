@@ -21,7 +21,23 @@ All notable changes to `bbdata` are documented here. This project follows
   bases empty, late & close, innings buckets" — "high leverage" is
   gone).
 
+- **P3.5 — `--min-pitches <n>` on `hitter-vs-pitch-type`** (default 20,
+  matching the course prompt the template mirrors). Pitch types with a
+  handful of pitches faced no longer render sample-free 100%-style
+  rates; pass `--min-pitches 1` for the previous full table.
+
 ### Fixed
+
+- **P3.6 — `hitter-raw-bip` counts now match the season profile.**
+  Rows were selected by having tracking data (`launch_speed > 0` and
+  non-null hit coordinates), so batted balls with tracking dropouts
+  vanished from the pull — Judge 2025 showed 52 home runs against the
+  season profile's 53, and any count aggregated from the template was
+  quietly short. Batted balls are now selected by their Statcast
+  description (`hit_into_play`) and coordinate-less rows are retained
+  with null `hc_x`/`hc_y`. The spray chart filters unplottable points
+  itself — previously a null coordinate would have JS-coerced into a
+  phantom point near home plate.
 
 - **P4.7 — `assertFields` straggler audit.** `matchup-situational`
   (pitch-level `--data` payloads crashed with

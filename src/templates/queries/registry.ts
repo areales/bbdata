@@ -11,6 +11,8 @@ export interface QueryTemplateParams {
   pitchType?: string;
   minPa?: number;
   minIp?: number;
+  /** Minimum pitches faced per pitch type for hitter-vs-pitch-type (default 20). */
+  minPitches?: number;
   top?: number;
   seasons?: string; // "2023-2025"
   /** Rolling-window size (games) for trend-rolling-average. Template-specific. */

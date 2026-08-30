@@ -42,14 +42,14 @@ const template: QueryTemplate = {
     const pitches = data as PitchData[];
     if (pitches.length === 0) return [];
 
+    // P3.6: a batted ball is defined by its description, not by having
+    // tracking data. Requiring hc/launch values silently dropped
+    // tracking-dropout batted balls (a real home run went missing from
+    // the pull), so any count aggregated from this template was quietly
+    // short. Coordinate-less rows are retained with nulls — the spray
+    // chart filters unplottable points itself.
     return pitches
-      .filter(
-        (p) =>
-          p.launch_speed != null &&
-          p.launch_speed > 0 &&
-          p.hc_x != null &&
-          p.hc_y != null,
-      )
+      .filter((p) => p.description != null && p.description.includes('hit_into_play'))
       .map((p) => ({
         hc_x: p.hc_x,
         hc_y: p.hc_y,
