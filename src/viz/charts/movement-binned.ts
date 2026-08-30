@@ -1,5 +1,6 @@
 import type { ChartBuilder, ResolvedVizOptions } from '../types.js';
 import { audienceConfig } from '../audience.js';
+import { toMovementValues, type MovementPitch } from './movement-values.js';
 
 /**
  * Pitch Movement Plot — binned density variant
@@ -33,25 +34,8 @@ export const movementBinnedBuilder: ChartBuilder = {
   },
 
   buildSpec(rows, options: ResolvedVizOptions) {
-    const pitches = (rows['pitcher-raw-pitches'] ?? []) as Array<{
-      pitch_type: string;
-      pfx_x: number | null;
-      pfx_z: number | null;
-      release_speed: number | null;
-    }>;
-
-    // Convert inches and flip x for catcher POV (pitcher's glove side = negative).
-    // Pitches with missing movement tracking (null pfx) are dropped — they
-    // would otherwise plot at the origin.
-    const values = pitches.flatMap((p) => {
-      if (p.pfx_x == null || p.pfx_z == null) return [];
-      return [{
-        pitch_type: p.pitch_type,
-        hBreak: -p.pfx_x * 12, // feet → inches, flipped
-        vBreak: p.pfx_z * 12,
-        velo: p.release_speed,
-      }];
-    });
+    const pitches = (rows['pitcher-raw-pitches'] ?? []) as MovementPitch[];
+    const values = toMovementValues(pitches);
 
     return {
       $schema: 'https://vega.github.io/schema/vega-lite/v6.json',
