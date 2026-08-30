@@ -64,16 +64,25 @@ const template: QueryTemplate = {
 };
 
 function findStatValue(stats: Record<string, unknown>, key: string): string | null {
+  // Exact key first: FanGraphs rows carry both counting and rate forms
+  // whose names collide once +/% are stripped (BB vs BB%, wRC vs wRC+),
+  // and the normalized scan below returns whichever iterates first — a
+  // walk *total* under the BB% label (P1.10) and wRC under wRC+ (P1.17).
+  if (key in stats) return formatStatValue(stats[key]);
   const lower = key.toLowerCase().replace(/[+%]/g, '');
   for (const [k, v] of Object.entries(stats)) {
     if (k.toLowerCase().replace(/[+%]/g, '') === lower) {
-      if (v === null || v === undefined) return null;
-      const n = Number(v);
-      if (isNaN(n)) return String(v);
-      return n < 1 && n > 0 ? n.toFixed(3) : n % 1 === 0 ? String(n) : n.toFixed(1);
+      return formatStatValue(v);
     }
   }
   return null;
+}
+
+function formatStatValue(v: unknown): string | null {
+  if (v === null || v === undefined) return null;
+  const n = Number(v);
+  if (isNaN(n)) return String(v);
+  return n < 1 && n > 0 ? n.toFixed(3) : n % 1 === 0 ? String(n) : n.toFixed(1);
 }
 
 registerTemplate(template);
