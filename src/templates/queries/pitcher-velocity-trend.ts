@@ -35,7 +35,9 @@ const template: QueryTemplate = {
     assertFields(raw, REQUIRED_FIELDS, 'pitcher-velocity-trend');
 
     const pitches = raw.filter(
-      (p) => ['FF', 'SI', 'FC'].includes(p.pitch_type) && p.release_speed > 0,
+      (p) =>
+        ['FF', 'SI', 'FC'].includes(p.pitch_type) &&
+        p.release_speed != null && p.release_speed > 0,
     );
     if (pitches.length === 0) return [];
 
@@ -52,7 +54,9 @@ const template: QueryTemplate = {
     let prevAvg: number | null = null;
 
     return months.map(([month, group]) => {
-      const velos = group.map((p) => p.release_speed);
+      const velos = group
+        .map((p) => p.release_speed)
+        .filter((v): v is number => v != null);
       const avg = velos.reduce((s, v) => s + v, 0) / velos.length;
       const max = Math.max(...velos);
       const min = Math.min(...velos);

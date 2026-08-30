@@ -11,6 +11,25 @@ const REQUIRED_FIELDS = [
   'pfx_z',
 ];
 
+// Mean over the non-null values of one tracking field. Tracking dropouts
+// arrive as null (see savant-csv numOrNull) and must not drag the mean
+// toward zero; null when no pitch in the group has the field.
+function meanOf(
+  group: PitchData[],
+  pick: (p: PitchData) => number | null,
+): number | null {
+  let sum = 0;
+  let n = 0;
+  for (const p of group) {
+    const v = pick(p);
+    if (v != null) {
+      sum += v;
+      n++;
+    }
+  }
+  return n > 0 ? sum / n : null;
+}
+
 const template: QueryTemplate = {
   id: 'pitcher-arsenal',
   name: 'Pitcher Arsenal Profile',
@@ -76,13 +95,20 @@ const template: QueryTemplate = {
           p.description.includes('strikeout') || p.description.includes('swinging_strike'),
         );
 
+        const avgVelo = meanOf(group, (p) => p.release_speed);
+        const avgSpin = meanOf(group, (p) => p.release_spin_rate);
+        // pfx_* are in feet (raw Savant units); Savant publishes break in
+        // inches, so scale to match the label (P1.16).
+        const hBreak = meanOf(group, (p) => p.pfx_x);
+        const vBreak = meanOf(group, (p) => p.pfx_z);
+
         return {
           'Pitch Type': pitchTypeName(type),
           'Usage %': ((count / total) * 100).toFixed(1) + '%',
-          'Avg Velo': (group.reduce((s, p) => s + p.release_speed, 0) / count).toFixed(1) + ' mph',
-          'Avg Spin': Math.round(group.reduce((s, p) => s + p.release_spin_rate, 0) / count) + ' rpm',
-          'H Break': (group.reduce((s, p) => s + p.pfx_x, 0) / count).toFixed(1) + ' in',
-          'V Break': (group.reduce((s, p) => s + p.pfx_z, 0) / count).toFixed(1) + ' in',
+          'Avg Velo': avgVelo != null ? avgVelo.toFixed(1) + ' mph' : '—',
+          'Avg Spin': avgSpin != null ? Math.round(avgSpin) + ' rpm' : '—',
+          'H Break': hBreak != null ? (hBreak * 12).toFixed(1) + ' in' : '—',
+          'V Break': vBreak != null ? (vBreak * 12).toFixed(1) + ' in' : '—',
           'Whiff %': swings.length > 0
             ? ((whiffs.length / swings.length) * 100).toFixed(1) + '%'
             : '—',

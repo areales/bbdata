@@ -86,6 +86,39 @@ describe('pitcher-arsenal template', () => {
     }
   });
 
+  it('reports H/V break in inches, not raw pfx feet (P1.16)', () => {
+    // pfx_* arrive in feet from Savant; a 1.2 ft vertical break is 14.4 in.
+    const pitches: PitchData[] = [
+      makePitch({ pitch_type: 'CH', pfx_x: 1.2, pfx_z: 0.5 }),
+    ];
+
+    const rows = template.transform(pitches, { player: 'Skubal' });
+    expect(rows[0]['H Break']).toBe('14.4 in');
+    expect(rows[0]['V Break']).toBe('6.0 in');
+  });
+
+  it('skips null tracking fields in averages instead of counting them as 0 (P1.11)', () => {
+    const pitches: PitchData[] = [
+      makePitch({ pitch_type: 'FF', release_speed: 95, release_spin_rate: 2300 }),
+      makePitch({ pitch_type: 'FF', release_speed: null, release_spin_rate: null }),
+    ];
+
+    const rows = template.transform(pitches, { player: 'Burnes' });
+    // Mean over the one tracked pitch — not dragged to 47.5 by the dropout.
+    expect(rows[0]['Avg Velo']).toBe('95.0 mph');
+    expect(rows[0]['Avg Spin']).toBe('2300 rpm');
+  });
+
+  it('renders em-dash when a tracking field is null on every pitch', () => {
+    const pitches: PitchData[] = [
+      makePitch({ pitch_type: 'FF', release_spin_rate: null }),
+      makePitch({ pitch_type: 'FF', release_spin_rate: null }),
+    ];
+
+    const rows = template.transform(pitches, { player: 'Burnes' });
+    expect(rows[0]['Avg Spin']).toBe('—');
+  });
+
   it('calculates whiff % correctly', () => {
     const pitches: PitchData[] = [
       // 2 swings (1 swinging_strike + 1 foul), 1 whiff → 50% whiff rate

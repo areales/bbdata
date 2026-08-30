@@ -13,12 +13,15 @@ export const PitchDataSchema = z.object({
   batter_name: z.string(),
   game_date: z.string(),
   pitch_type: z.string(),          // FF, SL, CH, CU, SI, FC, KC, FS, etc.
-  release_speed: z.number(),       // mph
-  release_spin_rate: z.number(),   // rpm
-  pfx_x: z.number(),              // horizontal movement (inches)
-  pfx_z: z.number(),              // vertical movement (inches)
-  plate_x: z.number(),            // horizontal location
-  plate_z: z.number(),            // vertical location
+  // Tracking fields are nullable: Statcast leaves them blank on tracking
+  // dropouts and older seasons, and a missing measurement must stay null,
+  // never a fabricated 0 (P1.11).
+  release_speed: z.number().nullable(),       // mph
+  release_spin_rate: z.number().nullable(),   // rpm
+  pfx_x: z.number().nullable(),   // horizontal movement (feet, raw Savant units)
+  pfx_z: z.number().nullable(),   // vertical movement (feet, raw Savant units)
+  plate_x: z.number().nullable(), // horizontal location
+  plate_z: z.number().nullable(), // vertical location
   launch_speed: z.number().nullable(),   // exit velocity (mph)
   launch_angle: z.number().nullable(),   // degrees
   hc_x: z.number().nullable(),    // Statcast hit coordinate x (horizontal)

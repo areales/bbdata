@@ -211,6 +211,40 @@ describe('SavantAdapter', () => {
     expect(row3.pitch_number).toBe(6);
   });
 
+  it('preserves null for blank tracking cells instead of zero-filling (P1.11)', async () => {
+    vi.mocked(fetchJson).mockResolvedValueOnce(mlbSearchFixture);
+    // Row 1 is fully tracked; row 2 simulates a tracking dropout — speed,
+    // spin, movement, and location cells all blank. Number('') === 0, so
+    // the old `Number(x) || 0` idiom turned these into measured zeros.
+    const csv =
+      'pitch_type,game_date,release_speed,release_spin_rate,pfx_x,pfx_z,plate_x,plate_z,player_name,pitcher,batter,batter_name,description,events,bb_type,stand,p_throws,launch_speed,launch_angle,hc_x,hc_y,estimated_ba_using_speedangle,estimated_woba_using_speedangle,game_type\n' +
+      'FF,2025-04-15,95.2,2350,0.8,1.2,-0.3,2.8,Pitcher A,111,592450,Aaron Judge,called_strike,,,R,R,,,,,,,R\n' +
+      'SL,2025-04-15,,,,,,,Pitcher A,111,592450,Aaron Judge,ball,,,R,R,,,,,,,R\n';
+    vi.mocked(fetchText).mockResolvedValueOnce(csv);
+
+    const result = await adapter.fetch({
+      player_name: 'Aaron Judge',
+      season: 2025,
+      stat_type: 'batting',
+    });
+
+    expect(result.data).toHaveLength(2);
+
+    const tracked = result.data[0]!;
+    expect(tracked.release_speed).toBe(95.2);
+    expect(tracked.release_spin_rate).toBe(2350);
+    expect(tracked.pfx_x).toBe(0.8);
+    expect(tracked.plate_z).toBe(2.8);
+
+    const dropout = result.data[1]!;
+    expect(dropout.release_speed).toBeNull();
+    expect(dropout.release_spin_rate).toBeNull();
+    expect(dropout.pfx_x).toBeNull();
+    expect(dropout.pfx_z).toBeNull();
+    expect(dropout.plate_x).toBeNull();
+    expect(dropout.plate_z).toBeNull();
+  });
+
   it('throws when player cannot be resolved', async () => {
     vi.mocked(fetchJson).mockResolvedValueOnce({ people: [] });
 
