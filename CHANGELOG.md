@@ -3,6 +3,43 @@
 All notable changes to `bbdata` are documented here. This project follows
 [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Fixed
+
+- **P1.4 / P1.5 — season-profile rate stats off by 100×.** FanGraphs
+  returns rate stats as ratios (`0.186` = 18.6%), but the duplicated
+  per-template `fmtPercent` copies in `pitcher-season-profile` and
+  `hitter-season-profile` rendered them without scaling, so `K-BB%`,
+  `BB%`, and `K%` all displayed as `0.2%`-style values in every output
+  format, including the JSON envelope. Both templates now use one shared
+  helper (`src/utils/stat-format.ts::fmtPercent`) with a
+  normalize-don't-multiply guard: values with `|v| ≤ 1` are treated as
+  ratios and scaled by 100, larger values pass through, so the fix
+  survives FanGraphs switching representation. Regression tests pin the
+  ratio representation the live adapter actually returns
+  (`test/utils/stat-format.test.ts`, `test/templates/season-profile.test.ts`).
+
+- **P1.6 — table/markdown formatters no longer guess percentages from
+  magnitude.** Both formatters rewrote every numeric cell in (−1, 1) as
+  a percentage, corrupting grid indices (`hitter-zone-grid` row/col `1`
+  → `100.0%`), ranks (`leaderboard-custom` Rank `1` → `100.0%`), counts
+  (an `In Play` count of `1` → `100.0%`), and rate stats (xwOBA `0.386`
+  → `38.6%`). The heuristic is removed — an audit of all 22 query
+  templates confirmed none relied on it, because every genuine
+  percentage is pre-formatted as a string inside the transform. Percent
+  rendering now requires a declared column type: query templates may
+  implement the new optional `columnFormats(params)` method returning
+  `Record<string, 'percent' | { decimals: n }>`, threaded through
+  `query()` into the table and markdown formatters (`'percent'` reuses
+  the shared `fmtPercent`). Unhinted defaults: integers render as
+  integers (table and markdown now agree — table previously rendered
+  small integers as `5.0`), sub-1 floats get 3 decimals (`.386`-style
+  rate-stat convention), everything else keeps 1. `pitcher-raw-pitches`
+  declares `{ decimals: 2 }` for `pfx_x`/`pfx_z`/`plate_x`/`plate_z` so
+  movement/location columns straddling 1.0 keep uniform precision.
+  JSON and CSV output were already correct and are unchanged.
+
 ## 0.10.0 — 2026-04-21
 
 Additive feature work plus a batch of course-audit gap closures on top

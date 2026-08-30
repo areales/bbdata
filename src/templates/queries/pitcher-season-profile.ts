@@ -1,5 +1,6 @@
 import { registerTemplate, type QueryTemplate } from './registry.js';
 import type { PlayerStats } from '../../adapters/types.js';
+import { fmtPercent } from '../../utils/stat-format.js';
 
 /**
  * Pitcher Season Profile (FanGraphs)
@@ -29,8 +30,6 @@ interface MetricSpec {
 
 const fmtFixed = (n: number) => (v: number | string | null) =>
   v == null || v === '' ? '—' : Number(v).toFixed(n);
-const fmtPercent = (v: number | string | null) =>
-  v == null || v === '' ? '—' : `${Number(v).toFixed(1)}%`;
 const fmtRaw = (v: number | string | null) =>
   v == null || v === '' ? '—' : String(v);
 const fmtInt = (v: number | string | null) =>

@@ -183,6 +183,7 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
 
       const rows = template.transform(adapterResult.data, params);
       const columns = template.columns(params);
+      const columnFormats = template.columnFormats?.(params);
 
       // If adapter returned data but transform produced 0 rows, try next adapter
       if (rows.length === 0) {
@@ -194,6 +195,7 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
       result = {
         rows,
         columns,
+        columnFormats,
         title: template.name,
         description: template.description,
         source: adapter.source,
@@ -245,7 +247,7 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
     season: params.season ?? new Date().getFullYear(),
     sampleSize: result.rows.length,
     template: template.id,
-  }, outputFormat, { columns: result.columns });
+  }, outputFormat, { columns: result.columns, columnFormats: result.columnFormats });
 
   return {
     data: result.rows,

@@ -1,8 +1,11 @@
 import type { FormatMeta, FormattedOutput } from './json.js';
+import type { ColumnFormat } from '../templates/queries/registry.js';
+import { fmtPercent } from '../utils/stat-format.js';
 
 export function formatMarkdown(
   data: Record<string, unknown>[],
   meta: FormatMeta,
+  options: { columnFormats?: Record<string, ColumnFormat> } = {},
 ): FormattedOutput {
   if (data.length === 0) {
     return { raw: data, formatted: '*No data found.*\n', meta };
@@ -16,7 +19,8 @@ export function formatMarkdown(
 
   // Data rows
   const rows = data.map(
-    (row) => '| ' + columns.map((col) => formatMdCell(row[col])).join(' | ') + ' |',
+    (row) =>
+      '| ' + columns.map((col) => formatMdCell(row[col], options.columnFormats?.[col])).join(' | ') + ' |',
   );
 
   // Footer
@@ -29,12 +33,16 @@ export function formatMarkdown(
   };
 }
 
-function formatMdCell(value: unknown): string {
+function formatMdCell(value: unknown, format?: ColumnFormat): string {
   if (value === null || value === undefined) return '—';
   if (typeof value === 'number') {
-    if (Math.abs(value) <= 1 && value !== 0) return (value * 100).toFixed(1) + '%';
+    // Percent rendering only happens on a template-declared hint — a
+    // magnitude guess corrupts indices, counts, and rate stats (P1.6).
+    if (format === 'percent') return fmtPercent(value);
+    if (typeof format === 'object') return value.toFixed(format.decimals);
     if (Number.isInteger(value)) return String(value);
-    return value.toFixed(1);
+    // Sub-1 rate stats read as .386-style decimals, not "0.4"
+    return Math.abs(value) < 1 ? value.toFixed(3) : value.toFixed(1);
   }
   return String(value);
 }
