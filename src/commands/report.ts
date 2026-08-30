@@ -291,7 +291,9 @@ export async function report(options: ReportOptions): Promise<ReportResult> {
     team,
     season,
     audience,
-    date: new Date().toISOString().split('T')[0],
+    // Local date, not toISOString() — UTC stamped evening reports with
+    // tomorrow's date (P1.14). en-CA gives the same YYYY-MM-DD shape.
+    date: new Date().toLocaleDateString('en-CA'),
     sources: dataSources.join(', ') || 'none',
     cliVersion: CLI_VERSION,
     data: dataResults,

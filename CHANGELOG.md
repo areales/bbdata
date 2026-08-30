@@ -113,6 +113,21 @@ All notable changes to `bbdata` are documented here. This project follows
   the `strikes` count state and `events`, rendering `—` when count
   data is absent from the payload.
 
+- **P1.12 — `leaderboard-custom --stat barrel_rate` returned 0 rows.**
+  The stat key never resolved against FanGraphs' `Barrel%` column, every
+  player filtered out, and the empty result masqueraded as an adapter
+  0-row error whose "try an earlier --season" hint could never help —
+  on the template's own first documented example and the course
+  lesson's showcase command. Course-vocabulary aliases now map
+  `barrel_rate`, `hard_hit_rate`, `k_rate`, and `bb_rate` to their
+  FanGraphs keys, an unresolvable stat throws an error listing every
+  available stat key, and `%`-keyed stats render as percentages.
+
+- **P1.14 — report header dated in UTC.** `report` stamped
+  `**Generated:**` from `toISOString()`, so every evening run (5pm PDT
+  onward) claimed tomorrow's date. Now formatted with
+  `toLocaleDateString('en-CA')` — same `YYYY-MM-DD` shape, local clock.
+
 ## 0.10.0 — 2026-04-21
 
 Additive feature work plus a batch of course-audit gap closures on top

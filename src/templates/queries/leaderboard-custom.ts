@@ -1,9 +1,28 @@
 import { registerTemplate, type QueryTemplate } from './registry.js';
 import { assertFields } from '../../utils/validate-records.js';
 import type { PlayerStats } from '../../adapters/types.js';
+import { fmtPercent } from '../../utils/stat-format.js';
 
 
 const REQUIRED_FIELDS = ['player_name'];
+
+/**
+ * Course-vocabulary aliases for FanGraphs stat keys (P1.12). The lesson
+ * material teaches `_rate`-suffixed names; FanGraphs keys end in `%`.
+ * Explicit entries only — a general suffix-stripping normalization would
+ * collide `bb_rate` with the raw `BB` walk-count column, the exact
+ * defect class P1.10 fixed in leaderboard-comparison.
+ */
+const STAT_ALIASES: Record<string, string> = {
+  barrel_rate: 'Barrel%',
+  hard_hit_rate: 'HardHit%',
+  k_rate: 'K%',
+  bb_rate: 'BB%',
+};
+
+function canonicalStatKey(key: string): string {
+  return STAT_ALIASES[key.toLowerCase()] ?? key;
+}
 
 const template: QueryTemplate = {
   id: 'leaderboard-custom',
@@ -41,19 +60,37 @@ const template: QueryTemplate = {
 
 
     const statKey = params.stat ?? '';
+    const lookupKey = canonicalStatKey(statKey);
     const top = params.top ?? 20;
 
     // Find the stat in each player's stats object (case-insensitive search)
-    const withStat = stats
+    const matched = stats
       .map((player) => {
-        const value = findStat(player.stats, statKey);
+        const value = findStat(player.stats, lookupKey);
         return { player, value };
       })
-      .filter((p) => p.value !== null)
+      .filter((p) => p.value !== null);
+
+    // A stat key that resolves for no player is a caller error, not an
+    // empty leaderboard — returning [] here used to masquerade as
+    // "adapter returned 0 rows, try an earlier --season" (P1.12).
+    if (matched.length === 0) {
+      const available = Object.entries(stats[0].stats)
+        .filter(([, v]) => v != null && v !== '' && !Number.isNaN(Number(v)))
+        .map(([k]) => k)
+        .sort();
+      throw new Error(
+        `Stat "${statKey}" not found in leaderboard data` +
+          (lookupKey !== statKey ? ` (searched as "${lookupKey}")` : '') +
+          `. Available stat keys: ${available.join(', ')}`,
+      );
+    }
+
+    const withStat = matched
       .sort((a, b) => {
         // ERA, FIP, etc. sort ascending; most others descending
         const ascending = ['era', 'fip', 'xfip', 'siera', 'whip', 'bb%'].includes(
-          statKey.toLowerCase(),
+          lookupKey.toLowerCase(),
         );
         return ascending
           ? (a.value as number) - (b.value as number)
@@ -66,9 +103,11 @@ const template: QueryTemplate = {
       Player: entry.player.player_name,
       Team: entry.player.team,
       [statKey]: typeof entry.value === 'number'
-        ? entry.value < 1 && entry.value > 0
-          ? entry.value.toFixed(3)
-          : entry.value.toFixed(1)
+        ? lookupKey.endsWith('%')
+          ? fmtPercent(entry.value)
+          : entry.value < 1 && entry.value > 0
+            ? entry.value.toFixed(3)
+            : entry.value.toFixed(1)
         : String(entry.value),
       'PA/IP': entry.player.stats.plateAppearances ?? entry.player.stats.PA
         ?? entry.player.stats.inningsPitched ?? entry.player.stats.IP ?? '—',
