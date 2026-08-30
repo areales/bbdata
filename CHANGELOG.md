@@ -128,6 +128,17 @@ All notable changes to `bbdata` are documented here. This project follows
   onward) claimed tomorrow's date. Now formatted with
   `toLocaleDateString('en-CA')` — same `YYYY-MM-DD` shape, local clock.
 
+- **P1.13 — `report --validate` no longer passes hollow reports.** The
+  only error-severity validation check looked for placeholder sentinels
+  (`Data pending`) that the shipped `.hbs` templates never emit — they
+  degrade per-section with prose like `*Arsenal data not available*` —
+  so a report rendered with every required query failing still
+  validated green. A new `required-data` check receives the
+  failed-required-query list directly and raises one error per failure,
+  so `--no-strict --validate` banners `failed` and names what's
+  missing. The strict-mode error text also stops promising a
+  "stub-shell report with placeholders" that never existed.
+
 - **P1.8 — `matchup-pitcher-vs-hitter` finds real matchups.** The
   template fetched the pitcher's full season and filtered by
   `batter_name` client-side, but the live Savant search CSV has no

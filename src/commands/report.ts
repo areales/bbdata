@@ -92,6 +92,7 @@ const VALIDATION_CHECKS = [
   'placeholder-free',
   'generic-phrases',
   'length',
+  'required-data',
 ] as const;
 
 // Register Handlebars helpers
@@ -268,7 +269,8 @@ export async function report(options: ReportOptions): Promise<ReportResult> {
       .join('\n');
     throw new Error(
       `Report "${template.id}" cannot be generated — ${failedRequired.length} required data query(s) failed:\n${detail}\n` +
-        `Pass --no-strict to emit a stub-shell report with placeholders instead.`,
+        `Pass --no-strict to emit the report anyway with degraded sections ` +
+        `(add --validate to have the missing data flagged as a validation error).`,
     );
   }
 
@@ -306,7 +308,7 @@ export async function report(options: ReportOptions): Promise<ReportResult> {
   // by the banner it produces.
   let validation: ValidationResult | undefined;
   if (options.validate) {
-    validation = validateReport(rawContent, template.requiredSections);
+    validation = validateReport(rawContent, template.requiredSections, failedRequired);
   }
 
   // BBDATA-008 part A: when --validate is passed, prepend an HTML-comment
@@ -347,8 +349,26 @@ export async function report(options: ReportOptions): Promise<ReportResult> {
   };
 }
 
-function validateReport(content: string, requiredSections: string[]): ValidationResult {
+function validateReport(
+  content: string,
+  requiredSections: string[],
+  failedRequired: { queryTemplate: string; message: string }[] = [],
+): ValidationResult {
   const issues: ValidationResult['issues'] = [];
+
+  // P1.13 (check: required-data): a report rendered without its required
+  // data must not validate green. The shipped .hbs templates degrade
+  // per-section with prose like "*Arsenal data not available*" rather
+  // than the placeholder sentinels, so string checks can't see this —
+  // validate the data outcome directly. This is what makes --no-strict
+  // --validate honest: the report still renders, but the banner says
+  // failed and names what's missing.
+  for (const failure of failedRequired) {
+    issues.push({
+      severity: 'error',
+      message: `Required data "${failure.queryTemplate}" was not available — section rendered without data (${failure.message})`,
+    });
+  }
 
   // Check required sections are present (check: section-present)
   for (const section of requiredSections) {
