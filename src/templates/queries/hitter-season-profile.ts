@@ -1,6 +1,6 @@
 import { registerTemplate, type QueryTemplate } from './registry.js';
 import type { PlayerStats } from '../../adapters/types.js';
-import { fmtPercent } from '../../utils/stat-format.js';
+import { fmtFixed, fmtInt, fmtPercent } from '../../utils/stat-format.js';
 
 /**
  * Hitter Season Profile (FanGraphs)
@@ -20,11 +20,6 @@ interface MetricSpec {
   keys: string[];
   format: (v: number | string | null) => string;
 }
-
-const fmtFixed = (n: number) => (v: number | string | null) =>
-  v == null || v === '' ? '—' : Number(v).toFixed(n);
-const fmtInt = (v: number | string | null) =>
-  v == null || v === '' ? '—' : String(Math.round(Number(v)));
 
 const METRICS: MetricSpec[] = [
   { label: 'AVG', keys: ['AVG'], format: fmtFixed(3) },

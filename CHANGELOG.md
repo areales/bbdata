@@ -40,6 +40,24 @@ All notable changes to `bbdata` are documented here. This project follows
   movement/location columns straddling 1.0 keep uniform precision.
   JSON and CSV output were already correct and are unchanged.
 
+- **P1.10 / P1.17 — `leaderboard-comparison` stat-key collisions.** The
+  stat lookup stripped `%` and `+` from both the metric name and every
+  candidate key, so `BB%` matched FanGraphs' raw `BB` walk-count column
+  (rendering 127/124/109 under a `BB%` label) and `wRC+` matched `wRC`
+  (weighted runs created — the source of the 41-point disagreement with
+  `hitter-season-profile`: 162.8 vs 204 for the same player-season).
+  Lookup is now an exact case-insensitive match against explicit key
+  variants per metric (`wRC+`/`wRCplus`, `BB%`/`BB_pct`, `K%`/`K_pct`,
+  `HR`/`homeRuns`), and each metric formats through the shared
+  `stat-format.ts` helpers: `K%`/`BB%` render as percentages (`19.2%`,
+  not `0.192`), `wRC+`/`HR`/`RBI` as integers, and the slash line with
+  3 decimals (OPS `1.144`, previously chopped to `1.1`). `fmtFixed` and
+  `fmtInt` moved into `src/utils/stat-format.ts` alongside `fmtPercent`;
+  both season-profile templates import them from there. Regression
+  coverage in `test/templates/leaderboard-comparison.test.ts` pins both
+  collisions with fixtures carrying the colliding keys in the order the
+  FanGraphs API returns them.
+
 ## 0.10.0 — 2026-04-21
 
 Additive feature work plus a batch of course-audit gap closures on top

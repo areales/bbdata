@@ -23,3 +23,17 @@ export const fmtPercent = (v: number | string | null): string => {
   const scaled = Math.abs(n) <= 1 ? n * 100 : n;
   return `${scaled.toFixed(1)}%`;
 };
+
+/** Format a stat with a fixed number of decimal places. */
+export const fmtFixed = (decimals: number) => (v: number | string | null): string => {
+  if (v == null || v === '') return '—';
+  const n = Number(v);
+  return Number.isNaN(n) ? '—' : n.toFixed(decimals);
+};
+
+/** Format a stat as a rounded integer. */
+export const fmtInt = (v: number | string | null): string => {
+  if (v == null || v === '') return '—';
+  const n = Number(v);
+  return Number.isNaN(n) ? '—' : String(Math.round(n));
+};

@@ -1,9 +1,36 @@
 import { registerTemplate, type QueryTemplate } from './registry.js';
 import { assertFields } from '../../utils/validate-records.js';
 import type { PlayerStats } from '../../adapters/types.js';
+import { fmtFixed, fmtInt, fmtPercent } from '../../utils/stat-format.js';
 
 
 const REQUIRED_FIELDS = ['player_name'];
+
+/**
+ * Key batting metrics to compare. Lookup is by exact case-insensitive
+ * key match against the listed variants — never by stripping `%`/`+`
+ * symbols, which collides distinct stats: `BB%` normalized to `bb`
+ * matched FanGraphs' raw `BB` walk-count column (P1.10), and `wRC+`
+ * normalized to `wrc` matched `wRC`, weighted runs created (P1.17).
+ */
+const METRICS: {
+  label: string;
+  keys: string[];
+  format: (v: number | string | null) => string;
+}[] = [
+  { label: 'AVG', keys: ['AVG'], format: fmtFixed(3) },
+  { label: 'OBP', keys: ['OBP'], format: fmtFixed(3) },
+  { label: 'SLG', keys: ['SLG'], format: fmtFixed(3) },
+  { label: 'OPS', keys: ['OPS'], format: fmtFixed(3) },
+  { label: 'wRC+', keys: ['wRC+', 'wRCplus'], format: fmtInt },
+  { label: 'WAR', keys: ['WAR'], format: fmtFixed(1) },
+  { label: 'HR', keys: ['HR', 'homeRuns'], format: fmtInt },
+  { label: 'RBI', keys: ['RBI'], format: fmtInt },
+  { label: 'K%', keys: ['K%', 'K_pct'], format: fmtPercent },
+  { label: 'BB%', keys: ['BB%', 'BB_pct'], format: fmtPercent },
+  { label: 'ISO', keys: ['ISO'], format: fmtFixed(3) },
+  { label: 'BABIP', keys: ['BABIP'], format: fmtFixed(3) },
+];
 
 const template: QueryTemplate = {
   id: 'leaderboard-comparison',
@@ -41,36 +68,31 @@ const template: QueryTemplate = {
       return allStats.find((s) => s.player_name.toLowerCase().includes(norm));
     });
 
-    // Key batting metrics to compare
-    const metrics = [
-      'AVG', 'OBP', 'SLG', 'OPS', 'wRC+', 'WAR', 'HR', 'RBI',
-      'K%', 'BB%', 'ISO', 'BABIP',
-    ];
-
-    return metrics.map((metric) => {
-      const row: Record<string, unknown> = { Metric: metric };
+    return METRICS.map((metric) => {
+      const row: Record<string, unknown> = { Metric: metric.label };
       for (let i = 0; i < playerNames.length; i++) {
         const player = matched[i];
         if (!player) {
           row[playerNames[i]] = '—';
           continue;
         }
-        const val = findStatValue(player.stats, metric);
-        row[playerNames[i]] = val ?? '—';
+        row[playerNames[i]] = metric.format(findStatValue(player.stats, metric.keys));
       }
       return row;
     });
   },
 };
 
-function findStatValue(stats: Record<string, unknown>, key: string): string | null {
-  const lower = key.toLowerCase().replace(/[+%]/g, '');
-  for (const [k, v] of Object.entries(stats)) {
-    if (k.toLowerCase().replace(/[+%]/g, '') === lower) {
-      if (v === null || v === undefined) return null;
-      const n = Number(v);
-      if (isNaN(n)) return String(v);
-      return n < 1 && n > 0 ? n.toFixed(3) : n % 1 === 0 ? String(n) : n.toFixed(1);
+function findStatValue(
+  stats: Record<string, unknown>,
+  keys: string[],
+): number | string | null {
+  for (const key of keys) {
+    const lower = key.toLowerCase();
+    for (const [k, v] of Object.entries(stats)) {
+      if (k.toLowerCase() === lower && v != null) {
+        return v as number | string;
+      }
     }
   }
   return null;
