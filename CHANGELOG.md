@@ -128,6 +128,18 @@ All notable changes to `bbdata` are documented here. This project follows
   onward) claimed tomorrow's date. Now formatted with
   `toLocaleDateString('en-CA')` — same `YYYY-MM-DD` shape, local clock.
 
+- **P1.8 — `matchup-pitcher-vs-hitter` finds real matchups.** The
+  template fetched the pitcher's full season and filtered by
+  `batter_name` client-side, but the live Savant search CSV has no
+  batter-name column — every row fell back to `Unknown (#id)` and the
+  filter matched nothing for any matchup, ever. The Savant adapter now
+  resolves the new `AdapterQuery.opponent_name` and filters server-side
+  with `batters_lookup[]`, so only head-to-head pitches come back; the
+  transform keeps its name filter for stdin payloads and accepts a
+  single-batter payload as the matchup. Also fixed while verifying:
+  AVG and SLG were computed per plate appearance instead of per at-bat
+  (a 4-for-8-with-2-walks line rendered `.400` instead of `.500`).
+
 - **P1.9 — `trend-year-over-year` actually compares years now.**
   `--seasons 2024-2025` was ignored entirely (the fetch defaulted to
   the current year and returned 0 rows), and the transform hardcoded

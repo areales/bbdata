@@ -86,6 +86,13 @@ export interface AdapterQuery {
    * it and return single-season data.
    */
   start_season?: number;
+  /**
+   * The other player in a head-to-head matchup (P1.8). Honored by the
+   * Savant adapter: for a pitching query it resolves this name and adds
+   * `batters_lookup[]` (and vice versa for batting), so only matchup
+   * pitches come back. Other adapters ignore it.
+   */
+  opponent_name?: string;
   start_date?: string;       // YYYY-MM-DD
   end_date?: string;         // YYYY-MM-DD
   stat_type: 'batting' | 'pitching' | 'fielding';

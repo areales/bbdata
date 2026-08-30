@@ -82,6 +82,20 @@ export class SavantAdapter implements DataAdapter {
       params.set('hfPT', query.pitch_type.map((t) => t.toUpperCase()).join('|') + '|');
     }
 
+    // P1.8: head-to-head matchup — resolve the opponent and add the
+    // other lookup param so Savant returns only the matchup pitches.
+    // The CSV carries no batter-name column, so client-side name
+    // filtering can never work; server-side filtering is the only path.
+    if (query.opponent_name) {
+      const opponent = await this.resolvePlayer(query.opponent_name);
+      if (!opponent) {
+        throw new Error(`Opponent not found: "${query.opponent_name}"`);
+      }
+      const opponentParam =
+        query.stat_type === 'pitching' ? 'batters_lookup[]' : 'pitchers_lookup[]';
+      params.set(opponentParam, opponent.mlbam_id);
+    }
+
     const url = `${SAVANT_SEARCH_URL}?${params}`;
     log.info(`Fetching Statcast data from Baseball Savant...`);
     log.debug(`Savant URL: ${url}`);

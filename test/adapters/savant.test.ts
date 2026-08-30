@@ -252,6 +252,37 @@ describe('SavantAdapter', () => {
     expect(row3.pitch_number).toBe(6);
   });
 
+  it('resolves opponent_name and filters server-side via batters_lookup (P1.8)', async () => {
+    // Primary player passed as an id so only the opponent consumes the
+    // resolve mock; the fixture resolves "Aaron Judge" → 592450.
+    vi.mocked(fetchJson).mockResolvedValueOnce(mlbSearchFixture);
+    vi.mocked(fetchText).mockResolvedValueOnce(sampleCsv);
+
+    await adapter.fetch({
+      player_id: '669203',
+      opponent_name: 'Aaron Judge',
+      season: 2024,
+      stat_type: 'pitching',
+    });
+
+    const url = vi.mocked(fetchText).mock.calls[0]?.[0] as string;
+    expect(url).toContain('pitchers_lookup%5B%5D=669203');
+    expect(url).toContain('batters_lookup%5B%5D=592450');
+  });
+
+  it('throws when the opponent cannot be resolved', async () => {
+    vi.mocked(fetchJson).mockResolvedValueOnce({ people: [] });
+
+    await expect(
+      adapter.fetch({
+        player_id: '669203',
+        opponent_name: 'Totally Fake Opponent',
+        season: 2024,
+        stat_type: 'pitching',
+      }),
+    ).rejects.toThrow('Opponent not found');
+  });
+
   it('throws when player cannot be resolved', async () => {
     vi.mocked(fetchJson).mockResolvedValueOnce({ people: [] });
 
