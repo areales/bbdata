@@ -27,6 +27,8 @@ interface MlbStatsResponse {
       season: string;
       team?: { abbreviation: string };
       player?: { id: number; fullName: string };
+      // Present on statSplits rows only (P2.7)
+      split?: { code: string; description: string };
     }>;
   }>;
 }
@@ -82,8 +84,16 @@ export class MlbStatsApiAdapter implements DataAdapter {
     }
 
     const statGroup = query.stat_type === 'batting' ? 'hitting' : query.stat_type;
+    // P2.7: situational splits ride on the same endpoint —
+    // `stats=season,statSplits` returns the season aggregate (no `split`
+    // field on the row) plus one row per requested sitCode. Splits are a
+    // per-player concept, so the leaderboard path ignores sit_codes.
+    const useSplits = playerId != null && !!query.sit_codes?.length;
+    const statsParam = useSplits
+      ? `season,statSplits&sitCodes=${query.sit_codes!.join(',')}`
+      : 'season';
     const url = playerId
-      ? `${BASE_URL}/people/${playerId}/stats?stats=season&season=${query.season}&group=${statGroup}`
+      ? `${BASE_URL}/people/${playerId}/stats?stats=${statsParam}&season=${query.season}&group=${statGroup}`
       : `${BASE_URL}/stats?stats=season&season=${query.season}&group=${statGroup}&gameType=R&limit=50&sortStat=onBasePlusSlugging`;
 
     log.debug(`MLB API: fetching ${url}`);
@@ -100,6 +110,9 @@ export class MlbStatsApiAdapter implements DataAdapter {
           season: Number(split.season) || query.season,
           stat_type: query.stat_type,
           stats: split.stat as Record<string, string | number | null>,
+          ...(split.split
+            ? { split: { code: split.split.code, description: split.split.description } }
+            : {}),
         });
       }
     }

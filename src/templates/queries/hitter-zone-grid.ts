@@ -1,5 +1,6 @@
 import { registerTemplate, type QueryTemplate } from './registry.js';
 import type { PitchData } from '../../adapters/types.js';
+import { assertFields } from '../../utils/validate-records.js';
 
 // 3x3 strike zone grid (copied from hitter-hot-cold-zones.ts)
 // row: 0 = high, 2 = low. col: 0 = inside (catcher POV left), 2 = outside.
@@ -47,6 +48,11 @@ const template: QueryTemplate = {
   transform(data) {
     const pitches = data as PitchData[];
     if (pitches.length === 0) return [];
+    // Without location fields every zone silently reports 0 pitches — an
+    // all-zero grid on a sparse stdin payload is a wrong answer, not a
+    // degraded one. (Null plate_x on a real tracking dropout still passes;
+    // assertFields only rejects absent fields.)
+    assertFields(pitches, ['plate_x', 'plate_z'], 'hitter-zone-grid');
 
     return ZONES.map((z) => {
       const inZone = pitches.filter(

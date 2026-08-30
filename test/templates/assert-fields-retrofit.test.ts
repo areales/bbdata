@@ -33,7 +33,10 @@ const cases: RetrofitCase[] = [
   { id: 'leaderboard-comparison',    requiredFields: ['player_name'],                              params: { players: ['A'] } },
   { id: 'leaderboard-custom',        requiredFields: ['player_name'],                              params: { stat: 'AVG' } },
   { id: 'matchup-pitcher-vs-hitter', requiredFields: ['batter_name'],                              params: { players: ['P', 'H'] } },
+  { id: 'matchup-situational',       requiredFields: ['stats'],                                    params: { player: 'X' } },
   { id: 'pitcher-handedness-splits', requiredFields: ['description', 'stand'],                     params: { player: 'X' } },
+  { id: 'trend-year-over-year',      requiredFields: ['season', 'stats'],                          params: { player: 'X', seasons: '2024-2025' } },
+  { id: 'hitter-zone-grid',          requiredFields: ['plate_x', 'plate_z'],                       params: { player: 'X' } },
 ];
 
 describe('assertFields retrofit (P4.5 opportunistic rollout)', () => {

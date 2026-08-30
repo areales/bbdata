@@ -1,6 +1,7 @@
 import { registerTemplate, type QueryTemplate, type QueryTemplateParams } from './registry.js';
 import type { PlayerStats } from '../../adapters/types.js';
 import { fmtFixed, fmtInt, fmtPercent } from '../../utils/stat-format.js';
+import { assertFields } from '../../utils/validate-records.js';
 
 /**
  * Year-over-year comparison (P1.9). Fetches a two-season range through
@@ -119,6 +120,7 @@ const template: QueryTemplate = {
   transform(data, params) {
     const rows = data as PlayerStats[];
     if (rows.length === 0) return [];
+    assertFields(rows, ['season', 'stats'], 'trend-year-over-year');
 
     const { end } = parseSeasons(params);
 

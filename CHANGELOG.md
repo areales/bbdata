@@ -5,6 +5,32 @@ All notable changes to `bbdata` are documented here. This project follows
 
 ## Unreleased
 
+### Added
+
+- **P2.7 — `matchup-situational` returns real situational splits.**
+  The template previously rendered exactly one `Overall` row — its
+  stated purpose (the splits) had never been fetched, because
+  FanGraphs' leaderboard API has no situational splits. The MLB Stats
+  API adapter now honors a new `AdapterQuery.sit_codes` field via a
+  single `stats=season,statSplits` call, returning the season aggregate
+  plus one row per situation tagged with an optional
+  `PlayerStats.split` descriptor. The template renders Overall, RISP,
+  RISP with 2 outs, bases empty, late & close, innings 1–6, and 7th
+  inning or later. The MLB situation vocabulary has no leverage codes,
+  so the template description now promises what it delivers ("RISP,
+  bases empty, late & close, innings buckets" — "high leverage" is
+  gone).
+
+### Fixed
+
+- **P4.7 — `assertFields` straggler audit.** `matchup-situational`
+  (pitch-level `--data` payloads crashed with
+  `TypeError: … reading 'plateAppearances'`), `trend-year-over-year`
+  (`season`/`stats`), and `hitter-zone-grid` (`plate_x`/`plate_z` —
+  sparse stdin silently produced an all-zero 3×3 grid) now fail fast
+  with the actionable missing-field message. The parameterized
+  regression suite covers 12 templates.
+
 > **Library-consumer note:** `PitchDataSchema` now declares
 > `release_speed`, `release_spin_rate`, `pfx_x`, `pfx_z`, `plate_x`, and
 > `plate_z` as nullable (P1.11 below). TypeScript consumers doing
