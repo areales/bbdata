@@ -41,6 +41,11 @@ export const PitchDataSchema = z.object({
   inning: z.number().nullable().optional(),
   balls: z.number().nullable().optional(),         // balls before the pitch
   strikes: z.number().nullable().optional(),       // strikes before the pitch
+  // Release point (P4.11) — feet, catcher POV. Optional+nullable for the
+  // same reason as the BBDATA-011 fields: pre-existing stdin payloads
+  // without them must keep type-checking.
+  release_pos_x: z.number().nullable().optional(),
+  release_pos_z: z.number().nullable().optional(),
   outs_when_up: z.number().nullable().optional(),  // outs at start of PA
   at_bat_number: z.number().nullable().optional(), // PA index within the game
   pitch_number: z.number().nullable().optional(),  // pitch index within the PA
@@ -57,6 +62,12 @@ export const PlayerStatsSchema = z.object({
   season: z.number(),
   stat_type: z.enum(['batting', 'pitching', 'fielding']),
   stats: z.record(z.union([z.number(), z.string(), z.null()])),
+  /**
+   * Situational-split descriptor (P2.7). Present on rows returned by the
+   * MLB Stats API statSplits path (`AdapterQuery.sit_codes`); absent on
+   * season-aggregate rows, which consumers treat as "Overall".
+   */
+  split: z.object({ code: z.string(), description: z.string() }).optional(),
 });
 
 export type PlayerStats = z.infer<typeof PlayerStatsSchema>;
@@ -93,6 +104,15 @@ export interface AdapterQuery {
    * pitches come back. Other adapters ignore it.
    */
   opponent_name?: string;
+  /**
+   * MLB situation codes for situational splits (P2.7), e.g. `risp`,
+   * `r0`, `lc` — see statsapi.mlb.com/api/v1/situationCodes. Honored by
+   * the MLB Stats API adapter for single-player queries: it fetches
+   * `stats=season,statSplits` and returns the season row (no `split`
+   * field) plus one row per situation, each tagged with
+   * `PlayerStats.split`. Other adapters ignore it.
+   */
+  sit_codes?: string[];
   start_date?: string;       // YYYY-MM-DD
   end_date?: string;         // YYYY-MM-DD
   stat_type: 'batting' | 'pitching' | 'fielding';

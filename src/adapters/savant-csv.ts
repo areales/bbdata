@@ -70,6 +70,8 @@ export function parseSavantCsv(csvText: string): PitchData[] {
     inning: numOrNull(row.inning),
     balls: numOrNull(row.balls),
     strikes: numOrNull(row.strikes),
+    release_pos_x: numOrNull(row.release_pos_x),
+    release_pos_z: numOrNull(row.release_pos_z),
     outs_when_up: numOrNull(row.outs_when_up),
     at_bat_number: numOrNull(row.at_bat_number),
     pitch_number: numOrNull(row.pitch_number),

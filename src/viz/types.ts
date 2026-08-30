@@ -119,6 +119,10 @@ export function resolveVizAudience(
     case 'presentation':
       return a;
     default:
-      return 'analyst';
+      // P4.8: a typo used to silently coerce to analyst styling.
+      throw new Error(
+        `Unknown --audience "${String(a)}". Expected one of: coach, analyst, frontoffice, presentation ` +
+          `(aliases: gm → frontoffice, scout → analyst).`,
+      );
   }
 }

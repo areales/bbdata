@@ -62,4 +62,11 @@ describe('resolveVizAudience', () => {
   it('defaults to analyst when undefined', () => {
     expect(resolveVizAudience(undefined)).toBe('analyst');
   });
+
+  it('rejects unknown audience values with the accepted list (P4.8 regression)', () => {
+    // "bogus" used to silently coerce to analyst styling.
+    expect(() => resolveVizAudience('bogus' as never)).toThrow(
+      /Unknown --audience "bogus".*coach, analyst, frontoffice, presentation/,
+    );
+  });
 });

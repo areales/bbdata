@@ -25,21 +25,27 @@ export const sprayBuilder: ChartBuilder = {
 
   buildSpec(rows, options: ResolvedVizOptions) {
     const bip = (rows['hitter-raw-bip'] ?? []) as Array<{
-      hc_x: number;
-      hc_y: number;
+      hc_x: number | null;
+      hc_y: number | null;
       launch_speed: number | null;
       launch_angle: number | null;
       events: string;
     }>;
 
+    // hitter-raw-bip retains coordinate-less batted balls (P3.6) so
+    // aggregate counts stay honest; they can't be placed on the field,
+    // and `null - 125.42` would coerce to a phantom point otherwise.
     const SCALE = 2.5;
-    const points = bip.map((b) => ({
-      x: (b.hc_x - 125.42) * SCALE,
-      y: (204.0 - b.hc_y) * SCALE,
-      launch_speed: b.launch_speed ?? 0,
-      launch_angle: b.launch_angle ?? 0,
-      events: b.events,
-    }));
+    const points = bip.flatMap((b) => {
+      if (b.hc_x == null || b.hc_y == null) return [];
+      return [{
+        x: (b.hc_x - 125.42) * SCALE,
+        y: (204.0 - b.hc_y) * SCALE,
+        launch_speed: b.launch_speed ?? 0,
+        launch_angle: b.launch_angle ?? 0,
+        events: b.events,
+      }];
+    });
 
     // Outfield arc — half-circle from left foul (-297, 297) through CF (0, 420) to right foul (297, 297)
     // Parametrized so the endpoints meet the foul-line tips.

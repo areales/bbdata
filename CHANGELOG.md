@@ -5,6 +5,69 @@ All notable changes to `bbdata` are documented here. This project follows
 
 ## Unreleased
 
+### Added
+
+- **P2.7 — `matchup-situational` returns real situational splits.**
+  The template previously rendered exactly one `Overall` row — its
+  stated purpose (the splits) had never been fetched, because
+  FanGraphs' leaderboard API has no situational splits. The MLB Stats
+  API adapter now honors a new `AdapterQuery.sit_codes` field via a
+  single `stats=season,statSplits` call, returning the season aggregate
+  plus one row per situation tagged with an optional
+  `PlayerStats.split` descriptor. The template renders Overall, RISP,
+  RISP with 2 outs, bases empty, late & close, innings 1–6, and 7th
+  inning or later. The MLB situation vocabulary has no leverage codes,
+  so the template description now promises what it delivers ("RISP,
+  bases empty, late & close, innings buckets" — "high leverage" is
+  gone).
+
+- **P3.5 — `--min-pitches <n>` on `hitter-vs-pitch-type`** (default 20,
+  matching the course prompt the template mirrors). Pitch types with a
+  handful of pitches faced no longer render sample-free 100%-style
+  rates; pass `--min-pitches 1` for the previous full table.
+
+- **P4.10 — `pitcher-season-profile` gains `SO` and `BB`.** The
+  strikeout total — the most-requested line-score stat in the course
+  material — was absent from the template entirely; both counting
+  stats now sit in the traditional block after GS.
+
+- **P4.11 — `pitcher-raw-pitches` carries count state and release
+  point.** New pass-through columns `balls`, `strikes`,
+  `release_pos_x`, `release_pos_z` (the release coordinates join
+  `PitchData` as optional nullable fields, parsed from the Savant
+  CSV). The course's Pitch Mix by Count and Release Point Plot
+  templates can now build from bbdata output instead of requiring a
+  raw Savant export.
+
+### Changed
+
+- **P4.8 — unknown `--audience` values are rejected** on both `report`
+  and `viz` with an error listing the accepted values and aliases,
+  instead of silently coercing to analyst styling. Technically
+  breaking for callers that relied on the fall-through; the course
+  never advertised it.
+
+### Fixed
+
+- **P3.6 — `hitter-raw-bip` counts now match the season profile.**
+  Rows were selected by having tracking data (`launch_speed > 0` and
+  non-null hit coordinates), so batted balls with tracking dropouts
+  vanished from the pull — Judge 2025 showed 52 home runs against the
+  season profile's 53, and any count aggregated from the template was
+  quietly short. Batted balls are now selected by their Statcast
+  description (`hit_into_play`) and coordinate-less rows are retained
+  with null `hc_x`/`hc_y`. The spray chart filters unplottable points
+  itself — previously a null coordinate would have JS-coerced into a
+  phantom point near home plate.
+
+- **P4.7 — `assertFields` straggler audit.** `matchup-situational`
+  (pitch-level `--data` payloads crashed with
+  `TypeError: … reading 'plateAppearances'`), `trend-year-over-year`
+  (`season`/`stats`), and `hitter-zone-grid` (`plate_x`/`plate_z` —
+  sparse stdin silently produced an all-zero 3×3 grid) now fail fast
+  with the actionable missing-field message. The parameterized
+  regression suite covers 12 templates.
+
 > **Library-consumer note:** `PitchDataSchema` now declares
 > `release_speed`, `release_spin_rate`, `pfx_x`, `pfx_z`, `plate_x`, and
 > `plate_z` as nullable (P1.11 below). TypeScript consumers doing

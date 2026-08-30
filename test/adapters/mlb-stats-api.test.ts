@@ -94,5 +94,64 @@ describe('MlbStatsApiAdapter', () => {
         }),
       ).rejects.toThrow('Player not found');
     });
+
+    it('fetches season + statSplits and tags split rows when sit_codes present (P2.7)', async () => {
+      const splitsFixture = {
+        stats: [
+          {
+            splits: [
+              { stat: { plateAppearances: 627, avg: '.295' }, season: '2025' },
+            ],
+          },
+          {
+            splits: [
+              {
+                stat: { plateAppearances: 161, avg: '.323' },
+                season: '2025',
+                split: { code: 'risp', description: 'Scoring Position' },
+              },
+              {
+                stat: { plateAppearances: 336, avg: '.270' },
+                season: '2025',
+                split: { code: 'r0', description: 'Bases Empty' },
+              },
+            ],
+          },
+        ],
+      };
+      vi.mocked(fetchJson)
+        .mockResolvedValueOnce(peopleFixture)   // resolvePlayer
+        .mockResolvedValueOnce(splitsFixture);  // fetch stats
+
+      const result = await adapter.fetch({
+        player_name: 'Aaron Judge',
+        season: 2025,
+        stat_type: 'batting',
+        sit_codes: ['risp', 'r0'],
+      });
+
+      const url = vi.mocked(fetchJson).mock.calls[1]?.[0] as string;
+      expect(url).toContain('stats=season,statSplits');
+      expect(url).toContain('sitCodes=risp,r0');
+
+      expect(result.data).toHaveLength(3);
+      expect(result.data[0].split).toBeUndefined(); // season aggregate
+      expect(result.data[1].split).toEqual({ code: 'risp', description: 'Scoring Position' });
+      expect(result.data[2].split).toEqual({ code: 'r0', description: 'Bases Empty' });
+    });
+
+    it('ignores sit_codes on the leaderboard path (no player)', async () => {
+      vi.mocked(fetchJson).mockResolvedValueOnce(statsFixture);
+
+      await adapter.fetch({
+        season: 2025,
+        stat_type: 'batting',
+        sit_codes: ['risp'],
+      });
+
+      const url = vi.mocked(fetchJson).mock.calls[0]?.[0] as string;
+      expect(url).toContain('stats=season');
+      expect(url).not.toContain('statSplits');
+    });
   });
 });

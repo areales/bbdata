@@ -34,6 +34,8 @@ describe('pitcher-season-profile template', () => {
           ERA: 2.92,
           IP: 194.1,
           GS: 32,
+          SO: 181,
+          BB: 48,
           FIP: 3.47,
           xFIP: 3.82,
           SIERA: 3.65,
@@ -49,6 +51,10 @@ describe('pitcher-season-profile template', () => {
     expect(byMetric.get('ERA')).toBe('2.92');
     expect(byMetric.get('IP')).toBe('194.1');
     expect(byMetric.get('GS')).toBe('32');
+    // P4.10: strikeout and walk totals — the most-requested line-score
+    // stats — used to be absent from this template entirely.
+    expect(byMetric.get('SO')).toBe('181');
+    expect(byMetric.get('BB')).toBe('48');
     expect(byMetric.get('FIP')).toBe('3.47');
     expect(byMetric.get('xFIP')).toBe('3.82');
     expect(byMetric.get('SIERA')).toBe('3.65');

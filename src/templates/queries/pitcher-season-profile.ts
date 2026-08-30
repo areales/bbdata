@@ -16,8 +16,10 @@ import { fmtFixed, fmtInt, fmtPercent } from '../../utils/stat-format.js';
  * can render a simple two-column table.
  *
  * Output rows are ordered for the typical pro eval reading order:
- * traditional stats (W-L, ERA, IP, GS) first, then DIPS (FIP, xFIP,
- * SIERA), then plate discipline (K-BB%), then WAR for the summary.
+ * traditional stats (W-L, ERA, IP, GS, SO, BB) first, then DIPS (FIP,
+ * xFIP, SIERA), then plate discipline (K-BB%), then WAR for the
+ * summary. SO/BB added for P4.10 — the strikeout total is the
+ * most-requested line-score stat in the course material.
  */
 
 interface MetricSpec {
@@ -36,6 +38,8 @@ const METRICS: MetricSpec[] = [
   { label: 'ERA', keys: ['ERA'], format: fmtFixed(2) },
   { label: 'IP', keys: ['IP'], format: fmtFixed(1) },
   { label: 'GS', keys: ['GS', 'G'], format: fmtInt },
+  { label: 'SO', keys: ['SO', 'K', 'strikeOuts'], format: fmtInt },
+  { label: 'BB', keys: ['BB', 'baseOnBalls'], format: fmtInt },
   { label: 'FIP', keys: ['FIP'], format: fmtFixed(2) },
   { label: 'xFIP', keys: ['xFIP'], format: fmtFixed(2) },
   { label: 'SIERA', keys: ['SIERA'], format: fmtFixed(2) },

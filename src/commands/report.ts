@@ -22,6 +22,9 @@ import type { VizAudience } from '../viz/types.js';
  * type. Accepts `presentation` (→ analyst) and `frontoffice` (→ gm) so that
  * a caller using either CLI gets the same result regardless of which side
  * they came in through.
+ *
+ * Unknown values throw (P4.8) — a typo like "fronoffice" used to silently
+ * coerce to analyst and render the wrong styling with no warning.
  */
 function resolveReportAudience(a: Audience | VizAudience | string | undefined): Audience {
   if (!a) return 'analyst';
@@ -36,7 +39,10 @@ function resolveReportAudience(a: Audience | VizAudience | string | undefined): 
     case 'analyst':
       return a;
     default:
-      return 'analyst';
+      throw new Error(
+        `Unknown --audience "${a}". Expected one of: coach, gm, scout, analyst ` +
+          `(aliases: frontoffice → gm, presentation → analyst).`,
+      );
   }
 }
 import { CLI_VERSION } from '../utils/version.js';
