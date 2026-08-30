@@ -23,7 +23,10 @@ release + course-side work:
   course-side); the m03-l04 `--validate` teaching should be re-checked now
   that `--no-strict --validate` fails on hollow reports; lesson annotations
   quoting `N = 386` batted balls will drift on re-capture (P3.6 retains
-  tracking-dropout rows).
+  tracking-dropout rows); `query-data/SKILL.md` drift — row 49 says
+  "Situational stats, RISP, **leverage**" (MLB has no leverage splits; drop
+  the word) and row 53's `trend-year-over-year` params should mention
+  `--stat pitching` for pitchers.
 
 Verify anything before fixing it — several entries are four months old and the
 adapters fetch live data:
