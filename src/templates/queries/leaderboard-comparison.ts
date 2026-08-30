@@ -1,9 +1,15 @@
 import { registerTemplate, type QueryTemplate } from './registry.js';
 import { assertFields } from '../../utils/validate-records.js';
 import type { PlayerStats } from '../../adapters/types.js';
+import { fmtPercent } from '../../utils/format.js';
 
 
 const REQUIRED_FIELDS = ['player_name'];
+
+// Rate metrics render through the shared fmtPercent so this template
+// agrees with the season profiles' representation ("18.5%", not "0.185")
+// for the same player-season. The systemic per-column design is P1.6.
+const RATE_METRICS = new Set(['K%', 'BB%']);
 
 const template: QueryTemplate = {
   id: 'leaderboard-comparison',
@@ -56,7 +62,8 @@ const template: QueryTemplate = {
           continue;
         }
         const val = findStatValue(player.stats, metric);
-        row[playerNames[i]] = val ?? '—';
+        row[playerNames[i]] =
+          val == null ? '—' : RATE_METRICS.has(metric) ? fmtPercent(val) : val;
       }
       return row;
     });

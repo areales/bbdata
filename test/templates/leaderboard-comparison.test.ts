@@ -29,8 +29,10 @@ describe('leaderboard-comparison template', () => {
     ];
     const rows = template.transform(input, { players: ['Aaron Judge'] });
     const byMetric = new Map(rows.map((r) => [r.Metric, r['Aaron Judge']]));
-    expect(byMetric.get('BB%')).toBe('0.185');
-    expect(byMetric.get('K%')).toBe('0.236');
+    // Rate metrics render through the shared fmtPercent, matching the
+    // season profiles' representation.
+    expect(byMetric.get('BB%')).toBe('18.5%');
+    expect(byMetric.get('K%')).toBe('23.6%');
   });
 
   it('prefers the exact wRC+ key over the wRC counting stat (P1.17 regression)', () => {
@@ -48,7 +50,7 @@ describe('leaderboard-comparison template', () => {
     ];
     const rows = template.transform(input, { players: ['Aaron Judge'] });
     const byMetric = new Map(rows.map((r) => [r.Metric, r['Aaron Judge']]));
-    expect(byMetric.get('BB%')).toBe('0.185');
+    expect(byMetric.get('BB%')).toBe('18.5%');
   });
 
   it('renders em-dash for unmatched players', () => {

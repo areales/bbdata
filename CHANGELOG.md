@@ -22,7 +22,9 @@ screen are correct after this.
   The normalized key scan matched `BB` (walk total) for `BB%` and `wRC`
   (weighted runs created) for `wRC+`, which is why the template reported
   walk counts as rates and disagreed with `hitter-season-profile` on wRC+
-  by 41 points. Exact-key match now runs first.
+  by 41 points. Exact-key match now runs first, and the `K%`/`BB%` rows
+  render through the shared `fmtPercent` (`"18.5%"`, not `"0.185"`) so the
+  template agrees with the season profiles' representation.
 - **P1.11 — fabricated zeros for untracked pitches.** `savant-csv` coerced
   blank `release_speed`, `release_spin_rate`, `pfx_x`, `pfx_z`, `plate_x`,
   and `plate_z` cells to `0` (`Number('') === 0`); a tracking dropout became
