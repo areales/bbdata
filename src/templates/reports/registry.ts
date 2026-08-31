@@ -50,7 +50,7 @@ export function listReportTemplates(): { id: string; name: string; category: str
   }));
 }
 
-// --- Register all 12 report templates ---
+// --- Register all 13 report templates ---
 
 registerReportTemplate({
   id: 'pro-pitcher-eval',
