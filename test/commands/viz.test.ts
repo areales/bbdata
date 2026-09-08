@@ -313,6 +313,24 @@ describe('P5.1 — viz --players', () => {
     expect(result.meta.rowCount).toBe(30);
   });
 
+  it('rejects a comparison of one rather than rendering an empty chart', async () => {
+    // A single-name roster used to reach the builder untagged, so the chart
+    // rendered "No comparable season data" at exit 0 for a player who has data.
+    await expect(
+      viz({ type: 'comparison', player: 'Aaron Judge', season: 2025 }),
+    ).rejects.toThrow(/two or more players.*Aaron Judge/s);
+
+    await expect(
+      viz({ type: 'comparison', players: ['Aaron Judge'], season: 2025 }),
+    ).rejects.toThrow(/two or more players/);
+  });
+
+  it('rejects a comparison with no players at all', async () => {
+    await expect(viz({ type: 'comparison', season: 2025 })).rejects.toThrow(
+      /two or more players/,
+    );
+  });
+
   it('folds --player into --players instead of dropping it', async () => {
     const result = await viz({
       type: 'comparison',

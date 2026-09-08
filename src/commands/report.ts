@@ -547,8 +547,13 @@ ${formatReportTemplateList()}
 
         log.data(result.formatted);
 
-        if (result.validation && !result.validation.passed) {
-          log.warn('Validation issues found:');
+        // Print issues whenever there are any, not only on failure. `passed`
+        // ignores warnings by design, so gating the print on it swallowed
+        // every warning the checklist raised — including P5.2's
+        // scaffold-template notice, whose entire job is to say out loud that
+        // a green banner covers a form and not an analysis.
+        if (result.validation && result.validation.issues.length > 0) {
+          log.warn(result.validation.passed ? 'Validation warnings:' : 'Validation issues found:');
           for (const issue of result.validation.issues) {
             const prefix = issue.severity === 'error' ? '  ✗' : '  ⚠';
             log.warn(`${prefix} ${issue.message}`);

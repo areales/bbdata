@@ -99,7 +99,20 @@ export async function viz(options: VizOptions): Promise<VizResult> {
   const roster = Array.from(
     new Set([...(options.player ? [options.player] : []), ...requestedPlayers]),
   );
-  const isComparison = builder.supportsComparison === true && roster.length > 1;
+  const isComparison = builder.supportsComparison === true;
+
+  // A comparison of one is not a comparison. Rows are tagged with the player
+  // field only on a comparison, so a single-name roster used to reach the
+  // builder untagged and render an empty "no comparable data" chart at exit 0
+  // — for a player who has data. Say what the help text says instead.
+  if (isComparison && roster.length < 2) {
+    throw new Error(
+      `Chart type "${chartType}" plots two or more players. ` +
+        (roster.length === 1
+          ? `Only "${roster[0]}" was given — add the others, e.g. --players "${roster[0]},Shohei Ohtani".`
+          : 'Pass them with --players "Name A,Name B".'),
+    );
+  }
 
   // Before 0.12 `--players` was parsed, stored, and read by nobody. A flag
   // that is accepted and ignored is the exact defect this release exists to
@@ -269,7 +282,7 @@ export function registerVizCommand(program: Command): void {
     .option('--dpi <n>', 'Target DPI for raster output (png, or pdf with --pdf-mode raster)', (v) => parseInt(v, 10))
     .option('--pdf-mode <mode>', 'PDF rendering: vector (default) or raster (fallback for complex Vega output)')
     .option('--window <n>', 'Rolling window size in games (rolling chart only)', (v) => parseInt(v, 10))
-    .option('--size <WxH>', 'Chart dimensions, e.g. 800x600')
+    .option('--size <WxH>', 'Plot area, e.g. 800x600 — axes and legend sit outside it, so the file is larger')
     .option('--colorblind', 'Use a colorblind-safe palette (viridis)')
     .option('-o, --output <path>', 'Write chart to a file (otherwise prints to stdout)')
     .option('--source <src>', 'Force a data source (savant, fangraphs, ...)')

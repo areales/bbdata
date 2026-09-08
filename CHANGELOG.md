@@ -5,6 +5,92 @@ All notable changes to `bbdata` are documented here. This project follows
 
 ## Unreleased
 
+## 0.12.0 — 2026-09-07
+
+The honesty release: say what you do. The video drift audit
+(`../video-hyperframes/BBDATA-DRIFT.md`) compared what the course tells
+students bbdata does against what the CLI actually returns, and found five
+places where the tool claimed more than it delivered. Every one is closed by
+making the tool true rather than by softening the claim.
+
+**Behavior change:** `--players` on `viz` used to be accepted and silently
+ignored. It now drives a real comparison chart, and passing it to a chart type
+that can't compare is an error naming one that can.
+
+### Added
+
+- **P5.1 — `viz comparison`, a real multi-player chart.** New canonical chart
+  type `comparison` (aliases `compare`, `player-comparison`) reads
+  `hitter-season-profile` and renders faceted bars: one panel per metric, one
+  bar per player. `viz()` fetches once per player with players as the outer
+  loop, so an absent player fails loudly instead of being swallowed by an
+  optional data requirement. `--player` folds into `--players` rather than
+  being dropped. Tooltips show bbdata's own formatted string, so the chart
+  never implies more precision than the table had, and a `—` value drops its
+  bar instead of plotting a false zero. `VizResult.meta` gains a `players`
+  array; rows are tagged with the shared `COMPARISON_PLAYER_FIELD` constant.
+  Fixture at `.reports/fixtures/comparison.png`.
+
+- **P5.3 — real per-audience report sections.** A shared
+  `audience-lens.hbs` partial renders a different "How to Read This" block per
+  audience, wired into all five data-driven templates. Before this,
+  `--audience` changed nothing about a report's content. Needed a new `eq`
+  Handlebars helper. Every branch carries an `{{else}}` fallback, because the
+  `audiences` array on `ReportTemplate` is declared but not enforced.
+
+- **P5.5 — `cliVersion` in `query` and `viz` JSON `meta`.** Stamped in the
+  `format()` dispatcher so all four formatters return the same meta, and
+  required on `QueryResult.meta` and `VizResult.meta`. Only JSON serializes
+  meta, so table, CSV, and markdown output is unchanged. `report` already
+  carried the version in its footer.
+
+### Changed
+
+- **P5.2 — the eight scaffold report templates are marked as such.**
+  `scaffold` is derived from `dataRequirements.length === 0` rather than
+  hand-set, since a hand-set flag is itself a future honesty bug. Surfaced as
+  `*` with a legend in `report --help`, on `listReportTemplates()`, and as a
+  new `scaffold-template` warning in `--validate`.
+
+- **P5.4 — README template counts match the registry.** It said 21 query
+  templates and 2 trend; the registry has 22 and 3. Counted from the
+  self-registering templates: 8 pitcher, 7 hitter, 2 matchup, 2 leaderboard,
+  3 trend. The missing trend id was `pitcher-rolling-trend`. The 13 report
+  templates and the User Guide reference card were already right.
+
+### Fixed
+
+- **`viz comparison` with one player rendered an empty chart at exit 0.** Rows
+  are tagged with the player field only on a comparison, and "is a comparison"
+  was gated on a roster of two or more — so a single-name roster reached the
+  builder untagged and produced "No comparable season data" for a player who
+  has data. It now errors, naming the player given and showing the fix, which
+  is what `viz --help` already promised.
+
+- **`--validate` warnings were collected and then discarded.** The CLI printed
+  the issue list only when validation failed, and warnings don't fail a report
+  — so every warning the checklist raised was invisible, P5.2's new
+  scaffold-template notice included. Warnings now print to stderr under
+  `Validation warnings:`; errors keep the existing `Validation issues found:`
+  heading and the non-zero exit.
+
+- **`viz --size` said "chart dimensions" but sets the plot area.** Axes and
+  legend lay out around it, so `--size 1200x800` yields a 1342px-wide SVG. The
+  help text now says which one it is; the behavior is unchanged.
+
+- **Report templates declared required sections they never rendered.** Twelve
+  of thirteen declared a `Header` section no `.hbs` produces, and `advance-sp`
+  declared `Times Through Order` against a heading reading `Times Through the
+  Order`. `section-present` is warning-only, so both had been failing silently
+  on every run. A new test asserts every declared section is actually rendered
+  by its template, for all thirteen.
+
+### Known gaps
+
+- The `audiences` array on `ReportTemplate` is still declared but never
+  enforced — any audience reaches any template. The P5.3 `{{else}}` fallbacks
+  make that safe but not honest; enforce the field or drop it.
+
 ## 0.11.0 — 2026-09-07
 
 The backlog the course's own facts gates found. Every lesson video since

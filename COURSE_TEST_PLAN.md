@@ -36,14 +36,29 @@ For any `npm version` bump:
 4. If a previously-passing `C` row now fails, treat it as a release blocker. If an `A` row was skipped on a prior release, re-run it on the first minor/major that touches the same surface.
 5. Record nothing in this file per-release — the ✓ marks track *current* status, not a version history. Git log provides the version trail.
 
-**Last full smoke: v0.11.0, 2026-09-07.** Sections re-run: §1, §2A (all C),
-§2B (all A — live network, required on a minor), §3A, §3B, §4, §4A, §4B, §4C.
-All passed. Live spot-checks confirmed the defects 0.11.0 shipped fixes for:
-K-BB% 19.2% (0.10.0 said 0.2%), BB%/K% correctly scaled, **wRC+ 204 where
-0.10.0 returned wRC ~129**, arsenal break in true inches, `SO`/`BB` present,
-7 situational split rows where 0.10.0 gave 1. §3, §5, §6, §7 and §8 were not
-re-run — 0.11.0 did not add or rename a report template, a flag, or a chart
-type. **0.12 will**, so re-run §1, §3, §3B, §4, §4A and §5 on that release.
+**Last full smoke: v0.12.0, 2026-09-07.** Sections re-run: §1, §3 (all C),
+§3A, §3B, §4, §4A, §5 (every C row plus the live-network A rows F.13–F.18) —
+the set 0.12 touched by adding a chart type, a flag behavior, per-audience
+report sections and the scaffold marking. All passed. Two defects were found
+by the smoke itself and fixed before the bump, both the same shape as the
+release's own theme:
+
+- `viz comparison --player "One Name"` exited 0 with an empty "No comparable
+  season data" chart for a player who has data (V.C2). Row tagging was gated
+  on a roster of 2+, so a one-name roster reached the builder untagged. It now
+  errors, matching what the help text already said.
+- Every `--validate` **warning** was collected and discarded — the CLI gated
+  its issue printout on `!passed`, and warnings don't fail a report. That
+  silently swallowed P5.2's scaffold notice, the whole point of which is to say
+  a green banner covers a form and not an analysis (R.V3, R.V4).
+
+Two row expectations were corrected rather than the CLI: F.17/F.18 tested
+`--source` against a pitch-level template only Savant serves, and F.23 expected
+`--size` to set the SVG canvas when it sets the Vega plot area.
+
+§2, §6, §7 and §8 were not re-run — 0.12 added no query template, and §7/§8 are
+Aaron's clean-env and course-skill rows. The prior v0.11.0 smoke covered §2A/§2B
+in full.
 
 Fixture conventions:
 - `test/fixtures/savant-csv-sample.csv` — shared Savant CSV fixture for pitcher-side stdin/--data tests. Works for `pitcher-*`, `matchup-pitcher-vs-hitter`, and `trend-rolling-average` inputs. **Not** valid for `matchup-situational` (season-aggregate template since P2.7 — pitch-level input errors actionably; see Q.15/Q.23). Carries `balls`/`strikes`/`inning`/`at_bat_number` (P4.6) so the count-state and TTO templates return rows.
@@ -71,8 +86,9 @@ The top-level `bbdata` binary and its three subcommands must exist and print the
 | H.2 | C | `node dist/bin/bbdata.js --help` | Lists three commands: `query`, `report`, `viz`. | ✓ |
 | H.3 | C | `node dist/bin/bbdata.js query --help` | Lists `--player`, `--players`, `--season`, `--format`, `--source`, `--stat`, `--pitch-type`, `--min-pa`, `--min-ip`, `--min-pitches`, `--top`, `--seasons`, `--no-cache`, `--stdin`, `--data`. | ✓ |
 | H.4 | C | `node dist/bin/bbdata.js report --help` | Lists `--player`, `--team`, `--season`, `--audience`, `--format`, `--validate`, `--no-strict`, `--stdin`, `--data`. Audience line must advertise `frontoffice→gm` and `presentation→analyst` aliases (from P4.3). | ✓ |
-| H.5 | C | `node dist/bin/bbdata.js viz --help` | Lists `--type`, `--player`, `--players`, `--season`, `--audience`, `--format {svg,png,html,pdf}`, `--dpi`, `--pdf-mode`, `--window`, `--size`, `--colorblind`, `-o/--output`, `--source`, `--stdin`, `--data`. Lists the 6 canonical chart types (`movement`, `movement-binned`, `spray`, `zone`, `rolling`, `pitcher-rolling`) + 4 aliases. | ✓ |
+| H.5 | C | `node dist/bin/bbdata.js viz --help` | Lists `--type`, `--player`, `--players`, `--season`, `--audience`, `--format {svg,png,html,pdf}`, `--dpi`, `--pdf-mode`, `--window`, `--size`, `--colorblind`, `-o/--output`, `--source`, `--stdin`, `--data`. Lists the 7 canonical chart types (`movement`, `movement-binned`, `spray`, `zone`, `rolling`, `pitcher-rolling`, `comparison`) + 6 aliases. `--players` line must say it is for chart types that compare (P5.1); `--size` must say it sets the plot area, not the file's canvas. | ✓ |
 | H.6 | C | `node dist/bin/bbdata.js query --help` | "Available templates" section lists **all 22** shipped query templates (21 pre-F1.1 + `pitcher-rolling-trend`), generated dynamically from the registry. | ✓ |
+| H.7 | C | `node dist/bin/bbdata.js report --help` | "Available templates" marks the 8 scaffold ids with `*` and carries the legend explaining that they fetch nothing (P5.2). The 5 unmarked ids are the data-driven ones. | ✓ |
 
 ---
 
@@ -125,19 +141,19 @@ C-rows: smoke that the template is **registered** and renders without fetching a
 
 | # | Who | Template | Smoke command (C) | Expected | ✓ |
 |---|---|---|---|---|---|
-| R.1 | C | `pro-pitcher-eval` | `... report pro-pitcher-eval --player "Burnes Corbin" --data test/fixtures/savant-csv-sample.csv --no-strict --format markdown` | Exit 0. Markdown output contains `Pitch Arsenal`, `Splits Analysis` headings + footer version line (from the recent partial-wiring fix). | ☐ |
-| R.2 | C | `pro-hitter-eval` | same shape, substitute template | Exit 0. Contains `Batted Ball Profile`, `Approach & Discipline`. | ☐ |
-| R.3 | C | `relief-pitcher-quick` | same | Exit 0. Contains `Arsenal`, `Key Metrics`, `Recommendation`. | ☐ |
-| R.4 | C | `college-pitcher-draft` | same | Exit 0. Contains `Arsenal Grades`, `Projection`. | ☐ |
-| R.5 | C | `college-hitter-draft` | same | Exit 0. Contains `Tool Grades`, `Projection`. | ☐ |
-| R.6 | C | `hs-prospect` | same | Exit 0. Contains `Makeup`, `Signability`. | ☐ |
-| R.7 | C | `advance-sp` | `... report advance-sp --player "Burnes Corbin" --data test/fixtures/savant-csv-sample.csv --audience coach --no-strict` | Exit 0. Contains `Recent Form`, `Times Through the Order` (the template's actual heading — match on the full phrase or case-insensitive `Times Through`), `Platoon Vulnerabilities`, `How to Attack`. | ☐ |
-| R.8 | C | `advance-lineup` | `... report advance-lineup --team NYY --no-strict` | Exit 0 OR fails cleanly with "team data not available" — `advance-lineup` has no stdin path. Accept either; record which. | ☐ |
-| R.9 | C | `dev-progress` | `... report dev-progress --player "Any Name" --no-strict` | Exit 0. Stub sections present. | ☐ |
-| R.10 | C | `post-promotion` | same | Exit 0. | ☐ |
-| R.11 | C | `trade-target-onepager` | `... trade-target-onepager --player "Burnes Corbin" --data test/fixtures/savant-csv-sample.csv --audience gm --no-strict` | Exit 0. Contains `Strengths`, `Concerns`, `Fit Assessment`. | ☐ |
-| R.12 | C | `draft-board-card` | `... draft-board-card --player "Some Prospect" --no-strict` | Exit 0. Contains `Tool Grades`, `Round Range`. | ☐ |
-| R.13 | C | `draft-board-card-pitcher` | same template swapped | Exit 0. Contains Fastball/Breaking/Changeup/Command tool grades (pitcher variant). | ☐ |
+| R.1 | C | `pro-pitcher-eval` | `... report pro-pitcher-eval --player "Burnes Corbin" --data test/fixtures/savant-csv-sample.csv --no-strict --format markdown` | Exit 0. Markdown output contains `Pitch Arsenal`, `Splits Analysis` headings + footer version line (from the recent partial-wiring fix). | ✓ |
+| R.2 | C | `pro-hitter-eval` | same shape, substitute template | Exit 0. Contains `Batted Ball Profile`, `Approach & Discipline`. | ✓ |
+| R.3 | C | `relief-pitcher-quick` | same | Exit 0. Contains `Arsenal`, `Key Metrics`, `Recommendation`. | ✓ |
+| R.4 | C | `college-pitcher-draft` | same | Exit 0. Contains `Arsenal Grades`, `Projection`. | ✓ |
+| R.5 | C | `college-hitter-draft` | same | Exit 0. Contains `Tool Grades`, `Projection`. | ✓ |
+| R.6 | C | `hs-prospect` | same | Exit 0. Contains `Makeup`, `Signability`. | ✓ |
+| R.7 | C | `advance-sp` | `... report advance-sp --player "Burnes Corbin" --data test/fixtures/savant-csv-sample.csv --audience coach --no-strict` | Exit 0. Contains `Recent Form`, `Times Through the Order` (the template's actual heading — match on the full phrase or case-insensitive `Times Through`), `Platoon Vulnerabilities`, `How to Attack`. | ✓ |
+| R.8 | C | `advance-lineup` | `... report advance-lineup --team NYY --no-strict` | Exit 0 OR fails cleanly with "team data not available" — `advance-lineup` has no stdin path. Accept either; record which. | ✓ |
+| R.9 | C | `dev-progress` | `... report dev-progress --player "Any Name" --no-strict` | Exit 0. Stub sections present. | ✓ |
+| R.10 | C | `post-promotion` | same | Exit 0. | ✓ |
+| R.11 | C | `trade-target-onepager` | `... trade-target-onepager --player "Burnes Corbin" --data test/fixtures/savant-csv-sample.csv --audience gm --no-strict` | Exit 0. Contains `Strengths`, `Concerns`, `Fit Assessment`. | ✓ |
+| R.12 | C | `draft-board-card` | `... draft-board-card --player "Some Prospect" --no-strict` | Exit 0. Contains `Tool Grades`, `Round Range`. | ✓ |
+| R.13 | C | `draft-board-card-pitcher` | same template swapped | Exit 0. Contains Fastball/Breaking/Changeup/Command tool grades (pitcher variant). | ✓ |
 
 ### 3A — `--audience` value coverage
 
@@ -157,10 +173,12 @@ C-rows: smoke that the template is **registered** and renders without fetching a
 |---|---|---|---|---|
 | R.V1 | C | `... report pro-pitcher-eval --player "Burnes Corbin" --data test/fixtures/savant-csv-sample.csv --validate --no-strict` | Exit 0. **Stdout** ends with `<!-- bbdata validation: passed (checks: ...) -->`. Corrected 2026-09-07: the row used to say *stderr*, but on a clean pass stderr is empty — `log.warn` only fires when there are issues, so the banner in the markdown body is the only signal. | ✓ |
 | R.V2 | C | `... report pro-pitcher-eval --player "Notarealplayer Xyz" --season 2025 --validate --no-strict` | Banner reads `failed`, with a `required-data` error per missing required query (P1.13, live on 0.11.0). **Note:** this inversion only applies to a template that *has* data requirements — a scaffold like `hs-prospect` still validates `passed`, because it has no required data to miss. | ✓ |
+| R.V3 | C | `... report hs-prospect --player "Some Prospect" --validate --no-strict` | Banner still reads `passed` (a warning does not fail a report), and `scaffold-template` appears in the checks list. **Stderr** carries `Validation warnings:` followed by the scaffold notice — this is what stops a green banner from implying the numbers were checked (P5.2). | ✓ |
+| R.V4 | C | any `--validate` run whose only issues are warnings | Warnings print to stderr. **Regression guard** — the CLI used to gate the issue printout on `!passed`, so every warning the checklist raised was collected and then thrown away, the scaffold notice included. | ✓ |
 
 ---
 
-## §4 — Viz chart types (6 canonical + 4 aliases)
+## §4 — Viz chart types (7 canonical + 6 aliases)
 
 | # | Who | Type | Command | Expected | ✓ |
 |---|---|---|---|---|---|
@@ -174,7 +192,13 @@ C-rows: smoke that the template is **registered** and renders without fetching a
 | V.A2 | C | alias `hitting-spray` | resolves to `spray` | Exit 0. Byte-diff vs V.3. | ✓ |
 | V.A3 | C | alias `hitting-zones` | resolves to `zone` | Exit 0. Byte-diff vs V.4. | ✓ |
 | V.A4 | C | alias `trend-rolling` | resolves to `rolling` | Exit 0. Byte-diff vs V.5. | ✓ |
-| V.F1 | C | canonical list emitted on unknown type | `... viz bogus-type --player X` | Exit non-zero. Stderr lists canonical types + aliases. | ✓ |
+| V.7 | A | `comparison` (P5.1) | `... viz comparison --players "Aaron Judge,Shohei Ohtani,Juan Soto" --season 2025 --format svg -o .tmp/cmp3.svg` | Exit 0. Valid SVG, live network (no pitch-level fixture reaches `hitter-season-profile`). All three surnames appear in the SVG text — an empty chart renders the "No comparable season data" message instead. | ✓ |
+| V.A5 | C | alias `player-comparison` | resolves to `comparison` | Listed in `viz --help` under Aliases; unknown-type error names it. | ✓ |
+| V.A6 | C | alias `compare` | resolves to `comparison` | Same. | ✓ |
+| V.C1 | C | `--players` on a chart that can't compare | `... viz movement --data test/fixtures/savant-csv-sample.csv --players "Aaron Judge,Shohei Ohtani"` | Exit non-zero. Error says `movement` plots one player, names `comparison` as a chart that compares, and shows the corrected command. | ✓ |
+| V.C2 | C | comparison of one | `... viz comparison --player "Aaron Judge" --season 2025` | Exit non-zero: "plots two or more players", naming the one player given. **Regression guard** — before the fix this exited 0 with an empty "No comparable season data" chart for a player who has data, because rows are tagged with the player field only on a multi-name roster. | ✓ |
+| V.C3 | C | comparison with no players | `... viz comparison --season 2025` | Exit non-zero, same "two or more players" error. | ✓ |
+| V.F1 | C | canonical list emitted on unknown type | `... viz bogus-type --player X` | Exit non-zero. Stderr lists canonical types + aliases (13 names as of 0.12). | ✓ |
 
 ### 4A — `--format` output formats
 
@@ -186,6 +210,7 @@ C-rows: smoke that the template is **registered** and renders without fetching a
 | V.F.pdf | C | V.1 with `--format pdf -o .tmp/v.pdf` | File starts with `%PDF-`. | ✓ |
 | V.F.pdf-raster | C | V.1 with `--format pdf --pdf-mode raster --dpi 300 -o .tmp/v-raster.pdf` | File starts with `%PDF-`. File size noticeably larger than V.F.pdf. | ✓ |
 | V.F.gif | C | V.1 with `--format gif` | Exit non-zero. Stderr names accepted formats. | ✓ |
+| V.F.cmp | A | `... viz comparison --players "Aaron Judge,Juan Soto" --season 2025 --format <fmt>` for svg, png, html, pdf | Exit 0 in all four. The comparison chart is faceted (one panel per metric), so it exercises a wider Vega layout than V.1 through the same four writers. | ✓ |
 
 ### 4B — Viz `--audience` normalization
 
@@ -218,38 +243,38 @@ Each row: one flag, one command, course citation + CLI confirmation.
 
 | # | Who | Flag | Command | Course cites | CLI accepts? | Test command | Expected | ✓ |
 |---|---|---|---|---|---|---|---|---|
-| F.1 | C | `--player` / `-p` | query, report, viz | SKILL:60 | Yes | (covered by §2–§4) | — | ☐ |
-| F.2 | C | `--players` | query, viz | SKILL:66 | Yes | Q.14, Q.20 | — | ☐ |
-| F.3 | C | `--season` / `-s` | query, report, viz | User Guide:113 | Yes | (covered) | — | ☐ |
-| F.4 | C | `--seasons <range>` | query (trend-year-over-year) | SKILL:69 | Yes | Q.21 | — | ☐ |
-| F.5 | C | `--format json` | query, report | SKILL:57 | Yes | (covered) | — | ☐ |
-| F.6 | C | `--format table` | query | QTL:69 | Yes | Q.19 (table output visible) | — | ☐ |
-| F.7 | C | `--format csv` | query | User Guide:128 | Yes | `... query pitcher-arsenal --player "Burnes Corbin" --data test/fixtures/savant-csv-sample.csv --format csv` | Exit 0. Output starts with a header row + comma-separated values. | ☐ |
-| F.8 | C | `--format markdown` | query, report | User Guide:122 | Yes | (report covered) | — | ☐ |
-| F.9 | C | `--format svg/png/html/pdf` | viz | User Guide:264–279 | Yes | §4A | — | ☐ |
-| F.10 | C | `--audience` | report, viz | SKILL:50 | Yes | §3A, §4B | — | ☐ |
-| F.11 | C | `--stat` | query (leaderboard) | SKILL:68 | Yes | Q.19 | — | ☐ |
-| F.12 | C | `--pitch-type` | query | SKILL:68 | Yes | `... query pitcher-arsenal --player "Burnes Corbin" --data test/fixtures/savant-csv-sample.csv --pitch-type FF --format json` | Exit 0. `data` has exactly one row with `Pitch Type: Four-Seam Fastball`. (G.7 fixed — stdin adapter now honors the filter.) | ☐ |
-| F.13 | A | `--min-ip` | query (leaderboard) | SKILL:68 | Yes | Q.19 covers | — | ☐ |
-| F.14 | A | `--min-pa` | query (leaderboard) | User Guide:99 | Yes | `... query leaderboard-custom --stat OPS --min-pa 200 --top 10` | Exit 0. | ☐ |
-| F.15 | A | `--top <n>` | query (leaderboard) | SKILL:68 | Yes | Q.19 covers | — | ☐ |
-| F.16 | A | `--source savant` | query, viz | SKILL:70 | Yes | `... query pitcher-arsenal --player "Corbin Burnes" --source savant` | Exit 0. `meta.source === "savant"`. | ☐ |
-| F.17 | A | `--source fangraphs` | query | User Guide:256 | Yes | same, swap source | Exit 0. `meta.source === "fangraphs"`. | ☐ |
-| F.18 | A | `--source mlb-stats-api` | query | User Guide:256 | Yes | same | Exit 0. `meta.source === "mlb-stats-api"`. | ☐ |
-| F.19 | C | `--source baseball-reference` | — **course never uses** | — | Yes (CLI allows) | `... --source baseball-reference` | Exit non-zero with "no adapter for baseball-reference" OR exit 0 with `meta.source === "baseball-reference"` OR exit 1 with the R2.1 config-gate error pointing at `~/.bbdata/config.json → sources.baseballReference.enabled = true` (correct behavior since v0.9.0). Record which. (Potentially dead code.) | ☐ |
-| F.20 | C | `--validate` | report | SKILL:50 | Yes | R.V1 | — | ☐ |
-| F.21 | C | `--no-strict` | report | — **not in course** | Yes (CLI only) | R.1–R.13 use it | — | ☐ |
-| F.22 | C | `--colorblind` | viz | SKILL:63 | Yes | `V.1 + --colorblind` | Exit 0. SVG source contains viridis scheme colors — Vega-Lite emits them as `rgb(…)` triplets (e.g. `rgb(59, 82, 139)`, `rgb(33, 145, 141)`), not `#440154`-style hex, so assert on `rgb(` forms. | ☐ |
-| F.23 | A | `--size WxH` | viz | SKILL:64 | Yes | `V.1 + --size 1200x800` | SVG `<svg width="1200">`. | ☐ |
-| F.24 | C | `--dpi <n>` | viz | User Guide:276 | Yes | `V.F.png + --dpi 300 -o .tmp/v-300.png` | File's PNG header reports pixel width ≈ chartWidth × 300/96. | ☐ |
-| F.25 | C | `--pdf-mode <mode>` | viz | User Guide:252 | Yes | V.F.pdf-raster | — | ☐ |
-| F.26 | C | `--window <n>` | viz (rolling) | SKILL:461 | Yes | V.5 | — | ☐ |
-| F.27 | C | `-o / --output <path>` | viz | SKILL:65 | Yes | §4 all rows | — | ☐ |
-| F.28 | C | `--no-cache` | query | User Guide:294 | Yes | `... query ... --no-cache` (second invocation after a cached run) | Exit 0. `meta.cached === false`. | ☐ |
-| F.29 | C | `--stdin` | query, report, viz | User Guide:296 | Yes | `type test\fixtures\savant-csv-sample.csv | node dist/bin/bbdata.js query pitcher-arsenal --stdin --format json` — note: CSV pipe may not parse; prefer `--data` (see §6). | Exit 0 or a clear parse error. | ☐ |
-| F.30 | C | `--data <path>` | query, report, viz | — **CLI-only (not in course yet — P3.4)** | Yes | (covered by §2A, §3, §4) | — | ☐ |
-| F.31 | C | `-t / --team` | report | User Guide:340 | Yes | R.8 | — | ☐ |
-| F.32 | C | `--min-pitches <n>` | query (hitter-vs-pitch-type) | — **CLI-only (P3.5; course prompt says "at least 20 pitches faced")** | Yes | `... query hitter-vs-pitch-type --player "Judge Aaron" --data test/fixtures/savant-csv-sample.csv --min-pitches 1 --format json` | Exit 0 with per-pitch-type rows. Without the flag the 13-pitch fixture filters to 0 rows (default floor is 20) and exits non-zero — that is expected, not a failure. | ☐ |
+| F.1 | C | `--player` / `-p` | query, report, viz | SKILL:60 | Yes | (covered by §2–§4) | — | ✓ |
+| F.2 | C | `--players` | query, viz | SKILL:66 | Yes | Q.14, Q.20 | — | ✓ |
+| F.3 | C | `--season` / `-s` | query, report, viz | User Guide:113 | Yes | (covered) | — | ✓ |
+| F.4 | C | `--seasons <range>` | query (trend-year-over-year) | SKILL:69 | Yes | Q.21 | — | ✓ |
+| F.5 | C | `--format json` | query, report | SKILL:57 | Yes | (covered) | — | ✓ |
+| F.6 | C | `--format table` | query | QTL:69 | Yes | Q.19 (table output visible) | — | ✓ |
+| F.7 | C | `--format csv` | query | User Guide:128 | Yes | `... query pitcher-arsenal --player "Burnes Corbin" --data test/fixtures/savant-csv-sample.csv --format csv` | Exit 0. Output starts with a header row + comma-separated values. | ✓ |
+| F.8 | C | `--format markdown` | query, report | User Guide:122 | Yes | (report covered) | — | ✓ |
+| F.9 | C | `--format svg/png/html/pdf` | viz | User Guide:264–279 | Yes | §4A | — | ✓ |
+| F.10 | C | `--audience` | report, viz | SKILL:50 | Yes | §3A, §4B | — | ✓ |
+| F.11 | C | `--stat` | query (leaderboard) | SKILL:68 | Yes | Q.19 | — | ✓ |
+| F.12 | C | `--pitch-type` | query | SKILL:68 | Yes | `... query pitcher-arsenal --player "Burnes Corbin" --data test/fixtures/savant-csv-sample.csv --pitch-type FF --format json` | Exit 0. `data` has exactly one row with `Pitch Type: Four-Seam Fastball`. (G.7 fixed — stdin adapter now honors the filter.) | ✓ |
+| F.13 | A | `--min-ip` | query (leaderboard) | SKILL:68 | Yes | Q.19 covers | — | ✓ |
+| F.14 | A | `--min-pa` | query (leaderboard) | User Guide:99 | Yes | `... query leaderboard-custom --stat OPS --min-pa 200 --top 10` | Exit 0. | ✓ |
+| F.15 | A | `--top <n>` | query (leaderboard) | SKILL:68 | Yes | Q.19 covers | — | ✓ |
+| F.16 | A | `--source savant` | query, viz | SKILL:70 | Yes | `... query pitcher-arsenal --player "Corbin Burnes" --season 2025 --source savant` | Exit 0. `meta.source === "savant"`. | ✓ |
+| F.17 | A | `--source fangraphs` | query | User Guide:256 | Yes | `... query pitcher-season-profile --player "Corbin Burnes" --season 2025 --source fangraphs --format json` | Exit 0. `meta.source === "fangraphs"`, 11 rows. **Corrected 2026-09-07:** the row used to reuse `pitcher-arsenal`, which is pitch-level and only Savant serves — forcing a season-level source there fails with a required-fields error, correctly. Test the flag on a season-level template. | ✓ |
+| F.18 | A | `--source mlb-stats-api` | query | User Guide:256 | Yes | same as F.17, swap source | Exit 0. `meta.source === "mlb-stats-api"`, 11 rows. | ✓ |
+| F.19 | C | `--source baseball-reference` | — **course never uses** | — | Yes (CLI allows) | `... --source baseball-reference` | Exit non-zero with "no adapter for baseball-reference" OR exit 0 with `meta.source === "baseball-reference"` OR exit 1 with the R2.1 config-gate error pointing at `~/.bbdata/config.json → sources.baseballReference.enabled = true` (correct behavior since v0.9.0). Record which. (Potentially dead code.) | ✓ |
+| F.20 | C | `--validate` | report | SKILL:50 | Yes | R.V1 | — | ✓ |
+| F.21 | C | `--no-strict` | report | — **not in course** | Yes (CLI only) | R.1–R.13 use it | — | ✓ |
+| F.22 | C | `--colorblind` | viz | SKILL:63 | Yes | `V.1 + --colorblind` | Exit 0. SVG source contains viridis scheme colors — Vega-Lite emits them as `rgb(…)` triplets (e.g. `rgb(59, 82, 139)`, `rgb(33, 145, 141)`), not `#440154`-style hex, so assert on `rgb(` forms. | ✓ |
+| F.23 | C | `--size WxH` | viz | SKILL:64 | Yes | `V.1 + --size 1200x800` | Exit 0. **Corrected 2026-09-07:** the SVG reports `width="1342"`, not 1200 — `--size` sets the Vega **plot area**, and axes, labels and legend lay out around it. Not a defect; the flag's help text now says so. Assert the plot grows, not an exact canvas width. | ✓ |
+| F.24 | C | `--dpi <n>` | viz | User Guide:276 | Yes | `V.F.png + --dpi 300 -o .tmp/v-300.png` | File's PNG header reports pixel width ≈ chartWidth × 300/96. | ✓ |
+| F.25 | C | `--pdf-mode <mode>` | viz | User Guide:252 | Yes | V.F.pdf-raster | — | ✓ |
+| F.26 | C | `--window <n>` | viz (rolling) | SKILL:461 | Yes | V.5 | — | ✓ |
+| F.27 | C | `-o / --output <path>` | viz | SKILL:65 | Yes | §4 all rows | — | ✓ |
+| F.28 | C | `--no-cache` | query | User Guide:294 | Yes | `... query ... --no-cache` (second invocation after a cached run) | Exit 0. `meta.cached === false`. | ✓ |
+| F.29 | C | `--stdin` | query, report, viz | User Guide:296 | Yes | `type test\fixtures\savant-csv-sample.csv | node dist/bin/bbdata.js query pitcher-arsenal --stdin --format json` — note: CSV pipe may not parse; prefer `--data` (see §6). | Exit 0 or a clear parse error. | ✓ |
+| F.30 | C | `--data <path>` | query, report, viz | — **CLI-only (not in course yet — P3.4)** | Yes | (covered by §2A, §3, §4) | — | ✓ |
+| F.31 | C | `-t / --team` | report | User Guide:340 | Yes | R.8 | — | ✓ |
+| F.32 | C | `--min-pitches <n>` | query (hitter-vs-pitch-type) | — **CLI-only (P3.5; course prompt says "at least 20 pitches faced")** | Yes | `... query hitter-vs-pitch-type --player "Judge Aaron" --data test/fixtures/savant-csv-sample.csv --min-pitches 1 --format json` | Exit 0 with per-pitch-type rows. Without the flag the 13-pitch fixture filters to 0 rows (default floor is 20) and exits non-zero — that is expected, not a failure. | ✓ |
 
 ---
 

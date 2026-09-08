@@ -78,10 +78,28 @@ claiming things its output does not do. What remains:
      any template. Either enforce it or drop the field; the P5.3 `{{else}}`
      fallbacks make the current state safe but not honest.
 
-   **What still has to happen before 0.12 ships:** re-run the
-   `COURSE_TEST_PLAN` sections the release touches — §1, §3, §3B, §4, §4A, §5
-   (new chart type, new flag behavior, per-audience report sections) — update
-   CHANGELOG.md, then `npm version minor` and publish.
+   **Three more found by the release smoke, all fixed before the bump** —
+   the smoke earned its keep, and every one is the release's own theme:
+   - `viz comparison --player "One Name"` exited 0 with an empty
+     "No comparable season data" chart for a player who has data. Row tagging
+     was gated on `roster.length > 1`, so a one-name roster reached the
+     builder untagged. Now an error naming the player given.
+   - Every `--validate` **warning** was collected and thrown away — the CLI
+     gated its issue printout on `!passed`, and warnings don't fail a report.
+     That swallowed P5.2's scaffold notice, whose entire job is to say the
+     green banner covers a form. Warnings now print under
+     `Validation warnings:`.
+   - `viz --size` was documented as "chart dimensions" but sets the Vega plot
+     area, so `--size 1200x800` yields a 1342px SVG. Help text corrected;
+     behavior left alone. **Open question for a later release:** switch to
+     `autosize: fit` so `--size` means the canvas. It would change every
+     chart's plot area and the report embed, so it is not a slip-in.
+
+   **`COURSE_TEST_PLAN` smoke done 2026-09-07:** §1, §3, §3A, §3B, §4, §4A,
+   and §5 including the live A-rows F.13–F.18. Two row *expectations* were
+   corrected rather than the CLI — F.17/F.18 forced `--source` on a
+   pitch-level template only Savant serves, and F.23 expected `--size` to set
+   the SVG canvas.
 2. Course docs and video patches follow in their own repos; do not start
    the video patches before 0.12 lands.
 
