@@ -1,0 +1,21 @@
+## How to Read This
+
+{{#if (eq audience "coach")}}
+Written for a **coach**. The tables below are ordered for game preparation: what
+the player does most, what beats him, and what to call in a leverage spot. Skip
+the rate columns if you are short on time — the usage and location rows carry
+the plan.
+{{else if (eq audience "gm")}}
+Written for a **front office** reader. Emphasis is on acquisition value:
+year-over-year direction, workload, and whether the underlying rates support the
+surface results. Where a number is small-sample, it is called out rather than
+smoothed.
+{{else if (eq audience "scout")}}
+Written for a **scout**. The data here is meant to be read next to your own
+looks, not instead of them. Treat the tables as the statistical half of the
+report; the evaluation sections are yours to fill.
+{{else}}
+Written for an **analyst**. Every figure is reported as bbdata computed it, with
+no rounding beyond the display precision shown. Sources are listed in the
+footer; re-run the underlying `bbdata query` templates to reproduce any table.
+{{/if}}

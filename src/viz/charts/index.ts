@@ -5,6 +5,7 @@ import { sprayBuilder } from './spray.js';
 import { zoneBuilder } from './zone.js';
 import { rollingBuilder } from './rolling.js';
 import { pitcherRollingBuilder } from './pitcher-rolling.js';
+import { comparisonBuilder } from './comparison.js';
 
 const builders: Record<ChartType, ChartBuilder> = {
   movement: movementBuilder,
@@ -13,7 +14,13 @@ const builders: Record<ChartType, ChartBuilder> = {
   zone: zoneBuilder,
   rolling: rollingBuilder,
   'pitcher-rolling': pitcherRollingBuilder,
+  comparison: comparisonBuilder,
 };
+
+/** Chart types that plot more than one player (P5.1). */
+export function listComparisonChartTypes(): ChartType[] {
+  return (Object.keys(builders) as ChartType[]).filter((t) => builders[t].supportsComparison);
+}
 
 /**
  * Domain-prefixed aliases mapped to canonical chart type ids. The course
@@ -27,6 +34,8 @@ const aliases: Record<string, ChartType> = {
   'hitting-spray': 'spray',
   'hitting-zones': 'zone',
   'trend-rolling': 'rolling',
+  'player-comparison': 'comparison',
+  compare: 'comparison',
 };
 
 export function resolveChartType(type: string): ChartType | undefined {

@@ -4,6 +4,7 @@ import type { StdinAdapter } from '../adapters/stdin.js';
 import type { DataSource, PitchData, PlayerStats } from '../adapters/types.js';
 import { format, type OutputFormat } from '../formatters/index.js';
 import { log } from '../utils/logger.js';
+import { CLI_VERSION } from '../utils/version.js';
 import {
   getTemplate,
   getAllTemplates,
@@ -57,6 +58,8 @@ export interface QueryResult {
     sampleSize: number;
     season: number;
     queryTimeMs: number;
+    /** bbdata build that produced this result. */
+    cliVersion: string;
   };
 }
 
@@ -288,6 +291,7 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
       sampleSize: result.rows.length,
       season: params.season ?? new Date().getFullYear(),
       queryTimeMs,
+      cliVersion: CLI_VERSION,
     },
   };
 }

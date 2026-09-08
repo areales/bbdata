@@ -1,0 +1,37 @@
+{
+  "_comment": "P5.1 comparison fixture. Rows are hitter-season-profile output for three players, tagged with __player exactly as viz() tags them during a --players run. Demo Hitter C's WAR is '—' on purpose so the missing-value path (drop the bar, don't plot a zero) stays covered by the rendered fixture.",
+  "data": [
+    { "__player": "Demo Hitter A", "Metric": "AVG", "Value": "0.322" },
+    { "__player": "Demo Hitter A", "Metric": "OBP", "Value": "0.441" },
+    { "__player": "Demo Hitter A", "Metric": "SLG", "Value": "0.701" },
+    { "__player": "Demo Hitter A", "Metric": "wOBA", "Value": "0.477" },
+    { "__player": "Demo Hitter A", "Metric": "wRC+", "Value": "218" },
+    { "__player": "Demo Hitter A", "Metric": "ISO", "Value": "0.379" },
+    { "__player": "Demo Hitter A", "Metric": "HR", "Value": "58" },
+    { "__player": "Demo Hitter A", "Metric": "BB%", "Value": "18.8%" },
+    { "__player": "Demo Hitter A", "Metric": "K%", "Value": "24.3%" },
+    { "__player": "Demo Hitter A", "Metric": "WAR", "Value": "10.8" },
+
+    { "__player": "Demo Hitter B", "Metric": "AVG", "Value": "0.310" },
+    { "__player": "Demo Hitter B", "Metric": "OBP", "Value": "0.390" },
+    { "__player": "Demo Hitter B", "Metric": "SLG", "Value": "0.646" },
+    { "__player": "Demo Hitter B", "Metric": "wOBA", "Value": "0.437" },
+    { "__player": "Demo Hitter B", "Metric": "wRC+", "Value": "184" },
+    { "__player": "Demo Hitter B", "Metric": "ISO", "Value": "0.336" },
+    { "__player": "Demo Hitter B", "Metric": "HR", "Value": "54" },
+    { "__player": "Demo Hitter B", "Metric": "BB%", "Value": "11.5%" },
+    { "__player": "Demo Hitter B", "Metric": "K%", "Value": "20.1%" },
+    { "__player": "Demo Hitter B", "Metric": "WAR", "Value": "9.2" },
+
+    { "__player": "Demo Hitter C", "Metric": "AVG", "Value": "0.288" },
+    { "__player": "Demo Hitter C", "Metric": "OBP", "Value": "0.419" },
+    { "__player": "Demo Hitter C", "Metric": "SLG", "Value": "0.569" },
+    { "__player": "Demo Hitter C", "Metric": "wOBA", "Value": "0.419" },
+    { "__player": "Demo Hitter C", "Metric": "wRC+", "Value": "180" },
+    { "__player": "Demo Hitter C", "Metric": "ISO", "Value": "0.281" },
+    { "__player": "Demo Hitter C", "Metric": "HR", "Value": "41" },
+    { "__player": "Demo Hitter C", "Metric": "BB%", "Value": "18.1%" },
+    { "__player": "Demo Hitter C", "Metric": "K%", "Value": "18.4%" },
+    { "__player": "Demo Hitter C", "Metric": "WAR", "Value": "—" }
+  ]
+}

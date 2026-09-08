@@ -28,8 +28,9 @@ import { sprayBuilder } from '../src/viz/charts/spray.js';
 import { zoneBuilder } from '../src/viz/charts/zone.js';
 import { rollingBuilder } from '../src/viz/charts/rolling.js';
 import { pitcherRollingBuilder } from '../src/viz/charts/pitcher-rolling.js';
+import { comparisonBuilder } from '../src/viz/charts/comparison.js';
 import { specToSvg } from '../src/viz/render.js';
-import type { ChartBuilder, ResolvedVizOptions } from '../src/viz/types.js';
+import type { ChartBuilder, ChartType, ResolvedVizOptions } from '../src/viz/types.js';
 import { rasterizeSvg } from '../src/viz/rasterize.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -39,8 +40,13 @@ const FIXTURES_DIR = resolve(REPO_ROOT, 'test/fixtures/viz');
 const OUTPUT_DIR = resolve(REPO_ROOT, '.reports/fixtures');
 
 interface ChartFixture {
-  /** Chart type (used for output filenames) */
-  type: 'movement' | 'movement-binned' | 'spray' | 'zone' | 'rolling' | 'pitcher-rolling';
+  /**
+   * Chart type (used for output filenames). Typed as ChartType rather than a
+   * hand-listed union so adding a chart is a compile error here until it has
+   * a gallery entry — the gallery-coverage test already asserts the same rule
+   * at runtime.
+   */
+  type: ChartType;
   /** Chart builder to invoke */
   builder: ChartBuilder;
   /** Query template id the builder reads rows from */
@@ -104,6 +110,22 @@ export const FIXTURES: ChartFixture[] = [
     fixture: 'pitcher-rolling-windows.sample.json',
     player: 'Demo Pitcher',
     overrides: { width: 720, height: 520 },
+  },
+  {
+    // P5.1. Ten faceted metric panels across three players needs more canvas
+    // than the 800x500 default, and `players` must be set — the builder sorts
+    // the x-axis and legend by it so the bars keep --players order rather
+    // than falling back to alphabetical.
+    type: 'comparison',
+    builder: comparisonBuilder,
+    queryKey: 'hitter-season-profile',
+    fixture: 'comparison.sample.json',
+    player: 'Demo Hitter A',
+    overrides: {
+      width: 900,
+      height: 700,
+      players: ['Demo Hitter A', 'Demo Hitter B', 'Demo Hitter C'],
+    },
   },
 ];
 
