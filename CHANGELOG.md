@@ -5,6 +5,21 @@ All notable changes to `bbdata` are documented here. This project follows
 
 ## Unreleased
 
+## 0.11.0 — 2026-09-07
+
+The backlog the course's own facts gates found. Every lesson video since
+2026-07-26 queries bbdata live for each number that goes on screen, and that
+process caught a wrong-number defect in most lessons. Those fixes had been
+sitting unreleased on `main` since 2026-08-29 — the course stayed pinned to
+0.10.0, so students were running the broken build. This ships them.
+
+**Breaking for typed library consumers:** the six Statcast tracking fields on
+`PitchDataSchema` are now nullable end to end, so a dropout reads as `null`
+rather than a fabricated number. **Behavior change:** an unrecognized
+`--audience` now throws instead of silently falling back to analyst styling,
+and `--validate` fails a report rendered without its required data instead of
+passing it green.
+
 ### Added
 
 - **P2.7 — `matchup-situational` returns real situational splits.**
