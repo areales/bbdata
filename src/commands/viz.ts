@@ -3,17 +3,20 @@ import { writeFileSync } from 'node:fs';
 import { resolve as resolvePath } from 'node:path';
 import { ExecutionContext } from '../context/execution.js';
 import { log } from '../utils/logger.js';
+import { CLI_VERSION } from '../utils/version.js';
 import { query as runQuery } from './query.js';
 import {
   getChartBuilder,
   listChartTypes,
   listChartAliases,
+  listComparisonChartTypes,
   resolveChartType,
 } from '../viz/charts/index.js';
 import { specToSvg, specToHtml, specToPdf } from '../viz/render.js';
 import { rasterizeSvg } from '../viz/rasterize.js';
 import { AUDIENCE_DEFAULTS } from '../viz/audience.js';
 import {
+  COMPARISON_PLAYER_FIELD,
   resolveVizAudience,
   type VizOptions,
   type VizResult,
@@ -89,40 +92,99 @@ export async function viz(options: VizOptions): Promise<VizResult> {
     );
   }
 
-  // Fetch rows for each data requirement via runQuery
+  // P5.1: resolve the roster this chart plots. `--players` wins when given;
+  // `--player` is folded in ahead of it so `--player A --players B,C` reads
+  // as A, B, C rather than silently dropping A. Duplicates collapse.
+  const requestedPlayers = (options.players ?? []).map((p) => p.trim()).filter(Boolean);
+  const roster = Array.from(
+    new Set([...(options.player ? [options.player] : []), ...requestedPlayers]),
+  );
+  const isComparison = builder.supportsComparison === true && roster.length > 1;
+
+  // Before 0.12 `--players` was parsed, stored, and read by nobody. A flag
+  // that is accepted and ignored is the exact defect this release exists to
+  // remove, so charts that can't compare now say so.
+  if (requestedPlayers.length > 1 && !builder.supportsComparison) {
+    const supported = listComparisonChartTypes();
+    throw new Error(
+      `Chart type "${chartType}" plots one player, so --players has no effect. ` +
+        (supported.length > 0
+          ? `Charts that compare players: ${supported.join(', ')}. ` +
+            `Try: bbdata viz ${supported[0]} --players "${requestedPlayers.join(',')}"`
+          : 'No chart type currently supports a comparison.') +
+        ` To chart a single player with ${chartType}, use --player "<name>".`,
+    );
+  }
+
+  // Fetch rows for each data requirement via runQuery.
+  //
+  // Players are the OUTER loop and requirements the inner one. runQuery throws
+  // on zero rows, and the existing catch policy is keyed on `req.required` —
+  // "is this requirement optional", not "is this player missing". Nesting the
+  // other way would let one absent player be swallowed by an optional
+  // requirement and vanish from the chart with no error.
+  const fetchFor = roster.length > 0 ? roster : [options.player ?? ''];
   const rows: Record<string, Record<string, unknown>[]> = {};
   let source = 'unknown';
   for (const req of builder.dataRequirements) {
-    try {
-      const result = await runQuery({
-        template: req.queryTemplate,
-        resolveTemplateId: req.queryTemplate,
-        player: options.player,
-        season,
-        format: 'json',
-        ...(options.window != null ? { window: options.window } : {}),
-        ...(context.stdinAdapter ? { source: 'stdin', stdinAdapter: context.stdinAdapter } : {}),
-        ...(options.source && !context.stdinAdapter ? { source: options.source } : {}),
-      });
-      rows[req.queryTemplate] = result.data;
-      if (result.meta.source) source = result.meta.source;
-    } catch (err) {
-      if (req.required) throw err;
-      rows[req.queryTemplate] = [];
+    rows[req.queryTemplate] = [];
+  }
+  for (const who of fetchFor) {
+    for (const req of builder.dataRequirements) {
+      try {
+        const result = await runQuery({
+          template: req.queryTemplate,
+          resolveTemplateId: req.queryTemplate,
+          player: who || undefined,
+          season,
+          format: 'json',
+          ...(options.window != null ? { window: options.window } : {}),
+          ...(context.stdinAdapter ? { source: 'stdin', stdinAdapter: context.stdinAdapter } : {}),
+          ...(options.source && !context.stdinAdapter ? { source: options.source } : {}),
+        });
+        // Tag rows with their player only for a real comparison — single-player
+        // charts keep the exact row shape their builders already expect.
+        const tagged = isComparison
+          ? result.data.map((row) => ({ ...row, [COMPARISON_PLAYER_FIELD]: who }))
+          : result.data;
+        rows[req.queryTemplate] = [...(rows[req.queryTemplate] ?? []), ...tagged];
+        if (result.meta.source) source = result.meta.source;
+      } catch (err) {
+        // In a comparison, a player with no data is a hole in the chart the
+        // viewer cannot see. Fail loudly rather than quietly plotting the rest —
+        // an absent bar next to populated ones reads as "worse", not "unknown".
+        if (isComparison && req.required) {
+          const message = err instanceof Error ? err.message : String(err);
+          throw new Error(
+            `No "${req.queryTemplate}" data for "${who}" (${season}), so the comparison would ` +
+              `silently omit them. Check the name and season, or drop them from --players. (${message})`,
+            { cause: err },
+          );
+        }
+        if (req.required) throw err;
+      }
     }
   }
 
+  // For a comparison, `player` is the first name rather than a joined string:
+  // it feeds defaultTitle and the report embed, both of which expect one name.
+  // The full roster travels in `players` and in meta.
+  const titlePlayer = isComparison ? (roster[0] ?? player) : player;
   const resolved: ResolvedVizOptions = {
     type: chartType,
-    player,
+    player: titlePlayer,
     season,
     audience,
     format,
     width,
     height,
     colorblind: options.colorblind ?? false,
-    title: options.title ?? builder.defaultTitle({ player, season }),
-    players: options.players,
+    title:
+      options.title ??
+      (isComparison
+        ? `${roster.join(' vs ')} (${season})`
+        : builder.defaultTitle({ player, season })),
+    players: isComparison ? roster : options.players,
     ...(options.window != null ? { window: options.window } : {}),
     ...(options.dpi != null ? { dpi: options.dpi } : {}),
   };
@@ -148,13 +210,15 @@ export async function viz(options: VizOptions): Promise<VizResult> {
     meta: {
       chartType,
       format,
-      player,
+      player: titlePlayer,
+      ...(isComparison ? { players: roster } : {}),
       season,
       audience,
       rowCount: Object.values(rows).reduce((a, r) => a + r.length, 0),
       source,
       width,
       height,
+      cliVersion: CLI_VERSION,
     },
   };
 }
@@ -170,6 +234,7 @@ const CHART_TYPE_DESCRIPTIONS: Record<ChartType, string> = {
   zone:              '3x3 zone profile heatmap (xwOBA per plate region)',
   rolling:           'rolling performance trend for hitters (xwOBA, xwOBAcon)',
   'pitcher-rolling': '5-start rolling trend for pitchers (velo, Whiff %, K %, CSW %)',
+  comparison:        'side-by-side hitter season stats for 2+ players (needs --players)',
 };
 
 export function formatChartTypeList(): string {
@@ -194,7 +259,7 @@ export function registerVizCommand(program: Command): void {
     .description('Generate data visualizations (SVG, PNG, HTML)')
     .option('--type <type>', 'Chart type (see list below)')
     .option('-p, --player <name>', 'Player name')
-    .option('--players <names>', 'Comma-separated player names (for comparisons)')
+    .option('--players <names>', 'Comma-separated player names, for chart types that compare (see list below)')
     .option('-s, --season <year>', 'Season year', String(new Date().getFullYear()))
     .option(
       '-a, --audience <role>',
@@ -217,6 +282,7 @@ Examples:
   bbdata viz zone     --player "Shohei Ohtani" --colorblind --format html -o ohtani.html
   bbdata viz rolling  --player "Freddie Freeman" --window 5
   bbdata viz spray    --player "Aaron Judge" --format pdf -o judge_spray.pdf
+  bbdata viz comparison --players "Aaron Judge,Shohei Ohtani,Juan Soto" --season 2025
 
 ${formatChartTypeList()}
 `)

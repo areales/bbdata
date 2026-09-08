@@ -13,6 +13,7 @@ import { generateReportGraphs } from '../viz/embed.js';
 import {
   getAllReportTemplates,
   getReportTemplate,
+  isScaffoldTemplate,
   listReportTemplates,
   type Audience,
   type ReportCategory,
@@ -101,6 +102,7 @@ const VALIDATION_CHECKS = [
   'generic-phrases',
   'length',
   'required-data',
+  'scaffold-template',
 ] as const;
 
 // Register Handlebars helpers
@@ -123,6 +125,11 @@ Handlebars.registerHelper('ifGt', function (this: unknown, a: number, b: number,
 Handlebars.registerHelper('svgOrEmpty', (svg: string) =>
   new Handlebars.SafeString(svg ?? ''),
 );
+// P5.3: Handlebars has no built-in equality helper, and the per-audience
+// blocks need one. Deliberately strict — `audience` is already narrowed to the
+// Audience union before it reaches the template, so a loose compare could only
+// mask a typo.
+Handlebars.registerHelper('eq', (a: unknown, b: unknown) => a === b);
 
 // BBDATA-011: Produce a one-liner summary of fastball velocity change
 // across the 1st vs 3rd+ time through the order, given a pitcher-tto
@@ -165,6 +172,13 @@ const BUNDLED_TEMPLATES_DIR = join(__dirname, '..', 'templates', 'reports');
 Handlebars.registerPartial(
   'footer',
   readFileSync(join(BUNDLED_TEMPLATES_DIR, 'partials', 'footer.hbs'), 'utf-8'),
+);
+// P5.3: one shared per-audience block, included by every data-driven template.
+// A partial rather than four copies — copies drift, and the whole point of this
+// release is that the CLI's claims stay true to what it does.
+Handlebars.registerPartial(
+  'audience-lens',
+  readFileSync(join(BUNDLED_TEMPLATES_DIR, 'partials', 'audience-lens.hbs'), 'utf-8'),
 );
 
 function loadTemplate(templateFile: string): string {
@@ -316,7 +330,12 @@ export async function report(options: ReportOptions): Promise<ReportResult> {
   // by the banner it produces.
   let validation: ValidationResult | undefined;
   if (options.validate) {
-    validation = validateReport(rawContent, template.requiredSections, failedRequired);
+    validation = validateReport(
+      rawContent,
+      template.requiredSections,
+      failedRequired,
+      isScaffoldTemplate(template),
+    );
   }
 
   // BBDATA-008 part A: when --validate is passed, prepend an HTML-comment
@@ -361,8 +380,23 @@ function validateReport(
   content: string,
   requiredSections: string[],
   failedRequired: { queryTemplate: string; message: string }[] = [],
+  scaffold = false,
 ): ValidationResult {
   const issues: ValidationResult['issues'] = [];
+
+  // P5.2 (check: scaffold-template): a template with no data requirements
+  // renders a form, not an evaluation. It will validate green because there
+  // is no missing data to detect — say so rather than letting the green
+  // banner imply the numbers were checked. Warning, not error: running a
+  // scaffold is a legitimate thing to do, it just isn't a data report.
+  if (scaffold) {
+    issues.push({
+      severity: 'warning',
+      message:
+        'Scaffold template — it fetches no data and renders a fill-in shell. ' +
+        'The other checks can only see the form, not any analysis.',
+    });
+  }
 
   // P1.13 (check: required-data): a report rendered without its required
   // data must not validate green. The shipped .hbs templates degrade
@@ -441,16 +475,24 @@ const CATEGORY_ORDER: ReportCategory[] = ['pro-scouting', 'amateur-scouting', 'a
 
 export function formatReportTemplateList(): string {
   const byCategory = new Map<ReportCategory, string[]>();
+  let anyScaffold = false;
   for (const t of getAllReportTemplates()) {
     const bucket = byCategory.get(t.category) ?? [];
-    bucket.push(t.id);
+    // P5.2: mark the fill-in shells inline. A student reading --help was
+    // previously given no way to tell which ids fetch data and which return
+    // a form to complete by hand.
+    const scaffold = isScaffoldTemplate(t);
+    if (scaffold) anyScaffold = true;
+    bucket.push(scaffold ? `${t.id}*` : t.id);
     byCategory.set(t.category, bucket);
   }
   const labelWidth = Math.max(...CATEGORY_ORDER.map((c) => CATEGORY_LABELS[c].length)) + 1;
-  return CATEGORY_ORDER
+  const lines = CATEGORY_ORDER
     .filter((c) => byCategory.has(c))
     .map((c) => `  ${(CATEGORY_LABELS[c] + ':').padEnd(labelWidth + 1)} ${byCategory.get(c)!.join(', ')}`)
     .join('\n');
+  if (!anyScaffold) return lines;
+  return `${lines}\n\n  * no data fetch; fill-in shell. The template renders a structured\n    form with "to be filled by evaluator" lines for you (or an AI) to\n    complete. Every other id pulls live data.`;
 }
 
 /**

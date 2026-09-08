@@ -52,7 +52,7 @@ Query baseball data using pre-built templates. Returns structured data in your c
 
 Run `bbdata query --help` for the full option list.
 
-**21 templates across 5 categories:**
+**22 templates across 5 categories:**
 
 **Pitcher** (8) — `pitcher-arsenal`, `pitcher-velocity-trend`, `pitcher-handedness-splits`, `pitcher-raw-pitches`, `pitcher-recent-form`, `pitcher-by-count`, `pitcher-tto`, `pitcher-season-profile`
 
@@ -62,7 +62,7 @@ Run `bbdata query --help` for the full option list.
 
 **Leaderboard** (2) — `leaderboard-custom`, `leaderboard-comparison`
 
-**Trend** (2) — `trend-rolling-average`, `trend-year-over-year`
+**Trend** (3) — `trend-rolling-average`, `trend-year-over-year`, `pitcher-rolling-trend`
 
 ```sh
 bbdata query hitter-batted-ball --player "Aaron Judge" --format table
@@ -83,17 +83,25 @@ Generate scouting reports rendered from Handlebars templates. Reports pull data 
 | `--validate` | Run validation checklist on the report |
 | `--no-strict` | Emit stub shell instead of exiting on missing data |
 
-**13 templates across 6 categories:**
+**13 templates across 5 categories.** An asterisk marks a **scaffold**: it
+fetches no data and renders a structured fill-in shell with "to be filled by
+evaluator" lines, meant to be completed by you or handed to an AI. The five
+without an asterisk pull live data. `--validate` warns when you run a scaffold,
+because the other checks can only see the form.
 
 **Pro Scouting** — `pro-pitcher-eval`, `pro-hitter-eval`, `relief-pitcher-quick`
 
-**Amateur Scouting** — `college-pitcher-draft`, `college-hitter-draft`, `hs-prospect`
+**Amateur Scouting** — `college-pitcher-draft`*, `college-hitter-draft`*, `hs-prospect`*
 
-**Advance** — `advance-sp`, `advance-lineup`
+**Advance** — `advance-sp`, `advance-lineup`*
 
-**Player Development** — `dev-progress`, `post-promotion`
+**Player Development** — `dev-progress`*, `post-promotion`*
 
-**Executive** — `trade-target-onepager`, `draft-board-card`, `draft-board-card-pitcher`
+**Executive** — `trade-target-onepager`, `draft-board-card`*, `draft-board-card-pitcher`*
+
+`--audience` changes the report body, not just the header line: each
+data-driven template opens with a "How to Read This" section written for the
+role you asked for.
 
 ```sh
 bbdata report pro-pitcher-eval --player "Corbin Burnes"
@@ -112,13 +120,22 @@ Generate data visualizations as SVG.
 | `movement-binned` | Binned density variant for compact inline use |
 | `spray` | Batted ball spray chart |
 | `zone` | 3x3 strike zone heatmap (xwOBA) |
-| `rolling` | Rolling performance trend line |
+| `rolling` | Rolling performance trend line (hitters) |
+| `pitcher-rolling` | 5-start rolling trend for pitchers (velo, Whiff %, K %, CSW %) |
+| `comparison` | Side-by-side hitter season stats for 2+ players — the chart `--players` drives |
+
+Aliases: `pitching-movement`, `hitting-spray`, `hitting-zones`, `trend-rolling`, `player-comparison`, `compare`.
 
 **Key options:** `--colorblind` (viridis palette), `-a, --audience` (coach/analyst/frontoffice/presentation), `--size WxH`, `-o, --output <path>`
+
+`--players` takes a comma-separated list and only applies to chart types that
+compare. Passing two or more names to a single-player chart is an error naming
+the types that do compare, rather than a silently ignored flag.
 
 ```sh
 bbdata viz spray --player "Aaron Judge" --audience coach
 bbdata viz zone --player "Shohei Ohtani" --colorblind
+bbdata viz comparison --players "Aaron Judge,Shohei Ohtani,Juan Soto" --season 2025
 ```
 
 ## Output Formats

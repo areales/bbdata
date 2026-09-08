@@ -41,12 +41,32 @@ export function getReportTemplatesByCategory(category: ReportCategory): ReportTe
   return getAllReportTemplates().filter((t) => t.category === category);
 }
 
-export function listReportTemplates(): { id: string; name: string; category: string; description: string }[] {
+/**
+ * P5.2: a scaffold template fetches nothing and renders a fill-in shell of
+ * "to be filled by evaluator" lines. Eight of the thirteen are like this, and
+ * the course material described all thirteen as pulling data.
+ *
+ * Derived, never hand-set: `dataRequirements: []` IS what makes a template a
+ * shell, so a separate boolean could only ever drift out of agreement with it.
+ * Adding a requirement to a template flips this automatically.
+ */
+export function isScaffoldTemplate(template: ReportTemplate): boolean {
+  return template.dataRequirements.length === 0;
+}
+
+export function listReportTemplates(): {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  scaffold: boolean;
+}[] {
   return getAllReportTemplates().map((t) => ({
     id: t.id,
     name: t.name,
     category: t.category,
     description: t.description,
+    scaffold: isScaffoldTemplate(t),
   }));
 }
 
@@ -91,7 +111,7 @@ registerReportTemplate({
     // degrade gracefully if FanGraphs is unreachable.
     { queryTemplate: 'hitter-season-profile', paramMapping: { player: 'player' }, required: false },
   ],
-  requiredSections: ['Header', 'Batted Ball Profile', 'Performance Profile', 'Approach & Discipline', 'Splits Analysis', 'Trend Analysis', 'Risk Assessment', 'Comparable Player', 'Role Projection'],
+  requiredSections: ['Batted Ball Profile', 'Performance Profile', 'Approach & Discipline', 'Splits Analysis', 'Trend Analysis', 'Risk Assessment', 'Comparable Player', 'Role Projection'],
   examples: ['bbdata report pro-hitter-eval --player "Juan Soto"'],
 });
 
@@ -105,7 +125,7 @@ registerReportTemplate({
   dataRequirements: [
     { queryTemplate: 'pitcher-arsenal', paramMapping: { player: 'player' }, required: true },
   ],
-  requiredSections: ['Header', 'Arsenal', 'Key Metrics', 'Recommendation'],
+  requiredSections: ['Arsenal', 'Key Metrics', 'Recommendation'],
   examples: ['bbdata report relief-pitcher-quick --player "Edwin Diaz"'],
 });
 
@@ -117,7 +137,7 @@ registerReportTemplate({
   audiences: ['gm', 'scout'],
   templateFile: 'college-pitcher-draft.hbs',
   dataRequirements: [],
-  requiredSections: ['Header', 'Physical', 'Arsenal Grades', 'Performance', 'Projection', 'Risk', 'Recommendation'],
+  requiredSections: ['Physical', 'Arsenal Grades', 'Performance', 'Projection', 'Risk', 'Recommendation'],
   examples: ['bbdata report college-pitcher-draft --player "Chase Burns"'],
 });
 
@@ -129,7 +149,7 @@ registerReportTemplate({
   audiences: ['gm', 'scout'],
   templateFile: 'college-hitter-draft.hbs',
   dataRequirements: [],
-  requiredSections: ['Header', 'Physical', 'Tool Grades', 'Performance', 'Projection', 'Risk', 'Recommendation'],
+  requiredSections: ['Physical', 'Tool Grades', 'Performance', 'Projection', 'Risk', 'Recommendation'],
   examples: ['bbdata report college-hitter-draft --player "Charlie Condon"'],
 });
 
@@ -141,7 +161,7 @@ registerReportTemplate({
   audiences: ['gm', 'scout'],
   templateFile: 'hs-prospect.hbs',
   dataRequirements: [],
-  requiredSections: ['Header', 'Physical', 'Tool Grades', 'Makeup', 'Projection', 'Signability', 'Recommendation'],
+  requiredSections: ['Physical', 'Tool Grades', 'Makeup', 'Projection', 'Signability', 'Recommendation'],
   examples: ['bbdata report hs-prospect --player "Prospect Name"'],
 });
 
@@ -164,7 +184,7 @@ registerReportTemplate({
     { queryTemplate: 'pitcher-by-count', paramMapping: { player: 'player' }, required: false },
     { queryTemplate: 'pitcher-tto', paramMapping: { player: 'player' }, required: false },
   ],
-  requiredSections: ['Header', 'Recent Form', 'Pitch Mix & Sequencing', 'Times Through Order', 'Platoon Vulnerabilities', 'How to Attack'],
+  requiredSections: ['Recent Form', 'Pitch Mix & Sequencing', 'Times Through the Order', 'Platoon Vulnerabilities', 'How to Attack'],
   examples: ['bbdata report advance-sp --player "Gerrit Cole" --audience coach'],
 });
 
@@ -176,7 +196,7 @@ registerReportTemplate({
   audiences: ['coach', 'analyst'],
   templateFile: 'advance-lineup.hbs',
   dataRequirements: [],
-  requiredSections: ['Header', 'Lineup Overview', 'Hitter Breakdowns', 'Key Matchups'],
+  requiredSections: ['Lineup Overview', 'Hitter Breakdowns', 'Key Matchups'],
   examples: ['bbdata report advance-lineup --team NYY'],
 });
 
@@ -188,7 +208,7 @@ registerReportTemplate({
   audiences: ['scout', 'analyst'],
   templateFile: 'dev-progress.hbs',
   dataRequirements: [],
-  requiredSections: ['Header', 'Current Stats', 'Trend Analysis', 'Mechanical Notes', 'Development Goals', 'Next Steps'],
+  requiredSections: ['Current Stats', 'Trend Analysis', 'Mechanical Notes', 'Development Goals', 'Next Steps'],
   examples: ['bbdata report dev-progress --player "Jackson Holliday"'],
 });
 
@@ -200,7 +220,7 @@ registerReportTemplate({
   audiences: ['scout', 'analyst'],
   templateFile: 'post-promotion.hbs',
   dataRequirements: [],
-  requiredSections: ['Header', 'Pre-Promotion Stats', 'Post-Promotion Stats', 'Adjustment Analysis', 'Recommendation'],
+  requiredSections: ['Pre-Promotion Stats', 'Post-Promotion Stats', 'Adjustment Analysis', 'Recommendation'],
   examples: ['bbdata report post-promotion --player "Jackson Holliday"'],
 });
 
@@ -215,7 +235,7 @@ registerReportTemplate({
     { queryTemplate: 'hitter-batted-ball', paramMapping: { player: 'player' }, required: false },
     { queryTemplate: 'pitcher-arsenal', paramMapping: { player: 'player' }, required: false },
   ],
-  requiredSections: ['Header', 'Key Stats', 'Strengths', 'Concerns', 'Fit Assessment', 'Recommendation'],
+  requiredSections: ['Key Stats', 'Strengths', 'Concerns', 'Fit Assessment', 'Recommendation'],
   examples: ['bbdata report trade-target-onepager --player "Vladimir Guerrero Jr." --audience gm'],
 });
 

@@ -243,3 +243,175 @@ describe('viz command', () => {
     expect(call).toBeDefined();
   });
 });
+
+// ---------------------------------------------------------------------------
+// P5.1 — --players actually drives a chart now
+// ---------------------------------------------------------------------------
+
+/** hitter-season-profile's real output shape: formatted strings, "—" for gaps. */
+function seasonProfileRows(overrides: Record<string, string> = {}) {
+  const base: Record<string, string> = {
+    AVG: '0.322', OBP: '0.441', SLG: '0.701', wOBA: '0.477', 'wRC+': '218',
+    ISO: '0.379', HR: '58', 'BB%': '18.8%', 'K%': '24.3%', WAR: '10.8',
+  };
+  const merged = { ...base, ...overrides };
+  return Object.entries(merged).map(([Metric, Value]) => ({ Metric, Value }));
+}
+
+describe('P5.1 — viz --players', () => {
+  beforeEach(() => {
+    // Sibling describe, so the outer block's clear does not run for these.
+    vi.clearAllMocks();
+    vi.mocked(runQuery).mockResolvedValue({
+      data: seasonProfileRows(),
+      formatted: '{}',
+      meta: {
+        template: 'hitter-season-profile',
+        source: 'fangraphs',
+        cached: false,
+        sampleSize: 10,
+        season: 2025,
+        queryTimeMs: 0,
+        cliVersion: '0.0.0-test',
+      },
+    });
+  });
+
+  it('rejects --players on a chart that cannot compare, naming one that can', async () => {
+    await expect(
+      viz({ type: 'spray', players: ['Aaron Judge', 'Shohei Ohtani'], season: 2025 }),
+    ).rejects.toThrow(/plots one player.*comparison/s);
+
+    await expect(
+      viz({ type: 'spray', players: ['Aaron Judge', 'Shohei Ohtani'], season: 2025 }),
+    ).rejects.toThrow(/comparison/);
+  });
+
+  it('still accepts a single-name --players on a non-comparison chart', async () => {
+    // One name is unambiguous — it means the same thing as --player, so
+    // rejecting it would break a working command for no honesty gain.
+    vi.mocked(runQuery).mockResolvedValue({
+      data: [{ pitch_type: 'FF', pfx_x: 0.8, pfx_z: 1.2, release_speed: 95 }],
+      formatted: '{}',
+      meta: { template: 'pitcher-raw-pitches', source: 'savant', cached: false, sampleSize: 1, season: 2025, queryTimeMs: 0, cliVersion: '0.0.0-test' },
+    });
+    const result = await viz({ type: 'movement', players: ['Corbin Burnes'], season: 2025 });
+    expect(result.meta.chartType).toBe('movement');
+  });
+
+  it('fetches once per player and reports the whole roster in meta', async () => {
+    const result = await viz({
+      type: 'comparison',
+      players: ['Aaron Judge', 'Shohei Ohtani', 'Juan Soto'],
+      season: 2025,
+    });
+
+    expect(runQuery).toHaveBeenCalledTimes(3);
+    expect(result.meta.players).toEqual(['Aaron Judge', 'Shohei Ohtani', 'Juan Soto']);
+    // `player` stays a single name — defaultTitle and the report embed want one.
+    expect(result.meta.player).toBe('Aaron Judge');
+    expect(result.meta.rowCount).toBe(30);
+  });
+
+  it('folds --player into --players instead of dropping it', async () => {
+    const result = await viz({
+      type: 'comparison',
+      player: 'Aaron Judge',
+      players: ['Shohei Ohtani'],
+      season: 2025,
+    });
+    expect(result.meta.players).toEqual(['Aaron Judge', 'Shohei Ohtani']);
+  });
+
+  it('collapses a name repeated across --player and --players', async () => {
+    const result = await viz({
+      type: 'comparison',
+      player: 'Aaron Judge',
+      players: ['Aaron Judge', 'Juan Soto'],
+      season: 2025,
+    });
+    expect(result.meta.players).toEqual(['Aaron Judge', 'Juan Soto']);
+    expect(runQuery).toHaveBeenCalledTimes(2);
+  });
+
+  it('resolves the compare alias to the comparison builder', async () => {
+    const result = await viz({
+      type: 'compare',
+      players: ['Aaron Judge', 'Juan Soto'],
+      season: 2025,
+    });
+    expect(result.meta.chartType).toBe('comparison');
+  });
+
+  it('fails loudly when a player has no data rather than omitting them', async () => {
+    vi.mocked(runQuery).mockImplementation(async (opts: { player?: string }) => {
+      if (opts.player === 'Nonexistent Player') {
+        throw new Error('Adapter(s) [fangraphs] returned 0 rows');
+      }
+      return {
+        data: seasonProfileRows(),
+        formatted: '{}',
+        meta: { template: 'hitter-season-profile', source: 'fangraphs', cached: false, sampleSize: 10, season: 2025, queryTimeMs: 0, cliVersion: '0.0.0-test' },
+      };
+    });
+
+    await expect(
+      viz({ type: 'comparison', players: ['Aaron Judge', 'Nonexistent Player'], season: 2025 }),
+    ).rejects.toThrow(/silently omit/);
+  });
+
+  it('builds one facet per metric with a bar per player', async () => {
+    const result = await viz({
+      type: 'comparison',
+      players: ['Aaron Judge', 'Juan Soto'],
+      season: 2025,
+    });
+
+    const spec = result.spec as {
+      facet: { field: string };
+      spec: { mark: { type: string }; encoding: { x: { field: string }; tooltip: { field: string }[] } };
+      data: { values: { player: string; metric: string; display: string }[] };
+    };
+    expect(spec.facet.field).toBe('metric');
+    expect(spec.spec.mark.type).toBe('bar');
+    expect(spec.spec.encoding.x.field).toBe('player');
+    expect(new Set(spec.data.values.map((v) => v.player))).toEqual(
+      new Set(['Aaron Judge', 'Juan Soto']),
+    );
+    // The tooltip shows bbdata's own formatted string, not the parsed number.
+    expect(spec.spec.encoding.tooltip.some((t) => t.field === 'display')).toBe(true);
+    expect(spec.data.values.find((v) => v.metric === 'BB%')?.display).toBe('18.8%');
+  });
+
+  it('drops a missing metric instead of plotting it as zero', async () => {
+    vi.mocked(runQuery).mockImplementation(async (opts: { player?: string }) => ({
+      data: opts.player === 'Juan Soto' ? seasonProfileRows({ WAR: '—' }) : seasonProfileRows(),
+      formatted: '{}',
+      meta: { template: 'hitter-season-profile', source: 'fangraphs', cached: false, sampleSize: 10, season: 2025, queryTimeMs: 0, cliVersion: '0.0.0-test' },
+    }));
+
+    const result = await viz({
+      type: 'comparison',
+      players: ['Aaron Judge', 'Juan Soto'],
+      season: 2025,
+    });
+
+    const values = (result.spec as { data: { values: { player: string; metric: string; value: number }[] } }).data.values;
+    const sotoWar = values.find((v) => v.player === 'Juan Soto' && v.metric === 'WAR');
+    expect(sotoWar).toBeUndefined();
+    // Every other metric still plots for that player.
+    expect(values.filter((v) => v.player === 'Juan Soto')).toHaveLength(9);
+    // A zero bar would read as "replacement level", which is a claim the data never made.
+    expect(values.some((v) => v.player === 'Juan Soto' && v.value === 0)).toBe(false);
+  });
+
+  it('titles the chart with every player when none is given', async () => {
+    const result = await viz({
+      type: 'comparison',
+      players: ['Aaron Judge', 'Juan Soto'],
+      season: 2025,
+    });
+    const spec = result.spec as { title: string };
+    expect(spec.title).toBe('Aaron Judge vs Juan Soto (2025)');
+  });
+});

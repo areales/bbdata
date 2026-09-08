@@ -328,7 +328,7 @@ describe('pitcherRollingBuilder', () => {
 });
 
 describe('chart registry', () => {
-  it('listChartTypes returns all six chart types', () => {
+  it('listChartTypes returns all seven chart types', () => {
     const types = listChartTypes();
     expect(types).toEqual(
       expect.arrayContaining([
@@ -338,9 +338,11 @@ describe('chart registry', () => {
         'zone',
         'rolling',
         'pitcher-rolling',
+        // P5.1 — the chart `--players` drives.
+        'comparison',
       ]),
     );
-    expect(types).toHaveLength(6);
+    expect(types).toHaveLength(7);
   });
 
   it('getChartBuilder returns the correct builder for each type', () => {

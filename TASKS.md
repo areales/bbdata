@@ -10,6 +10,84 @@ Source: `../ai-baseball-data-analyst/course-audit.md` (2026-04-13). CLI-side ite
 
 ## Start here
 
+**As of 2026-09-07: release, then a small honesty release.** The video drift
+audit (`../video-hyperframes/BBDATA-DRIFT.md`, axes A–D) found that every
+lesson's facts gate ran on 0.10.0, so the videos are correct for students
+today, but three M02 L03 commands (matchup, situational, year-over-year)
+return nothing on the published package and one approved scene shows wRC
+under a wRC+ label. The agreed plan, in order:
+
+1. **Ship 0.11 from head** (the 2026-08-29 wave, unreleased). Unpins the
+   course. Steps: `npm whoami` → `npm version minor` → `COURSE_TEST_PLAN`
+   C-rows → `npm publish`. Course-side consequence: M03 L04's `--validate`
+   worked example inverts (hollow report now fails on `required-data`) —
+   that re-cut is filed as `video-hyperframes/TASKS.md` #69.
+2. **0.12 — "say what you do", CLI-only, no template renames.**
+   **ALL FIVE ITEMS IMPLEMENTED 2026-09-07** on branch
+   `feat/0.12-honesty-release`, commit below. Four gates green:
+   lint, lint:partials, typecheck, 446/446 tests (was 405). Design reviewed by
+   Codex before implementation; its findings are folded in below.
+   **Not yet released — 0.11 must publish from `main` first.**
+   - **P5.1** ~~Reject `--players` on `viz`~~ → **implemented a comparison
+     chart** (Aaron's call). New `comparison` type (aliases `compare`,
+     `player-comparison`) reads `hitter-season-profile` and renders faceted
+     bars, one panel per metric, one bar per player. `viz()` now fetches once
+     per player with players as the OUTER loop — `runQuery` throws on zero
+     rows and the catch policy is keyed on `req.required`, so the other
+     nesting would let an absent player be swallowed by an optional
+     requirement. Rows are tagged with the shared `COMPARISON_PLAYER_FIELD`
+     constant. `--players` on a chart that can't compare is now an error
+     naming one that can. `--player` folds into `--players` rather than being
+     dropped. A player with no data fails loudly rather than leaving an
+     invisible hole. Tooltips show bbdata's own formatted string, so the
+     chart never implies more precision than the table had; a `—` value
+     drops its bar instead of plotting a false zero. Fixture rendered and
+     eyeballed at `.reports/fixtures/comparison.png`.
+   - **P5.2** ~~Mark the eight scaffold templates.~~ **Done.** `scaffold` is
+     **derived** from `dataRequirements.length === 0`, not hand-set — a
+     hand-set flag is itself a future honesty bug. Surfaced as `*` in
+     `report --help` with a legend, on `listReportTemplates()`, and as a new
+     `scaffold-template` **warning** in `--validate`.
+   - **P5.3** ~~Decide `--audience`.~~ → **implemented real per-audience
+     sections** (Aaron's call). A shared `audience-lens.hbs` partial renders a
+     different "How to Read This" block per audience, wired into all **five**
+     data-driven templates — `trade-target-onepager` included, which the
+     original plan missed. Needed a new `eq` Handlebars helper; there wasn't
+     one. Every branch has an `{{else}}` fallback because the `audiences`
+     array on `ReportTemplate` is declared but never enforced, so any audience
+     can reach any template.
+   - **P5.4** ~~`README.md` says 21 templates / Trend (2); registry has 22 / 3.~~
+     **Done 2026-09-07** on `feat/0.12-honesty-release`. Counted from the
+     self-registering templates: 22 total — 8 pitcher, 7 hitter, 2 matchup,
+     2 leaderboard, 3 trend. The missing trend id was `pitcher-rolling-trend`.
+     The 13 report templates and the User Guide reference card were already right.
+   - **P5.5** ~~Add `cliVersion` to `query` and `viz` JSON `meta`.~~ **Done.**
+     Stamped in the `format()` dispatcher so all four formatters return the
+     same meta, with `formatJson` keeping its own guard for direct callers.
+     Required on `QueryResult.meta` and `VizResult.meta`. Only JSON serializes
+     meta, so the other three formatters' output is unchanged. Report already
+     carried the version in its footer.
+
+   **Two adjacent defects found while implementing, both fixed** — same family
+   as P5.2, the registry claiming something the output does not do:
+   - Twelve of thirteen templates declared a `'Header'` required section that
+     no `.hbs` renders, and `advance-sp` declared `'Times Through Order'`
+     against a heading reading `'Times Through the Order'`. `section-present`
+     is warning-only, so both had been failing silently on every run. Registry
+     corrected; a new test asserts every declared section is actually rendered
+     by its template, for all thirteen.
+   - **Still open, filed not fixed:** the `audiences` array on
+     `ReportTemplate` is declared but never enforced — any audience reaches
+     any template. Either enforce it or drop the field; the P5.3 `{{else}}`
+     fallbacks make the current state safe but not honest.
+
+   **What still has to happen before 0.12 ships:** publish 0.11 from `main`
+   first (blocked on `npm login` — `npm whoami` returned 401 on 2026-09-07),
+   then merge this branch, re-run the `COURSE_TEST_PLAN` §4A/§5 rows for the
+   new `viz` chart and flag plus the report sections, and update CHANGELOG.md.
+3. Course docs and video patches follow in their own repos; do not start
+   the video patches before 0.12 lands.
+
 **As of 2026-08-29: the entire filed CLI backlog is closed.** The 14-item P1
 wave merged to main in PR #27; P2.7, P3.5, P3.6, and P4.6–P4.13 are fixed
 (unreleased — see "Unreleased" section). What remains is

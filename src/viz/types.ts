@@ -1,7 +1,21 @@
 import type { Audience } from '../templates/reports/registry.js';
 import type { StdinAdapter } from '../adapters/stdin.js';
 
-export type ChartType = 'movement' | 'movement-binned' | 'spray' | 'zone' | 'rolling' | 'pitcher-rolling';
+export type ChartType =
+  | 'movement'
+  | 'movement-binned'
+  | 'spray'
+  | 'zone'
+  | 'rolling'
+  | 'pitcher-rolling'
+  | 'comparison';
+
+/**
+ * P5.1: the field a comparison builder's rows are tagged with so a spec can
+ * split them by player. A shared constant because `viz()` writes it and the
+ * builder reads it — an implicit string on both sides is how these two drift.
+ */
+export const COMPARISON_PLAYER_FIELD = '__player';
 export type VizFormat = 'svg' | 'png' | 'pdf' | 'html';
 
 /**
@@ -63,6 +77,14 @@ export interface VizResult {
     source: string;
     width: number;
     height: number;
+    /** bbdata build that produced this chart. */
+    cliVersion: string;
+    /**
+     * Every player plotted, when this is a comparison chart. Additive rather
+     * than overloading `player` with a joined string — `player` feeds
+     * `defaultTitle` and the report embed, and both expect one name.
+     */
+    players?: string[];
   };
 }
 
@@ -88,6 +110,12 @@ export interface ChartDataRequirement {
 
 export interface ChartBuilder {
   id: ChartType;
+  /**
+   * P5.1: whether this builder plots more than one player. `viz()` fetches
+   * once per name and tags rows with COMPARISON_PLAYER_FIELD only for these;
+   * every other chart rejects `--players` instead of silently ignoring it.
+   */
+  supportsComparison?: boolean;
   /** Query templates whose rows this builder consumes */
   dataRequirements: ChartDataRequirement[];
   /** Default chart title when the caller does not provide one */

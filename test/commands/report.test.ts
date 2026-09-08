@@ -32,7 +32,11 @@ vi.mock('../../src/config/config.js', () => ({
 
 import { report } from '../../src/commands/report.js';
 import { query as runQuery } from '../../src/commands/query.js';
-import { getReportTemplate } from '../../src/templates/reports/registry.js';
+import {
+  getReportTemplate,
+  isScaffoldTemplate,
+  listReportTemplates,
+} from '../../src/templates/reports/registry.js';
 
 describe('report command', () => {
   beforeEach(() => {
@@ -41,7 +45,7 @@ describe('report command', () => {
     vi.mocked(runQuery).mockResolvedValue({
       data: [{ 'Pitch Type': 'FF', 'Usage %': '50%' }],
       formatted: '{}',
-      meta: { template: 'pitcher-arsenal', source: 'savant', cached: false, sampleSize: 1, season: 2025, queryTimeMs: 0 },
+      meta: { template: 'pitcher-arsenal', source: 'savant', cached: false, sampleSize: 1, season: 2025, queryTimeMs: 0, cliVersion: '0.0.0-test' },
     });
   });
 
@@ -503,4 +507,140 @@ describe('report command', () => {
     expect(typeof parsed.content).toBe('string');
     expect(parsed.content.length).toBeGreaterThan(0);
   });
+});
+
+// ---------------------------------------------------------------------------
+// 0.12 "say what you do" release — P5.2 scaffold marking, P5.3 audience content
+// ---------------------------------------------------------------------------
+
+const DATA_DRIVEN = [
+  'pro-pitcher-eval',
+  'pro-hitter-eval',
+  'relief-pitcher-quick',
+  'advance-sp',
+  'trade-target-onepager',
+] as const;
+
+const SCAFFOLDS = [
+  'college-pitcher-draft',
+  'college-hitter-draft',
+  'hs-prospect',
+  'advance-lineup',
+  'dev-progress',
+  'post-promotion',
+  'draft-board-card',
+  'draft-board-card-pitcher',
+] as const;
+
+describe('P5.2 — scaffold templates say so', () => {
+  it('classifies exactly the no-fetch templates as scaffolds', () => {
+    const listed = listReportTemplates();
+    const flagged = listed.filter((t) => t.scaffold).map((t) => t.id).sort();
+    expect(flagged).toEqual([...SCAFFOLDS].sort());
+  });
+
+  it('never flags a template that fetches data', () => {
+    for (const id of DATA_DRIVEN) {
+      const template = getReportTemplate(id)!;
+      expect(isScaffoldTemplate(template)).toBe(false);
+    }
+  });
+
+  it('--validate warns that a scaffold fetched nothing', async () => {
+    const result = await report({
+      template: 'hs-prospect',
+      player: 'Some Prospect',
+      season: 2025,
+      validate: true,
+    });
+
+    expect(result.validation?.checks).toContain('scaffold-template');
+    const scaffoldIssue = result.validation?.issues.find((i) =>
+      i.message.includes('Scaffold template'),
+    );
+    expect(scaffoldIssue).toBeDefined();
+    // A warning, not an error — running a scaffold is legitimate.
+    expect(scaffoldIssue?.severity).toBe('warning');
+  });
+
+  it('does not warn about scaffolding on a data-driven template', async () => {
+    const result = await report({
+      template: 'pro-pitcher-eval',
+      player: 'Corbin Burnes',
+      season: 2025,
+      validate: true,
+    });
+
+    expect(
+      result.validation?.issues.some((i) => i.message.includes('Scaffold template')),
+    ).toBe(false);
+  });
+});
+
+describe('P5.3 — --audience changes the body, not just the header', () => {
+  it.each(DATA_DRIVEN)('%s renders differently for coach and gm', async (template) => {
+    const coach = await report({ template, player: 'Corbin Burnes', season: 2025, audience: 'coach' });
+    const gm = await report({ template, player: 'Corbin Burnes', season: 2025, audience: 'gm' });
+
+    // Strip the header line, which already differed before this release —
+    // the claim under test is that the BODY changes.
+    const body = (s: string) => s.split('\n').filter((l) => !l.startsWith('**Season:')).join('\n');
+    expect(body(coach.content)).not.toBe(body(gm.content));
+  });
+
+  it.each(DATA_DRIVEN)('%s keeps every required section at every audience', async (template) => {
+    const required = getReportTemplate(template)!.requiredSections;
+    for (const audience of ['coach', 'gm', 'scout', 'analyst'] as const) {
+      const result = await report({ template, player: 'Corbin Burnes', season: 2025, audience });
+      for (const section of required) {
+        expect(result.content, `${template} @ ${audience} lost "${section}"`).toContain(section);
+      }
+    }
+  });
+
+  it('falls back to the analyst lens for an audience a template does not list', async () => {
+    // The `audiences` array on ReportTemplate is declared but not enforced, so
+    // any audience can reach any template. The {{else}} branch is what keeps
+    // that from rendering an empty block.
+    const result = await report({
+      template: 'relief-pitcher-quick',
+      player: 'Emmanuel Clase',
+      season: 2025,
+      audience: 'analyst',
+    });
+    expect(result.content).toContain('How to Read This');
+    expect(result.content).toContain('analyst');
+  });
+
+  it('validates green at every audience on a data-driven template', async () => {
+    for (const audience of ['coach', 'gm', 'scout', 'analyst'] as const) {
+      const result = await report({
+        template: 'pro-pitcher-eval',
+        player: 'Corbin Burnes',
+        season: 2025,
+        audience,
+        validate: true,
+      });
+      expect(result.validation?.passed, `failed at ${audience}`).toBe(true);
+    }
+  });
+});
+
+// Regression guard for a defect the P5.3 audience tests exposed: twelve of the
+// thirteen templates declared a "Header" section no .hbs renders, and advance-sp
+// declared "Times Through Order" against a heading reading "Times Through the
+// Order". `section-present` is warning-only, so both had been failing silently.
+// A declared required section that no template can emit is drift in the same
+// family as P5.2 — the registry claiming something the output does not do.
+describe('requiredSections agree with what the templates render', () => {
+  it.each(listReportTemplates().map((t) => t.id))(
+    '%s renders every section it declares',
+    async (id) => {
+      const template = getReportTemplate(id)!;
+      const result = await report({ template: id, player: 'Corbin Burnes', season: 2025 });
+      for (const section of template.requiredSections) {
+        expect(result.content, `${id} declares "${section}" but never renders it`).toContain(section);
+      }
+    },
+  );
 });

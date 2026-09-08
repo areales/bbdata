@@ -4,6 +4,7 @@ import { formatCsv } from '../../src/formatters/csv.js';
 import { formatMarkdown } from '../../src/formatters/markdown.js';
 import { formatTable } from '../../src/formatters/table.js';
 import { format } from '../../src/formatters/index.js';
+import { CLI_VERSION } from '../../src/utils/version.js';
 
 const sampleMeta: FormatMeta = {
   source: 'savant',
@@ -38,6 +39,21 @@ describe('formatJson', () => {
   it('ends with a newline', () => {
     const result = formatJson(sampleData, sampleMeta);
     expect(result.formatted.endsWith('\n')).toBe(true);
+  });
+
+  // P5.5: a facts gate reading the envelope must be able to prove which build
+  // produced the numbers — the published package and a local dist/ can differ.
+  it('stamps the running CLI version into the envelope and the returned meta', () => {
+    const result = formatJson(sampleData, sampleMeta);
+    const parsed = JSON.parse(result.formatted);
+
+    expect(parsed.meta.cliVersion).toBe(CLI_VERSION);
+    expect(result.meta.cliVersion).toBe(CLI_VERSION);
+  });
+
+  it('does not overwrite a cliVersion the caller supplied', () => {
+    const result = formatJson(sampleData, { ...sampleMeta, cliVersion: '9.9.9' });
+    expect(JSON.parse(result.formatted).meta.cliVersion).toBe('9.9.9');
   });
 });
 
