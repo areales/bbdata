@@ -1,6 +1,6 @@
 import type { ChartBuilder, ResolvedVizOptions } from '../types.js';
 import { COMPARISON_PLAYER_FIELD } from '../types.js';
-import { audienceConfig } from '../audience.js';
+import { AUDIENCE_DEFAULTS, audienceConfig } from '../audience.js';
 
 /**
  * Multi-Player Comparison (P5.1)
@@ -110,11 +110,25 @@ export const comparisonBuilder: ChartBuilder = {
       ...Array.from(seenMetrics).filter((m) => !METRIC_ORDER.includes(m)),
     ];
     const players = options.players ?? [];
-    // Three panels per row keeps ten metrics on a readable grid at the
-    // default sizes; the audience presets only change the canvas, not this.
-    const columns = 3;
-    const panelWidth = Math.max(120, Math.floor((options.width - 140) / columns));
-    const panelHeight = Math.max(90, Math.floor(options.height / Math.ceil(ordered.length / columns)) - 40);
+    const sort = players.length > 0 ? players : undefined;
+    // Five panels per row: the ten standard metrics fill exactly two rows,
+    // so there is no orphan row with phantom x-axes under empty slots. The
+    // audience presets only change the canvas, not this.
+    const columns = 5;
+    const rowCount = Math.ceil(ordered.length / columns);
+    const panelWidth = Math.max(96, Math.floor((options.width - 120) / columns));
+    const panelHeight = Math.max(110, Math.floor((options.height - 80) / rowCount) - 30);
+    const valueFontSize = AUDIENCE_DEFAULTS[options.audience].legendLabelFontSize;
+
+    // Identity comes from the legend alone. Rotated player names under every
+    // panel duplicated it, truncated ("Shohei Ohta…") at narrow widths, and
+    // still drew under the empty slots in a ragged last row.
+    const xEncoding = {
+      field: 'player',
+      type: 'nominal',
+      axis: null,
+      sort,
+    };
 
     return {
       $schema: 'https://vega.github.io/schema/vega-lite/v6.json',
@@ -131,34 +145,50 @@ export const comparisonBuilder: ChartBuilder = {
       spec: {
         width: panelWidth,
         height: panelHeight,
-        mark: { type: 'bar', cornerRadiusEnd: 2 },
-        encoding: {
-          x: {
-            field: 'player',
-            type: 'nominal',
-            axis: { title: null, labelAngle: -35 },
-            sort: players.length > 0 ? players : undefined,
+        layer: [
+          {
+            mark: { type: 'bar', cornerRadiusEnd: 2 },
+            encoding: {
+              x: xEncoding,
+              y: {
+                field: 'value',
+                type: 'quantitative',
+                // The value label on the bar carries precision; the axis
+                // only needs to give scale, so keep it sparse.
+                axis: { title: null, tickCount: 4 },
+                scale: { zero: true },
+              },
+              color: {
+                field: 'player',
+                type: 'nominal',
+                // labelLimit: Vega's default (160px) truncates a name like
+                // "Shohei Ohtani" at the larger audience font sizes.
+                legend: { title: null, orient: 'bottom', labelLimit: 0 },
+                sort,
+              },
+              tooltip: [
+                { field: 'player', title: 'Player' },
+                { field: 'metric', title: 'Metric' },
+                // The formatted string, not the parsed number — the chart shows
+                // exactly what `bbdata query hitter-season-profile` printed.
+                { field: 'display', title: 'Value' },
+              ],
+            },
           },
-          y: {
-            field: 'value',
-            type: 'quantitative',
-            axis: { title: null },
-            scale: { zero: true },
+          // Value on every bar. Rate stats on a zero baseline (.240 vs .280)
+          // are near-identical bar heights; the number is what a comparison
+          // is for. Same `display` string the tooltip shows, so no extra
+          // precision is implied.
+          {
+            mark: { type: 'text', dy: -6, fontSize: valueFontSize, fontWeight: 'bold' },
+            encoding: {
+              x: xEncoding,
+              y: { field: 'value', type: 'quantitative' },
+              text: { field: 'display', type: 'nominal' },
+              color: { value: '#222' },
+            },
           },
-          color: {
-            field: 'player',
-            type: 'nominal',
-            legend: { title: null, orient: 'bottom' },
-            sort: players.length > 0 ? players : undefined,
-          },
-          tooltip: [
-            { field: 'player', title: 'Player' },
-            { field: 'metric', title: 'Metric' },
-            // The formatted string, not the parsed number — the chart shows
-            // exactly what `bbdata query hitter-season-profile` printed.
-            { field: 'display', title: 'Value' },
-          ],
-        },
+        ],
       },
       resolve: { scale: { y: 'independent' } },
       config: audienceConfig(options.audience, options.colorblind),

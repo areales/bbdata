@@ -28,6 +28,17 @@ chart type on live 2026 data.
   May 26 → Sep 8). Consecutive windows more than 21 days apart now start a
   new line segment, encoded as `detail` so color still follows the metric.
   (`src/viz/charts/rolling-segments.ts`)
+- **`viz comparison` looked the same at every audience and hid the
+  numbers.** Facet headers (the "AVG" / "SLG" panel labels) are their own
+  Vega-Lite config block and were never set, so they stayed at 10px for
+  coach and presentation; `audienceConfig` now sizes them with the axis
+  titles, which also fixes the row labels on both rolling charts. The
+  comparison grid is now 5 × 2 (no orphan row with phantom axes), each bar
+  carries its formatted value (rate stats on a zero baseline are
+  near-identical heights — the number is the point), the redundant rotated
+  player names under every panel are gone (the legend carries identity and
+  no longer truncates "Shohei Ohta…"), and y-axes are sparser.
+  (`src/viz/audience.ts`, `src/viz/charts/comparison.ts`)
 
 ## 0.12.0 — 2026-09-07
 

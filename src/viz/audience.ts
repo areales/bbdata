@@ -91,6 +91,16 @@ export function audienceConfig(
       labelFont: 'Arial, Helvetica, sans-serif',
       titleFont: 'Arial, Helvetica, sans-serif',
     },
+    // Facet headers (the "AVG" / "SLG" panel labels on rolling and
+    // comparison) are their own config block in Vega-Lite. Left unset they
+    // stay at the 10px default at every audience, which is why a coach-size
+    // comparison used to look like a scaled-down analyst one.
+    header: {
+      labelFontSize: d.axisTitleFontSize,
+      titleFontSize: d.axisTitleFontSize,
+      labelFont: 'Arial, Helvetica, sans-serif',
+      titleFont: 'Arial, Helvetica, sans-serif',
+    },
     range: colorblind
       ? { category: { scheme: 'viridis' }, ramp: { scheme: 'viridis' } }
       : { category: { scheme: d.scheme } },

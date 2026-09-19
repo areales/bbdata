@@ -385,19 +385,32 @@ describe('P5.1 — viz --players', () => {
       season: 2025,
     });
 
+    type Layer = {
+      mark: { type: string };
+      encoding: { x: { field: string; axis: unknown }; text?: { field: string }; tooltip?: { field: string }[] };
+    };
     const spec = result.spec as {
       facet: { field: string };
-      spec: { mark: { type: string }; encoding: { x: { field: string }; tooltip: { field: string }[] } };
+      columns: number;
+      spec: { layer: Layer[] };
       data: { values: { player: string; metric: string; display: string }[] };
     };
     expect(spec.facet.field).toBe('metric');
-    expect(spec.spec.mark.type).toBe('bar');
-    expect(spec.spec.encoding.x.field).toBe('player');
+    // Ten standard metrics fill exactly two rows of five — no orphan row.
+    expect(spec.columns).toBe(5);
+    const [bars, labels] = spec.spec.layer;
+    expect(bars?.mark.type).toBe('bar');
+    expect(bars?.encoding.x.field).toBe('player');
+    // Identity comes from the legend; no rotated, truncating x labels.
+    expect(bars?.encoding.x.axis).toBeNull();
     expect(new Set(spec.data.values.map((v) => v.player))).toEqual(
       new Set(['Aaron Judge', 'Juan Soto']),
     );
-    // The tooltip shows bbdata's own formatted string, not the parsed number.
-    expect(spec.spec.encoding.tooltip.some((t) => t.field === 'display')).toBe(true);
+    // Both the tooltip and the on-bar label show bbdata's own formatted
+    // string, not the parsed number.
+    expect(bars?.encoding.tooltip?.some((t) => t.field === 'display')).toBe(true);
+    expect(labels?.mark.type).toBe('text');
+    expect(labels?.encoding.text?.field).toBe('display');
     expect(spec.data.values.find((v) => v.metric === 'BB%')?.display).toBe('18.8%');
   });
 
