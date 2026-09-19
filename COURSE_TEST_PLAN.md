@@ -36,7 +36,19 @@ For any `npm version` bump:
 4. If a previously-passing `C` row now fails, treat it as a release blocker. If an `A` row was skipped on a prior release, re-run it on the first minor/major that touches the same surface.
 5. Record nothing in this file per-release — the ✓ marks track *current* status, not a version history. Git log provides the version trail.
 
-**Last full smoke: v0.12.0, 2026-09-07.** Sections re-run: §1, §3 (all C),
+**Last smoke: v0.13.0, 2026-09-18.** Sections re-run: §1 H.5, §2 Q.4, §4
+(every C row plus V.7 live), §4A (every C row plus V.F.cmp live), §4B, and
+§5 F.22–F.24 + F.33 — the set 0.13 touched by adding a chart type, a flag,
+a palette change and three query columns. 31 fixture rows + 2 live rows +
+one live `zone-ranked --theme print` render, all passed. No CLI defects
+found. One row *expectation* was corrected while writing it: V.T1 had
+assumed the HTML embed carries `meta.theme`, but `#bbdata-spec` is the
+Vega-Lite spec, not the envelope; the theme shows as the spec's
+`background`. F.22's viridis assertion was retired — `--colorblind` adds
+shape now, it no longer swaps palettes. §2 (beyond Q.4), §3, §6–§8 were
+not re-run; 0.13 touched no report template and no plumbing.
+
+**Previous full smoke: v0.12.0, 2026-09-07.** Sections re-run: §1, §3 (all C),
 §3A, §3B, §4, §4A, §5 (every C row plus the live-network A rows F.13–F.18) —
 the set 0.12 touched by adding a chart type, a flag behavior, per-audience
 report sections and the scaffold marking. All passed. Two defects were found
@@ -86,7 +98,7 @@ The top-level `bbdata` binary and its three subcommands must exist and print the
 | H.2 | C | `node dist/bin/bbdata.js --help` | Lists three commands: `query`, `report`, `viz`. | ✓ |
 | H.3 | C | `node dist/bin/bbdata.js query --help` | Lists `--player`, `--players`, `--season`, `--format`, `--source`, `--stat`, `--pitch-type`, `--min-pa`, `--min-ip`, `--min-pitches`, `--top`, `--seasons`, `--no-cache`, `--stdin`, `--data`. | ✓ |
 | H.4 | C | `node dist/bin/bbdata.js report --help` | Lists `--player`, `--team`, `--season`, `--audience`, `--format`, `--validate`, `--no-strict`, `--stdin`, `--data`. Audience line must advertise `frontoffice→gm` and `presentation→analyst` aliases (from P4.3). | ✓ |
-| H.5 | C | `node dist/bin/bbdata.js viz --help` | Lists `--type`, `--player`, `--players`, `--season`, `--audience`, `--format {svg,png,html,pdf}`, `--dpi`, `--pdf-mode`, `--window`, `--size`, `--colorblind`, `-o/--output`, `--source`, `--stdin`, `--data`. Lists the 7 canonical chart types (`movement`, `movement-binned`, `spray`, `zone`, `rolling`, `pitcher-rolling`, `comparison`) + 6 aliases. `--players` line must say it is for chart types that compare (P5.1); `--size` must say it sets the plot area, not the file's canvas. | ✓ |
+| H.5 | C | `node dist/bin/bbdata.js viz --help` | Lists `--type`, `--player`, `--players`, `--season`, `--audience`, `--format {svg,png,html,pdf}`, `--dpi`, `--pdf-mode`, `--window`, `--size`, `--colorblind`, `--theme`, `-o/--output`, `--source`, `--stdin`, `--data`. Lists the 8 canonical chart types (`movement`, `movement-binned`, `spray`, `zone`, `zone-ranked`, `rolling`, `pitcher-rolling`, `comparison`) + 7 aliases. `--players` line must say it is for chart types that compare (P5.1); `--size` must say it sets the plot area, not the file's canvas; `--colorblind` must say it adds shape (0.13 — it no longer swaps palettes); `--theme` must list `light`, `dark`, `print`. | ✓ |
 | H.6 | C | `node dist/bin/bbdata.js query --help` | "Available templates" section lists **all 22** shipped query templates (21 pre-F1.1 + `pitcher-rolling-trend`), generated dynamically from the registry. | ✓ |
 | H.7 | C | `node dist/bin/bbdata.js report --help` | "Available templates" marks the 8 scaffold ids with `*` and carries the legend explaining that they fetch nothing (P5.2). The 5 unmarked ids are the data-driven ones. | ✓ |
 
@@ -178,7 +190,7 @@ C-rows: smoke that the template is **registered** and renders without fetching a
 
 ---
 
-## §4 — Viz chart types (7 canonical + 6 aliases)
+## §4 — Viz chart types (8 canonical + 7 aliases)
 
 | # | Who | Type | Command | Expected | ✓ |
 |---|---|---|---|---|---|
@@ -192,13 +204,18 @@ C-rows: smoke that the template is **registered** and renders without fetching a
 | V.A2 | C | alias `hitting-spray` | resolves to `spray` | Exit 0. Byte-diff vs V.3. | ✓ |
 | V.A3 | C | alias `hitting-zones` | resolves to `zone` | Exit 0. Byte-diff vs V.4. | ✓ |
 | V.A4 | C | alias `trend-rolling` | resolves to `rolling` | Exit 0. Byte-diff vs V.5. | ✓ |
+| V.8 | C | `zone-ranked` (0.13) | same as V.4, type swapped, `-o .tmp/v-zone-ranked.svg` | Exit 0. Valid SVG. Nine horizontal bars from the same `hitter-zone-grid` fetch as `zone`. | ✓ |
+| V.A7 | C | alias `hitting-zones-ranked` | resolves to `zone-ranked` | Exit 0. Byte-diff vs V.8. | ✓ |
+| V.T1 | C | `--theme dark` (0.13) | `V.1 + --theme dark -o .tmp/v-dark.svg` | Exit 0. SVG differs from V.1 (dark surface); the `--format html` variant's `#bbdata-spec` carries `"background":"#1a1a19"` (light is `#ffffff`). `meta.theme` is on the programmatic `VizResult` only — no CLI format serializes viz meta. | ✓ |
+| V.T2 | C | `--theme print` (0.13) | `V.1 + --theme print -o .tmp/v-print.svg` | Exit 0. SVG differs from V.1 and from V.T1 (grayscale + shapes). | ✓ |
+| V.T3 | C | `--theme bogus` | `V.1 + --theme bogus` | Exit non-zero naming `light, dark, print`. | ✓ |
 | V.7 | A | `comparison` (P5.1) | `... viz comparison --players "Aaron Judge,Shohei Ohtani,Juan Soto" --season 2025 --format svg -o .tmp/cmp3.svg` | Exit 0. Valid SVG, live network (no pitch-level fixture reaches `hitter-season-profile`). All three surnames appear in the SVG text — an empty chart renders the "No comparable season data" message instead. | ✓ |
 | V.A5 | C | alias `player-comparison` | resolves to `comparison` | Listed in `viz --help` under Aliases; unknown-type error names it. | ✓ |
 | V.A6 | C | alias `compare` | resolves to `comparison` | Same. | ✓ |
 | V.C1 | C | `--players` on a chart that can't compare | `... viz movement --data test/fixtures/savant-csv-sample.csv --players "Aaron Judge,Shohei Ohtani"` | Exit non-zero. Error says `movement` plots one player, names `comparison` as a chart that compares, and shows the corrected command. | ✓ |
 | V.C2 | C | comparison of one | `... viz comparison --player "Aaron Judge" --season 2025` | Exit non-zero: "plots two or more players", naming the one player given. **Regression guard** — before the fix this exited 0 with an empty "No comparable season data" chart for a player who has data, because rows are tagged with the player field only on a multi-name roster. | ✓ |
 | V.C3 | C | comparison with no players | `... viz comparison --season 2025` | Exit non-zero, same "two or more players" error. | ✓ |
-| V.F1 | C | canonical list emitted on unknown type | `... viz bogus-type --player X` | Exit non-zero. Stderr lists canonical types + aliases (13 names as of 0.12). | ✓ |
+| V.F1 | C | canonical list emitted on unknown type | `... viz bogus-type --player X` | Exit non-zero. Stderr lists canonical types + aliases (15 names as of 0.13). | ✓ |
 
 ### 4A — `--format` output formats
 
@@ -264,7 +281,7 @@ Each row: one flag, one command, course citation + CLI confirmation.
 | F.19 | C | `--source baseball-reference` | — **course never uses** | — | Yes (CLI allows) | `... --source baseball-reference` | Exit non-zero with "no adapter for baseball-reference" OR exit 0 with `meta.source === "baseball-reference"` OR exit 1 with the R2.1 config-gate error pointing at `~/.bbdata/config.json → sources.baseballReference.enabled = true` (correct behavior since v0.9.0). Record which. (Potentially dead code.) | ✓ |
 | F.20 | C | `--validate` | report | SKILL:50 | Yes | R.V1 | — | ✓ |
 | F.21 | C | `--no-strict` | report | — **not in course** | Yes (CLI only) | R.1–R.13 use it | — | ✓ |
-| F.22 | C | `--colorblind` | viz | SKILL:63 | Yes | `V.1 + --colorblind` | Exit 0. SVG source contains viridis scheme colors — Vega-Lite emits them as `rgb(…)` triplets (e.g. `rgb(59, 82, 139)`, `rgb(33, 145, 141)`), not `#440154`-style hex, so assert on `rgb(` forms. | ✓ |
+| F.22 | C | `--colorblind` | viz | SKILL:63 | Yes | `V.1 + --colorblind` | Exit 0. **Corrected 2026-09-18 (0.13):** the flag no longer swaps in viridis — the shipped palette is CVD-validated, so the flag adds shape as a redundant channel. Assert the SVG differs from V.1 (shape glyphs appear); the old `rgb(` viridis assertion is gone. | ✓ |
 | F.23 | C | `--size WxH` | viz | SKILL:64 | Yes | `V.1 + --size 1200x800` | Exit 0. **Corrected 2026-09-07:** the SVG reports `width="1342"`, not 1200 — `--size` sets the Vega **plot area**, and axes, labels and legend lay out around it. Not a defect; the flag's help text now says so. Assert the plot grows, not an exact canvas width. | ✓ |
 | F.24 | C | `--dpi <n>` | viz | User Guide:276 | Yes | `V.F.png + --dpi 300 -o .tmp/v-300.png` | File's PNG header reports pixel width ≈ chartWidth × 300/96. | ✓ |
 | F.25 | C | `--pdf-mode <mode>` | viz | User Guide:252 | Yes | V.F.pdf-raster | — | ✓ |
@@ -275,6 +292,7 @@ Each row: one flag, one command, course citation + CLI confirmation.
 | F.30 | C | `--data <path>` | query, report, viz | — **CLI-only (not in course yet — P3.4)** | Yes | (covered by §2A, §3, §4) | — | ✓ |
 | F.31 | C | `-t / --team` | report | User Guide:340 | Yes | R.8 | — | ✓ |
 | F.32 | C | `--min-pitches <n>` | query (hitter-vs-pitch-type) | — **CLI-only (P3.5; course prompt says "at least 20 pitches faced")** | Yes | `... query hitter-vs-pitch-type --player "Judge Aaron" --data test/fixtures/savant-csv-sample.csv --min-pitches 1 --format json` | Exit 0 with per-pitch-type rows. Without the flag the 13-pitch fixture filters to 0 rows (default floor is 20) and exits non-zero — that is expected, not a failure. | ✓ |
+| F.33 | C | `--theme <light\|dark\|print>` | viz | — **CLI-only (0.13; course docs not yet updated — TASKS V4)** | Yes | V.T1–V.T3 | — | ✓ |
 
 ---
 

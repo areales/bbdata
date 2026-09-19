@@ -10,8 +10,8 @@ Source: `../ai-baseball-data-analyst/course-audit.md` (2026-04-13). CLI-side ite
 
 ## Start here
 
-**2026-09-18 — viz redesign on branch `viz-redesign`, approved, ready to
-merge.** Follows the same-day visual audit (artifact "bbdata Viz Audit") and
+**2026-09-18 — viz redesign merged to `main` (`3931053`) and shipped in
+v0.13.0.** Follows the same-day visual audit (artifact "bbdata Viz Audit") and
 the Codex mockup study (bbdata-visual-lab). Direction agreed with Aaron: one
 family in the existing Vega-Lite builders (no React renderer), light base,
 `--theme dark|print` (print = grayscale + shapes), sibling variants over
@@ -37,7 +37,7 @@ filed here:
 - **V5** `labelDensity` is still declared per audience and read by nobody.
 
 **2026-09-18 — `pitcher-raw-pitches` gains `description`, `events`,
-`estimated_woba` (on `main`, unreleased, rides 0.13.0).** Needed by the M05
+`estimated_woba` (shipped in v0.13.0, commit `d4ebc60`).** Needed by the M05
 L02 Pitch Quality Score demo (`../ai-baseball-data-analyst/Modules/05 - Code
 & Model Building/Demos/pitch-quality/`) — whiff rate needs `description` and
 the export dropped it, so the `build-model` skill's "every feature the Stuff
@@ -53,16 +53,16 @@ column mapping before the next release (**V6**).
 "Shipped in v0.11.0" section. They had sat on `main` since 2026-08-29 while
 students ran the broken build.
 
-**Now in flight: the 0.12 honesty release.** It came out of the video drift
-audit (`../video-hyperframes/BBDATA-DRIFT.md`, axes A–D), which found the CLI
-claiming things its output does not do. What remains:
+**v0.12.0 — the honesty release — shipped 2026-09-07.** It came out of the
+video drift audit (`../video-hyperframes/BBDATA-DRIFT.md`, axes A–D), which
+found the CLI claiming things its output does not do. Record of what went in:
 
 1. **0.12 — "say what you do", CLI-only, no template renames.**
    **ALL FIVE ITEMS IMPLEMENTED 2026-09-07**, merged to `main` the same day
    from `feat/0.12-honesty-release` (commit `8131289`). Four gates green:
    lint, lint:partials, typecheck, 446/446 tests (was 405). Design reviewed by
    Codex before implementation; its findings are folded in below.
-   **Not yet released — 0.11 must publish from `main` first.**
+   Released as 0.12.0 the same day (commit `404abd0`).
    - **P5.1** ~~Reject `--players` on `viz`~~ → **implemented a comparison
      chart** (Aaron's call). New `comparison` type (aliases `compare`,
      `player-comparison`) reads `hitter-season-profile` and renders faceted
@@ -227,9 +227,34 @@ and four of Template 5B's seven features (`launch_angle`, `chase_rate`,
 `../video-hyperframes/m05-l03/FACTS-PREFLIGHT.md` §F2–F3. The M05 L03 video makes
 no claim that depends on this.
 
-> **Ledger note:** the "Start here" section above says 0.12 is "not yet released".
-> It is — the global install reports **0.12.0** and stamps `cliVersion: "0.12.0"`
-> into query `meta` (P5.5 working as designed). Update that line.
+---
+
+## Shipped in v0.13.0 — 2026-09-18
+
+Everything on `main` between `404abd0` (0.12.0) and the bump. Gates at
+release: build, typecheck, lint, 464/464 tests.
+
+- **Viz redesign** (`2ce89f2`, `e6e8694`, merged `3931053`) — one visual
+  family across every chart type: `src/viz/theme.ts` tokens + CVD-validated
+  palettes, `--theme light|dark|print`, `--colorblind` now adds shape instead
+  of swapping to viridis, new `zone-ranked` chart type, `rolling` /
+  `pitcher-rolling` on the shared `rolling-facets.ts` vconcat builder with
+  latest + mean headline, park-shaped spray fence (330/400/330), movement
+  label nudging, `meta.width`/`meta.height` report the drawn plot. Aaron's
+  six judgment-call rulings recorded above under "Start here". Full per-chart
+  list in CHANGELOG 0.13.0 → Changed.
+- **Four viz defects from the 2026-09-18 visual audit** (`55c15cd`,
+  `393dd4f`) — `spray --colorblind` no-op, `zone` clamped hot cells, rolling
+  drew one line across an IL stint (`rolling-segments.ts`), `comparison`
+  ignored audience and hid its numbers. CHANGELOG 0.13.0 → Fixed.
+- **`pitcher-raw-pitches` outcome columns** (`d4ebc60`) — `description`,
+  `events`, `estimated_woba` pass through so the M05 L02 Pitch Quality Score
+  and the Stuff model can compute a whiff target from bbdata output.
+  `test/templates/pitcher-raw-pitches.test.ts`; COURSE_TEST_PLAN Q.4.
+
+Still open from this cycle, filed above: **V1–V5** (viz follow-ups), **V6**
+(empty `release_pos_x`/`release_pos_z` on the live Skubal 2025 pull), and
+**P5.6** (`leaderboard-custom` adapter fallthrough).
 
 ---
 

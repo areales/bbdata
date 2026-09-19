@@ -3,13 +3,15 @@
 All notable changes to `bbdata` are documented here. This project follows
 [Semantic Versioning](https://semver.org/).
 
-## Unreleased
+## 0.13.0 — 2026-09-18
 
 Three chart defects found by the 2026-09-18 visual audit of every `viz`
 chart type on live 2026 data, followed by a redesign of the whole chart
-family on the same day.
+family on the same day, plus the pitch-outcome columns the Module 05
+Pitch Quality Score demo needs. Minor bump: new `--theme` flag, new
+`zone-ranked` chart type, new query columns; nothing removed.
 
-### Changed — chart redesign (branch `viz-redesign`, pending Aaron's sign-off)
+### Changed — chart redesign (branch `viz-redesign`, approved 2026-09-18)
 
 Every `viz` chart now renders in one visual family: a light surface, solid
 hairline grid, muted axis ink, and a CVD-validated palette where color
