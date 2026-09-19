@@ -36,6 +36,18 @@ filed here:
   report page.
 - **V5** `labelDensity` is still declared per audience and read by nobody.
 
+**2026-09-18 — `pitcher-raw-pitches` gains `description`, `events`,
+`estimated_woba` (on `main`, unreleased, rides 0.13.0).** Needed by the M05
+L02 Pitch Quality Score demo (`../ai-baseball-data-analyst/Modules/05 - Code
+& Model Building/Demos/pitch-quality/`) — whiff rate needs `description` and
+the export dropped it, so the `build-model` skill's "every feature the Stuff
+model needs" claim was false. Additive pass-through; test added in
+`test/templates/pitcher-raw-pitches.test.ts`; CHANGELOG "Unreleased → Added";
+COURSE_TEST_PLAN Q.4 updated. Open, noticed while verifying: the live Savant
+pull returns empty `release_pos_x`/`release_pos_z` for Skubal 2025 even
+though P4.11 says the columns are in the export — check the CSV parser's
+column mapping before the next release (**V6**).
+
 **v0.11.0 shipped 2026-09-07 — the course is unpinned from 0.10.0.** The
 14-item P1 wave, P2.7, P3.5, P3.6, and P4.6–P4.13 are all released; see the
 "Shipped in v0.11.0" section. They had sat on `main` since 2026-08-29 while

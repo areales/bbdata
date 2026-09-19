@@ -105,7 +105,7 @@ The **C-test command** uses `--data test/fixtures/savant-csv-sample.csv` where t
 | Q.1 | C | `pitcher-arsenal` | `node dist/bin/bbdata.js query pitcher-arsenal --player "Burnes Corbin" --data test/fixtures/savant-csv-sample.csv --format json` | Exit 0. `meta.source === "stdin"`. `data` is an array with `Pitch Type`, `Usage %`, `Avg Velo` columns. | ✓ |
 | Q.2 | C | `pitcher-velocity-trend` | same, template swapped | Exit 0. `data` has `Month`, `Avg Velo` columns. **Regression guard** for the placement fix — sparse input now errors instead of silently returning `[]`. | ✓ |
 | Q.3 | C | `pitcher-handedness-splits` | same | Exit 0. `data.length <= 2` (one row per pitcher handedness). | ✓ |
-| Q.4 | C | `pitcher-raw-pitches` | same | Exit 0. `data` is pitch-level (one row per pitch in the fixture). | ✓ |
+| Q.4 | C | `pitcher-raw-pitches` | same | Exit 0. `data` is pitch-level (one row per pitch in the fixture). Since 0.13.0 every row also carries `description` (non-null string), `events`, and `estimated_woba` (null mid-PA / no contact) — the M05 L02 Pitch Quality Score demo depends on `description`. | ✓ |
 | Q.5 | C | `pitcher-recent-form` | same | Exit 0. `data` is game-level. | ✓ |
 | Q.6 | C | `pitcher-by-count` | same | Exit 0. `data` has count-state rows (e.g., `0-0`, `1-2`). | ✓ |
 | Q.7 | C | `pitcher-tto` | same | Exit 0. `data` has times-through-order rows. | ✓ |

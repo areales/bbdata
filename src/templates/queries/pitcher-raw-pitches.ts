@@ -40,6 +40,9 @@ const template: QueryTemplate = {
       'plate_z',
       'balls',
       'strikes',
+      'description',
+      'events',
+      'estimated_woba',
       'game_date',
     ];
   },
@@ -64,6 +67,10 @@ const template: QueryTemplate = {
     // Count state and release point (P4.11): pass-throughs that let the
     // course's Pitch Mix by Count and Release Point Plot templates build
     // from bbdata output instead of requiring a raw Savant export.
+    //
+    // Pitch outcome (description / events / estimated_woba): pass-throughs
+    // that give the course's Pitch Quality Score (M05 L02) and Stuff model
+    // (M05 L03 2B) a whiff-rate or run-value target from the same export.
     return pitches
       .filter((p) => p.pitch_type)
       .map((p) => ({
@@ -78,6 +85,9 @@ const template: QueryTemplate = {
         plate_z: p.plate_z,
         balls: p.balls ?? null,
         strikes: p.strikes ?? null,
+        description: p.description,
+        events: p.events ?? null,
+        estimated_woba: p.estimated_woba ?? null,
         game_date: p.game_date,
       }));
   },

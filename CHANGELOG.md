@@ -66,6 +66,20 @@ before still works. Details per chart:
   Fixed-aspect charts (movement, spray, zone) fit inside the requested
   `--size`; the PNG raster and PDF page keep the requested size.
 
+### Added
+
+- **`pitcher-raw-pitches` carries the pitch outcome.** Three new
+  pass-through columns after `strikes`: `description` (Savant's
+  `swinging_strike` / `foul` / `hit_into_play` / … classification), `events`
+  (the PA result, null mid-PA), and `estimated_woba` (xwOBA on contact, null
+  otherwise). The course's Pitch Quality Score (M05 L02) needs a whiff rate
+  and the Stuff model (M05 L03 2B) needs a whiff or run-value target; neither
+  could be computed from this export before, and the `build-model` skill's
+  claim that the template "returns every feature the Stuff model needs" was
+  false. `PitchData` already carried all three fields — the template dropped
+  them. Additive: JSON, CSV, table, and markdown gain columns; nothing moves.
+  (`src/templates/queries/pitcher-raw-pitches.ts`)
+
 ### Fixed
 
 - **`viz spray --colorblind` was a no-op.** The result palette is

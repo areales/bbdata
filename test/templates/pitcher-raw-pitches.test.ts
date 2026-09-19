@@ -88,4 +88,48 @@ describe('pitcher-raw-pitches template', () => {
     expect(rows[0].release_pos_x).toBeNull();
     expect(rows[0].balls).toBeNull();
   });
+
+  it('passes pitch outcome through for whiff-rate and run-value targets', () => {
+    // description/events/estimated_woba let the course's Pitch Quality
+    // Score (M05 L02) and Stuff model (M05 L03 2B) compute a target from
+    // this export instead of a raw Savant pull.
+    const base = {
+      pitcher_id: '669373',
+      pitcher_name: 'Tarik Skubal',
+      batter_id: '1',
+      batter_name: 'Batter',
+      game_date: '2025-06-01',
+      pitch_type: 'CH',
+      release_speed: 88.1,
+      release_spin_rate: 1650,
+      pfx_x: 1.2,
+      pfx_z: 0.4,
+      plate_x: -0.4,
+      plate_z: 1.6,
+      launch_speed: null,
+      launch_angle: null,
+      hc_x: null,
+      hc_y: null,
+      bb_type: null,
+      stand: 'L',
+      p_throws: 'L',
+      estimated_ba: null,
+    };
+    const input = [
+      { ...base, description: 'swinging_strike', events: 'strikeout', estimated_woba: null },
+      { ...base, description: 'hit_into_play', events: 'single', estimated_woba: 0.512 },
+    ] as PitchData[];
+
+    const rows = template.transform(input, { player: 'Tarik Skubal' });
+    expect(rows).toHaveLength(2);
+    expect(rows[0].description).toBe('swinging_strike');
+    expect(rows[0].events).toBe('strikeout');
+    expect(rows[0].estimated_woba).toBeNull();
+    expect(rows[1].description).toBe('hit_into_play');
+    expect(rows[1].estimated_woba).toBe(0.512);
+
+    expect(template.columns({ player: 'X' })).toEqual(
+      expect.arrayContaining(['description', 'events', 'estimated_woba']),
+    );
+  });
 });
