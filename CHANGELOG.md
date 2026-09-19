@@ -6,7 +6,65 @@ All notable changes to `bbdata` are documented here. This project follows
 ## Unreleased
 
 Three chart defects found by the 2026-09-18 visual audit of every `viz`
-chart type on live 2026 data.
+chart type on live 2026 data, followed by a redesign of the whole chart
+family on the same day.
+
+### Changed — chart redesign (branch `viz-redesign`, pending Aaron's sign-off)
+
+Every `viz` chart now renders in one visual family: a light surface, solid
+hairline grid, muted axis ink, and a CVD-validated palette where color
+follows the entity (a slider is the same blue on every pitcher's chart, a
+home run the same red on every spray). Rendered output and the embedded
+`#bbdata-spec` JSON change for every chart type; every command that worked
+before still works. Details per chart:
+
+- **New `--theme <light|dark|print>`** (default `light`). `dark` re-steps
+  the same palette for a dark surface; `print` is grayscale and encodes
+  identity with shape. `meta.theme` reports which one rendered.
+- **`--colorblind` no longer swaps in viridis.** The shipped palette passes
+  the dataviz CVD checks; the flag now adds shape as a redundant channel on
+  the movement and spray charts (as `dark` and `print` always do). Help
+  text updated accordingly.
+- **New `zone-ranked` chart type** (alias `hitting-zones-ranked`): the nine
+  zone cells as horizontal bars sorted by xwOBA, value and PA count at each
+  tip. Same `hitter-zone-grid` fetch as `zone`.
+- **`movement`**: square plot (both axes are inches), fixed pitch-type
+  colors by family (fastballs warm, breaking cool, offspeed green), small
+  translucent points so a 450-pitch fastball cluster reads as a cloud, and
+  the per-type mean drawn LAST as a ringed marker with its label — the audit
+  found the old hollow crosses visible for one type out of seven. When two
+  means sit close enough that their labels would overprint (SI on CH, 2 in
+  apart), the lower label is nudged down until it clears; `movement-binned`
+  shares the rule.
+- **`movement-binned`**: the 5×2-in blue rect heatmap with tableau crosses
+  is now count bubbles — one circle per 2.5-in square bin and pitch type,
+  area = count, hue = pitch type. Square bins read the same on both axes and
+  the changeup no longer vanishes on a mid-blue cell.
+- **`spray`**: results carry display labels (Single … Home run) and every
+  non-hit buckets to Out, so no more raw Savant enums or unmapped hollow
+  circles; infield diamond, 200/300 ft rings, and a schematic fence (330 ft
+  down the lines, 400 ft to center) the foul lines actually end on give the
+  reader a scale; equal feet per pixel so the fence keeps its shape; the
+  domain grows to fit a ball hit over the wall; exit velocity still sizes
+  the mark.
+- **`zone`**: strike-zone proportions (17×24) regardless of canvas, no
+  gridlines through the labels, one sequential blue ramp (xwOBA is a
+  magnitude, not a polarity), `.524` not `0.524`, and the PA count in every
+  cell; label ink flips to white on dark cells.
+- **`rolling` / `pitcher-rolling`**: one shared builder
+  (`rolling-facets.ts`), one panel per metric stacked with `vconcat`. Metric
+  name above its panel in a shared gutter (the side labels used to stagger),
+  the latest value printed large at each panel's top-right with the mean of
+  the shown windows beside it in muted ink (a nine-game September window
+  after an IL stint shouldn't read as the player's level), rate stats as
+  `.312`, percentages with `%`, subtitle names the window size
+  (`15-game windows` / `5-start windows`) and the date span, one accent hue
+  for every row, and an mph panel's domain is at least ±2 mph around its
+  mean so a 0.7-mph wobble never fills the panel.
+- **`comparison`**: palette and theme only.
+- **`meta.width` / `meta.height`** now report the plot that was drawn.
+  Fixed-aspect charts (movement, spray, zone) fit inside the requested
+  `--size`; the PNG raster and PDF page keep the requested size.
 
 ### Fixed
 

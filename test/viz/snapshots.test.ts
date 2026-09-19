@@ -46,6 +46,7 @@ function opts(overrides: Partial<ResolvedVizOptions> = {}): ResolvedVizOptions {
     width: 800,
     height: 500,
     colorblind: false,
+    theme: 'light',
     title: 'Demo Chart',
     ...overrides,
   };
@@ -84,37 +85,33 @@ describe('zone chart — snapshot + structural', () => {
     expect(normalizeSvg(svg)).toMatchSnapshot();
   });
 
-  it('cell labels carry paint-order="stroke" (regression test for readability bug)', async () => {
+  it('cell labels flip to the surface color on the dark half of the ramp (readability)', async () => {
     const spec = zoneBuilder.buildSpec(rows, options);
     const svg = await specToSvg(spec);
     const texts = extractTextElements(svg);
-
-    // Any text element with stroke="white" is a cell label and MUST have
-    // the paint-order attribute — otherwise the halo collapses behind the
-    // fill and the labels become ghosted-illegible on the red cells.
-    const haloedLabels = texts.filter((t) => /stroke="white"/.test(t.attrs));
-    expect(haloedLabels.length).toBeGreaterThan(0);
-    for (const t of haloedLabels) {
-      expect(t.attrs).toContain('paint-order="stroke"');
-    }
+    const label = (v: string) => texts.find((t) => t.content === v);
+    // Fixture runs .190 → .705 on a [0.15, 0.75] domain; the flip is at the
+    // midpoint, so .705 sits on a dark cell and .190 on a pale one.
+    expect(label('.705')?.attrs).toContain('fill="#ffffff"');
+    expect(label('.190')?.attrs).toContain('fill="#0b0b0b"');
   });
 
-  it('cell label text content matches fixture xwOBA values to 3 decimals', async () => {
+  it('cell labels carry the xwOBA in baseball notation and the PA count', async () => {
     const spec = zoneBuilder.buildSpec(rows, options);
     const svg = await specToSvg(spec);
-    const texts = extractTextElements(svg);
-    const labelContents = new Set(
-      texts.filter((t) => /stroke="white"/.test(t.attrs)).map((t) => t.content),
-    );
+    const contents = new Set(extractTextElements(svg).map((t) => t.content));
 
     // Fixture is test/fixtures/viz/zone-grid.sample.json
-    const expected = ['0.524', '0.602', '0.373', '0.705', '0.650', '0.473', '0.391', '0.339', '0.190'];
+    const expected = ['.524', '.602', '.373', '.705', '.650', '.473', '.391', '.339', '.190'];
     for (const v of expected) {
-      expect(labelContents).toContain(v);
+      expect(contents).toContain(v);
     }
+    expect([...contents].some((c) => /^\d+ PA$/.test(c))).toBe(true);
+    // Never the leading-zero form the old chart printed.
+    expect(contents.has('0.524')).toBe(false);
   });
 
-  it('uses the non-colorblind redyellowblue scheme and widens the domain to cover the data', () => {
+  it('uses one blue ramp and widens the domain to cover the data', () => {
     const spec = zoneBuilder.buildSpec(rows, options) as {
       layer: Array<{ encoding?: { color?: { scale?: Record<string, unknown> } } }>;
     };
@@ -123,11 +120,11 @@ describe('zone chart — snapshot + structural', () => {
     // Fixture runs .190 → .705, so the [0.2, 0.5] baseline widens outward
     // to the nearest 0.05 on both ends.
     expect(scale).toMatchObject({
-      scheme: 'redyellowblue',
-      reverse: true,
       domain: [0.15, 0.75],
       clamp: true,
     });
+    expect(scale?.range).toHaveLength(7);
+    expect(scale?.scheme).toBeUndefined();
   });
 
   it('keeps the [0.2, 0.5] baseline domain when every cell sits inside it', () => {
@@ -159,9 +156,17 @@ describe('movement chart — snapshot + structural', () => {
     const spec = movementBuilder.buildSpec(rows, options);
     const svg = await specToSvg(spec);
     expect(svg).toContain('Demo Pitcher — Pitch Movement (2025)');
-    expect(svg).toContain('Horizontal Break');
-    expect(svg).toContain('Induced Vertical Break');
+    expect(svg).toContain('Horizontal break');
+    expect(svg).toContain('Induced vertical break');
     expect(svg).toContain('Pitch');
+  });
+
+  it('draws every pitch-type mean label after the point cloud so none is buried', async () => {
+    const spec = movementBuilder.buildSpec(rows, options);
+    const svg = await specToSvg(spec);
+    const types = new Set((rows['pitcher-raw-pitches'] as Array<{ pitch_type: string }>).map((p) => p.pitch_type));
+    const texts = extractTextElements(svg).map((t) => t.content);
+    for (const t of types) expect(texts).toContain(t);
   });
 
   it('has a non-zero viewBox on the root svg', async () => {
@@ -210,22 +215,24 @@ describe('rolling chart — snapshot + structural', () => {
     expect(normalizeSvg(svg)).toMatchSnapshot();
   });
 
-  it('uses faceted small multiples with independent y-scale', () => {
+  it('stacks small multiples with independent y-scales', () => {
     const spec = rollingBuilder.buildSpec(rows, options) as {
-      facet?: unknown;
+      vconcat?: unknown[];
       resolve?: { scale?: { y?: string } };
     };
     // This is the "no shared-axis squashing" rule from the feedback memory —
     // if anyone reverts it to a single-layer color-by-metric chart, this
     // assertion explodes loudly.
-    expect(spec.facet).toBeDefined();
+    expect(spec.vconcat?.length).toBeGreaterThan(1);
     expect(spec.resolve?.scale?.y).toBe('independent');
   });
 
-  it('contains the chart title and Window End axis label', async () => {
+  it('contains the chart title, the window size, and a metric header per panel', async () => {
     const spec = rollingBuilder.buildSpec(rows, options);
     const svg = await specToSvg(spec);
     expect(svg).toContain('Demo Hitter — Rolling Performance (2025)');
-    expect(svg).toContain('Window End');
+    expect(svg).toContain('-game windows');
+    const texts = extractTextElements(svg).map((t) => t.content);
+    expect(texts).toContain('AVG');
   });
 });

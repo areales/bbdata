@@ -1,50 +1,42 @@
 import type { ChartBuilder, ResolvedVizOptions } from '../types.js';
-import { audienceConfig } from '../audience.js';
+import { audienceConfig, AUDIENCE_DEFAULTS } from '../audience.js';
+import {
+  RESULT_DOMAIN,
+  RESULT_SHAPES,
+  THEMES,
+  resultColors,
+  resultLabel,
+} from '../theme.js';
 
 /**
  * Spray Chart
  *
- * Batted-ball landing positions on a field diagram. Foul lines and outfield
- * arc are drawn as additional data points inside a single dataset so that
- * Vega-Lite doesn't fight over per-layer axis/scale merging. The `kind`
- * field distinguishes markers ('bip'), foul lines ('foul'), and arc ('arc').
+ * Batted-ball landing positions on a schematic field. Field guides (foul
+ * lines, infield diamond, distance rings, fence arc) are separate data
+ * layers; the batted-ball layer goes first so it owns the scales.
  *
  * Coordinate transform: x' = (hc_x - 125.42) * 2.5, y' = (204 - hc_y) * 2.5
  * (standard Statcast conversion, home plate at origin, center field along +y).
+ * Units after the transform are roughly feet.
+ *
+ * 2026-09 redesign: results carry display labels (Single … Home run, and
+ * everything that isn't a hit is "Out" — no more raw Savant enums and no more
+ * unmapped hollow circles), the foul lines end on the fence arc instead of
+ * past it, an infield diamond and two distance rings give the reader a scale,
+ * exit velocity still sizes the mark, and the print/dark/colorblind modes add
+ * shape so a result never rides on hue alone.
  */
-const RESULT_DOMAIN = [
-  'single',
-  'double',
-  'triple',
-  'home_run',
-  'field_out',
-  'force_out',
-  'grounded_into_double_play',
-];
 
-// Result colors are hand-picked rather than scheme-driven so outs share one
-// gray and hits stay distinct. That means `audienceConfig`'s viridis swap
-// never reaches this scale — before 0.12.1 `--colorblind` was a no-op here.
-// The colorblind range samples viridis dark → bright in hit-value order
-// (single → home run), which reads ordinally and survives deuteranopia.
-const RESULT_RANGE_DEFAULT = [
-  '#4e79a7',
-  '#59a14f',
-  '#edc948',
-  '#e15759',
-  '#bab0ac',
-  '#bab0ac',
-  '#bab0ac',
-];
-const RESULT_RANGE_COLORBLIND = [
-  '#440154',
-  '#31688e',
-  '#35b779',
-  '#fde725',
-  '#bab0ac',
-  '#bab0ac',
-  '#bab0ac',
-];
+/**
+ * Schematic fence: 330 ft down each line, 400 ft to center, a smooth curve
+ * between (r = 330 + 70·cos(2φ), φ measured from center field). Not any real
+ * park, but the shape every analyst pattern-matches on; a single 400-ft
+ * circle made line-drive homers look short of the wall.
+ */
+const FENCE_LINE_FT = 330;
+const FENCE_CENTER_FT = 400;
+const RING_FT = [200, 300];
+const BASE_PATH_FT = 90;
 
 export const sprayBuilder: ChartBuilder = {
   id: 'spray',
@@ -65,6 +57,9 @@ export const sprayBuilder: ChartBuilder = {
       launch_angle: number | null;
       events: string;
     }>;
+    const t = THEMES[options.theme];
+    const d = AUDIENCE_DEFAULTS[options.audience];
+    const useShape = options.theme !== 'light' || options.colorblind;
 
     // hitter-raw-bip retains coordinate-less batted balls (P3.6) so
     // aggregate counts stay honest; they can't be placed on the field,
@@ -78,83 +73,163 @@ export const sprayBuilder: ChartBuilder = {
         launch_speed: b.launch_speed ?? 0,
         launch_angle: b.launch_angle ?? 0,
         events: b.events,
+        result: resultLabel(b.events),
       }];
     });
+    // Hits draw last so an out never covers a home run.
+    const drawOrder = (r: string) => (r === 'Out' ? 0 : 1);
+    points.sort((a, b) => drawOrder(a.result) - drawOrder(b.result));
 
-    // Outfield arc — half-circle from left foul (-297, 297) through CF (0, 420) to right foul (297, 297)
-    // Parametrized so the endpoints meet the foul-line tips.
-    const arc = Array.from({ length: 37 }, (_, i) => {
-      const t = (Math.PI / 4) + (Math.PI / 2) * (i / 36); // 45° → 135°
-      return { x: Math.cos(t) * 420 * -1, y: Math.sin(t) * 420 };
+    const foulTip = FENCE_LINE_FT * Math.SQRT1_2; // where a 45° foul line meets the fence
+    const arcPoints = (radius: number, n = 48) =>
+      Array.from({ length: n + 1 }, (_, i) => {
+        const a = Math.PI / 4 + (Math.PI / 2) * (i / n); // 45° → 135°
+        return { x: -Math.cos(a) * radius, y: Math.sin(a) * radius, r: radius };
+      });
+    const fence = Array.from({ length: 65 }, (_, i) => {
+      const a = Math.PI / 4 + (Math.PI / 2) * (i / 64);
+      const phi = a - Math.PI / 2; // 0 at center field, ±45° at the lines
+      const radius = FENCE_LINE_FT + (FENCE_CENTER_FT - FENCE_LINE_FT) * Math.cos(2 * phi);
+      return { x: -Math.cos(a) * radius, y: Math.sin(a) * radius };
     });
+    const rings = RING_FT.flatMap((r) => arcPoints(r, 32));
+    const ringLabels = RING_FT.map((r) => ({ x: 0, y: r, label: `${r} ft` }));
+    const foulLines = [
+      { line: 'L', x: 0, y: 0 }, { line: 'L', x: -foulTip, y: foulTip },
+      { line: 'R', x: 0, y: 0 }, { line: 'R', x: foulTip, y: foulTip },
+    ];
+    const half = BASE_PATH_FT * Math.SQRT1_2;
+    const diamond = [
+      { x: 0, y: 0 }, { x: half, y: half }, { x: 0, y: 2 * half }, { x: -half, y: half }, { x: 0, y: 0 },
+    ].map((p, i) => ({ ...p, order: i }));
+
+    // Equal feet per pixel on both axes, or the fence curve is distorted:
+    // the requested canvas is the bounding box, the x span is the wider
+    // one, so width fills it and height follows the y span.
+    // The field sets the floor; a ball over the wall widens the domain.
+    const xReach = Math.max(foulTip, ...points.map((p) => Math.abs(p.x)));
+    const yReach = Math.max(FENCE_CENTER_FT, ...points.map((p) => p.y));
+    const xDomain: [number, number] = [-xReach - 20, xReach + 20];
+    const yDomain: [number, number] = [-30, yReach + 30];
+    const ftPerPx = Math.max(
+      (xDomain[1] - xDomain[0]) / options.width,
+      (yDomain[1] - yDomain[0]) / options.height,
+    );
+    const width = Math.round((xDomain[1] - xDomain[0]) / ftPerPx);
+    const height = Math.round((yDomain[1] - yDomain[0]) / ftPerPx);
+    const colors = resultColors(options.theme);
+    const present = new Set(points.map((p) => p.result));
+    const domain = RESULT_DOMAIN.filter((r) => present.has(r));
+    const range = RESULT_DOMAIN.map((r, i) => colors[i]).filter((_, i) => present.has(RESULT_DOMAIN[i]));
+    const shapes = RESULT_DOMAIN.map((r, i) => RESULT_SHAPES[i]).filter((_, i) => present.has(RESULT_DOMAIN[i]));
+    const guideLine = { type: 'line', stroke: t.axis, strokeWidth: 1, strokeJoin: 'round' as const };
 
     return {
       $schema: 'https://vega.github.io/schema/vega-lite/v6.json',
-      title: options.title,
-      width: options.width,
-      height: options.height,
+      title: {
+        text: options.title,
+        subtitle: `${points.length} batted balls · schematic field, fence ${FENCE_LINE_FT} ft down the lines, ${FENCE_CENTER_FT} ft to center`,
+      },
+      width,
+      height,
       layer: [
         // Batted-ball points (first layer controls scales/axes for the chart)
         {
           data: { values: points },
-          mark: { type: 'circle', opacity: 0.75, stroke: '#333', strokeWidth: 0.5 },
+          mark: {
+            type: 'point',
+            filled: true,
+            opacity: 0.8,
+            stroke: t.surface,
+            strokeWidth: 1,
+            strokeOpacity: 0.9,
+          },
           encoding: {
             x: {
               field: 'x',
               type: 'quantitative',
-              scale: { domain: [-450, 450] },
+              scale: { domain: xDomain },
               axis: null,
             },
             y: {
               field: 'y',
               type: 'quantitative',
-              scale: { domain: [-50, 500] },
+              scale: { domain: yDomain },
               axis: null,
             },
             size: {
               field: 'launch_speed',
               type: 'quantitative',
-              scale: { domain: [60, 115], range: [40, 400] },
-              legend: { title: 'Exit Velo' },
+              scale: { domain: [60, 115], range: [d.axisLabelFontSize * 2, d.axisLabelFontSize * 14] },
+              legend: { title: 'Exit velo (mph)', values: [70, 90, 110], symbolFillColor: t.neutral, symbolStrokeWidth: 0 },
             },
             color: {
-              field: 'events',
+              field: 'result',
               type: 'nominal',
-              scale: {
-                domain: RESULT_DOMAIN,
-                range: options.colorblind ? RESULT_RANGE_COLORBLIND : RESULT_RANGE_DEFAULT,
-              },
+              scale: { domain, range },
               legend: { title: 'Result' },
             },
+            ...(useShape
+              ? {
+                  shape: {
+                    field: 'result',
+                    type: 'nominal',
+                    scale: { domain, range: shapes },
+                    legend: { title: 'Result' },
+                  },
+                }
+              : {}),
+            order: { field: 'result', type: 'nominal', sort: ['Out', 'Single', 'Double', 'Triple', 'Home run'] },
             tooltip: [
-              { field: 'events', title: 'Result' },
+              { field: 'result', title: 'Result' },
               { field: 'launch_speed', title: 'EV', format: '.1f' },
               { field: 'launch_angle', title: 'LA', format: '.0f' },
             ],
           },
         },
-        // Foul lines — left field
+        // Distance rings — hairline, one step off the surface
         {
-          data: { values: [{ x: 0, y: 0 }, { x: -297, y: 297 }] },
-          mark: { type: 'line', stroke: '#888', strokeWidth: 1.5 },
+          data: { values: rings },
+          mark: { type: 'line', stroke: t.grid, strokeWidth: 1 },
           encoding: {
             x: { field: 'x', type: 'quantitative' },
             y: { field: 'y', type: 'quantitative' },
+            detail: { field: 'r', type: 'nominal' },
           },
         },
-        // Foul lines — right field
         {
-          data: { values: [{ x: 0, y: 0 }, { x: 297, y: 297 }] },
-          mark: { type: 'line', stroke: '#888', strokeWidth: 1.5 },
+          data: { values: ringLabels },
+          mark: { type: 'text', dy: -6, fontSize: Math.max(9, d.axisLabelFontSize - 2), color: t.muted },
           encoding: {
             x: { field: 'x', type: 'quantitative' },
             y: { field: 'y', type: 'quantitative' },
+            text: { field: 'label', type: 'nominal' },
           },
         },
-        // Outfield arc
+        // Infield diamond
         {
-          data: { values: arc },
-          mark: { type: 'line', stroke: '#999', strokeDash: [6, 4], strokeWidth: 1.5 },
+          data: { values: diamond },
+          mark: guideLine,
+          encoding: {
+            x: { field: 'x', type: 'quantitative' },
+            y: { field: 'y', type: 'quantitative' },
+            order: { field: 'order', type: 'quantitative' },
+          },
+        },
+        // Foul lines, home plate to the fence arc
+        {
+          data: { values: foulLines },
+          mark: guideLine,
+          encoding: {
+            x: { field: 'x', type: 'quantitative' },
+            y: { field: 'y', type: 'quantitative' },
+            detail: { field: 'line', type: 'nominal' },
+          },
+        },
+        // Fence arc
+        {
+          data: { values: fence },
+          mark: { type: 'line', stroke: t.axis, strokeWidth: 1.5 },
           encoding: {
             x: { field: 'x', type: 'quantitative' },
             y: { field: 'y', type: 'quantitative' },
@@ -162,7 +237,7 @@ export const sprayBuilder: ChartBuilder = {
         },
       ],
       config: {
-        ...audienceConfig(options.audience, options.colorblind),
+        ...audienceConfig(options.audience, { colorblind: options.colorblind, theme: options.theme }),
         axis: { grid: false, domain: false, ticks: false, labels: false },
       },
     };

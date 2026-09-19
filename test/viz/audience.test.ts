@@ -34,12 +34,32 @@ describe('audienceConfig', () => {
     expect(cfg.legend.labelFontSize).toBe(AUDIENCE_DEFAULTS.analyst.legendLabelFontSize);
   });
 
-  it('forces viridis palette when colorblind is true', () => {
-    const cfg = audienceConfig('coach', true) as {
-      range: { category: { scheme: string }; ramp: { scheme: string } };
-    };
-    expect(cfg.range.category.scheme).toBe('viridis');
-    expect(cfg.range.ramp.scheme).toBe('viridis');
+  it('keeps the validated palette under --colorblind (shape is the redundant channel, not viridis)', () => {
+    const plain = audienceConfig('coach', false) as { range: { category: string[] } };
+    const cb = audienceConfig('coach', true) as { range: { category: string[] } };
+    expect(cb.range.category).toEqual(plain.range.category);
+    expect(plain.range.category[0]).toBe('#2a78d6');
+  });
+
+  it('derives surface, ink, and grid tokens from the theme', () => {
+    type Cfg = { background: string; axis: { gridColor: string; labelColor: string }; range: { category: string[]; ramp: string[] } };
+    const light = audienceConfig('analyst', { theme: 'light' }) as Cfg;
+    const dark = audienceConfig('analyst', { theme: 'dark' }) as Cfg;
+    const print = audienceConfig('analyst', { theme: 'print' }) as Cfg;
+    expect(light.background).toBe('#ffffff');
+    expect(dark.background).toBe('#1a1a19');
+    expect(dark.axis.gridColor).not.toBe(light.axis.gridColor);
+    // Print is grayscale: every categorical slot is a neutral (r == g == b).
+    for (const hex of print.range.category) {
+      expect(hex).toMatch(/^#([0-9a-f]{2})\1\1$/i);
+    }
+    expect(light.range.ramp).toHaveLength(7);
+  });
+
+  it('a bare boolean second argument still means { colorblind } on the light theme', () => {
+    const a = audienceConfig('analyst', false) as { background: string };
+    const b = audienceConfig('analyst', { colorblind: false, theme: 'light' }) as { background: string };
+    expect(a).toEqual(b);
   });
 });
 
