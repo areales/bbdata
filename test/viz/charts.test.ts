@@ -130,6 +130,31 @@ describe('sprayBuilder', () => {
     // hc_y = 104 → y = (204 - 104) * 2.5 = 250
     expect(pt.y).toBeCloseTo(250, 1);
   });
+
+  it('swaps the hand-picked result palette for a viridis-sampled one under --colorblind', () => {
+    const rows = {
+      'hitter-raw-bip': [
+        { hc_x: 125.42, hc_y: 104, launch_speed: 100, launch_angle: 25, events: 'home_run' },
+      ],
+    };
+    type Spec = { layer: Array<{ encoding?: { color?: { scale?: { domain: string[]; range: string[] } } } }> };
+    const scaleFor = (colorblind: boolean) =>
+      (sprayBuilder.buildSpec(rows, { ...baseOptions, type: 'spray', colorblind }) as Spec)
+        .layer[0]?.encoding?.color?.scale;
+
+    const plain = scaleFor(false);
+    const cb = scaleFor(true);
+    // Same categories in the same order; only the colors change.
+    expect(cb?.domain).toEqual(plain?.domain);
+    expect(cb?.range).not.toEqual(plain?.range);
+    // Red home run vs green double is the pair a deuteranope can't split.
+    expect(plain?.range[1]).toBe('#59a14f');
+    expect(plain?.range[3]).toBe('#e15759');
+    expect(cb?.range[1]).not.toBe('#59a14f');
+    expect(cb?.range[3]).not.toBe('#e15759');
+    // Outs stay one neutral gray in both palettes.
+    expect(new Set(cb?.range.slice(4)).size).toBe(1);
+  });
 });
 
 describe('zoneBuilder', () => {
@@ -214,6 +239,44 @@ describe('rollingBuilder', () => {
     };
     expect(spec.facet?.row?.field).toBe('metric');
     expect(spec.resolve?.scale?.y).toBe('independent');
+  });
+
+  it('breaks the line across a gap longer than 21 days instead of interpolating', () => {
+    // Judge 2026: windows every ~5 days through May 26, then nothing until
+    // Sep 8. The old chart drew one straight line across the IL stint.
+    const rows = {
+      'trend-rolling-average': [
+        { 'Window End': '2026-05-15', AVG: '0.234' },
+        { 'Window End': '2026-05-20', AVG: '0.188' },
+        { 'Window End': '2026-05-26', AVG: '0.197' },
+        { 'Window End': '2026-09-08', AVG: '0.154' },
+        { 'Window End': '2026-09-14', AVG: '0.177' },
+      ],
+    };
+    const spec = rollingBuilder.buildSpec(rows, { ...baseOptions, type: 'rolling' }) as {
+      data: { values: Array<{ window_end: string; segment: number }> };
+      spec: { layer: Array<{ encoding?: { detail?: { field: string } } }> };
+    };
+    const segmentOf = (d: string) => spec.data.values.find((r) => r.window_end === d)?.segment;
+    expect(segmentOf('2026-05-15')).toBe(0);
+    expect(segmentOf('2026-05-26')).toBe(0);
+    expect(segmentOf('2026-09-08')).toBe(1);
+    expect(segmentOf('2026-09-14')).toBe(1);
+    expect(spec.spec.layer[0]?.encoding?.detail?.field).toBe('segment');
+  });
+
+  it('keeps one segment when windows are evenly spaced', () => {
+    const rows = {
+      'trend-rolling-average': [
+        { 'Window End': '2026-05-01', AVG: '0.300' },
+        { 'Window End': '2026-05-08', AVG: '0.312' },
+        { 'Window End': '2026-05-15', AVG: '0.320' },
+      ],
+    };
+    const spec = rollingBuilder.buildSpec(rows, { ...baseOptions, type: 'rolling' }) as {
+      data: { values: Array<{ segment: number }> };
+    };
+    expect(new Set(spec.data.values.map((r) => r.segment))).toEqual(new Set([0]));
   });
 
   it('excludes Games from metric auto-detection', () => {

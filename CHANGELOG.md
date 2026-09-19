@@ -5,6 +5,30 @@ All notable changes to `bbdata` are documented here. This project follows
 
 ## Unreleased
 
+Three chart defects found by the 2026-09-18 visual audit of every `viz`
+chart type on live 2026 data.
+
+### Fixed
+
+- **`viz spray --colorblind` was a no-op.** The result palette is
+  hand-picked (hits distinct, outs one gray) rather than scheme-driven, so
+  `audienceConfig`'s viridis swap never reached it and the output was
+  byte-identical to the default. Red home run vs green double is exactly the
+  pair a deuteranope can't split. The chart now carries its own
+  viridis-sampled range (single → home run, dark → bright); outs stay gray.
+  (`src/viz/charts/spray.ts`)
+- **`viz zone` clamped every hot cell to the same red.** The color domain
+  was pinned to [0.2, 0.5] with `clamp: true`; Judge 2026 had five cells from
+  .540 to .672 that the legend could not tell apart. The domain now starts at
+  that baseline and widens outward (to the nearest 0.05) to cover the data.
+  (`src/viz/charts/zone.ts`)
+- **`viz rolling` / `viz pitcher-rolling` drew one line across an IL
+  stint.** Windows are counted in games, not days, so a 15-game window that
+  spans a three-month absence plotted as a single slow slide (Judge 2026:
+  May 26 → Sep 8). Consecutive windows more than 21 days apart now start a
+  new line segment, encoded as `detail` so color still follows the metric.
+  (`src/viz/charts/rolling-segments.ts`)
+
 ## 0.12.0 — 2026-09-07
 
 The honesty release: say what you do. The video drift audit

@@ -12,6 +12,40 @@ import { audienceConfig } from '../audience.js';
  * Coordinate transform: x' = (hc_x - 125.42) * 2.5, y' = (204 - hc_y) * 2.5
  * (standard Statcast conversion, home plate at origin, center field along +y).
  */
+const RESULT_DOMAIN = [
+  'single',
+  'double',
+  'triple',
+  'home_run',
+  'field_out',
+  'force_out',
+  'grounded_into_double_play',
+];
+
+// Result colors are hand-picked rather than scheme-driven so outs share one
+// gray and hits stay distinct. That means `audienceConfig`'s viridis swap
+// never reaches this scale — before 0.12.1 `--colorblind` was a no-op here.
+// The colorblind range samples viridis dark → bright in hit-value order
+// (single → home run), which reads ordinally and survives deuteranopia.
+const RESULT_RANGE_DEFAULT = [
+  '#4e79a7',
+  '#59a14f',
+  '#edc948',
+  '#e15759',
+  '#bab0ac',
+  '#bab0ac',
+  '#bab0ac',
+];
+const RESULT_RANGE_COLORBLIND = [
+  '#440154',
+  '#31688e',
+  '#35b779',
+  '#fde725',
+  '#bab0ac',
+  '#bab0ac',
+  '#bab0ac',
+];
+
 export const sprayBuilder: ChartBuilder = {
   id: 'spray',
 
@@ -87,24 +121,8 @@ export const sprayBuilder: ChartBuilder = {
               field: 'events',
               type: 'nominal',
               scale: {
-                domain: [
-                  'single',
-                  'double',
-                  'triple',
-                  'home_run',
-                  'field_out',
-                  'force_out',
-                  'grounded_into_double_play',
-                ],
-                range: [
-                  '#4e79a7',
-                  '#59a14f',
-                  '#edc948',
-                  '#e15759',
-                  '#bab0ac',
-                  '#bab0ac',
-                  '#bab0ac',
-                ],
+                domain: RESULT_DOMAIN,
+                range: options.colorblind ? RESULT_RANGE_COLORBLIND : RESULT_RANGE_DEFAULT,
               },
               legend: { title: 'Result' },
             },

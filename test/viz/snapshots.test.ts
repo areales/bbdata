@@ -114,18 +114,31 @@ describe('zone chart — snapshot + structural', () => {
     }
   });
 
-  it('uses the non-colorblind redyellowblue scheme with domain [0.2, 0.5] and clamp', () => {
+  it('uses the non-colorblind redyellowblue scheme and widens the domain to cover the data', () => {
     const spec = zoneBuilder.buildSpec(rows, options) as {
       layer: Array<{ encoding?: { color?: { scale?: Record<string, unknown> } } }>;
     };
     const rectLayer = spec.layer[0];
     const scale = rectLayer?.encoding?.color?.scale;
+    // Fixture runs .190 → .705, so the [0.2, 0.5] baseline widens outward
+    // to the nearest 0.05 on both ends.
     expect(scale).toMatchObject({
       scheme: 'redyellowblue',
       reverse: true,
-      domain: [0.2, 0.5],
+      domain: [0.15, 0.75],
       clamp: true,
     });
+  });
+
+  it('keeps the [0.2, 0.5] baseline domain when every cell sits inside it', () => {
+    const inside = rows['hitter-zone-grid'].map((c: { xwoba: number }, i: number) => ({
+      ...c,
+      xwoba: 0.25 + i * 0.025,
+    }));
+    const spec = zoneBuilder.buildSpec({ 'hitter-zone-grid': inside }, options) as {
+      layer: Array<{ encoding?: { color?: { scale?: { domain?: number[] } } } }>;
+    };
+    expect(spec.layer[0]?.encoding?.color?.scale?.domain).toEqual([0.2, 0.5]);
   });
 });
 

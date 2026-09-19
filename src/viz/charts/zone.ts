@@ -28,6 +28,21 @@ export const zoneBuilder: ChartBuilder = {
       xwoba: number;
     }>;
 
+    // The color domain starts at the league-wide realistic range for xwOBA
+    // (~.200 is Mendoza-esque; ~.500 is MVP-tier) and widens to cover the
+    // data. It used to be pinned to [0.2, 0.5] with clamp, which painted
+    // every hot cell of an elite hitter the same red — Judge 2026 had five
+    // cells from .540 to .672 that the legend could not tell apart. Values
+    // are rounded outward to 0.05 so the legend ticks land on clean stops.
+    const xwobas = grid.map((c) => c.xwoba).filter((v) => Number.isFinite(v));
+    const STEP = 0.05;
+    const domainMin = Math.min(0.2, ...xwobas);
+    const domainMax = Math.max(0.5, ...xwobas);
+    const domain = [
+      Math.floor(domainMin / STEP) * STEP,
+      Math.ceil(domainMax / STEP) * STEP,
+    ].map((v) => Number(v.toFixed(2)));
+
     return {
       $schema: 'https://vega.github.io/schema/vega-lite/v6.json',
       title: options.title,
@@ -51,16 +66,14 @@ export const zoneBuilder: ChartBuilder = {
             color: {
               field: 'xwoba',
               type: 'quantitative',
-              // Domain covers the league-wide realistic range for xwOBA
-              // (~.200 is Mendoza-esque; ~.500 is MVP-tier).
-              // `clamp: true` caps values outside the range to the endpoint
-              // colors so elite hitters still render cleanly.
+              // `clamp: true` stays as a guard for NaN/out-of-range edge
+              // cases; with the widened domain it no longer flattens data.
               scale: options.colorblind
-                ? { scheme: 'viridis', domain: [0.2, 0.5], clamp: true }
+                ? { scheme: 'viridis', domain, clamp: true }
                 : {
                     scheme: 'redyellowblue',
                     reverse: true,
-                    domain: [0.2, 0.5],
+                    domain,
                     clamp: true,
                   },
               legend: { title: 'xwOBA' },

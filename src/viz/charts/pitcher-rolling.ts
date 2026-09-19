@@ -1,5 +1,6 @@
 import type { ChartBuilder, ResolvedVizOptions } from '../types.js';
 import { audienceConfig } from '../audience.js';
+import { assignGapSegments } from './rolling-segments.js';
 
 /**
  * Pitcher Rolling Performance Trend
@@ -105,7 +106,7 @@ export const pitcherRollingBuilder: ChartBuilder = {
     return {
       $schema: 'https://vega.github.io/schema/vega-lite/v6.json',
       title: options.title,
-      data: { values: tidy },
+      data: { values: assignGapSegments(tidy) },
       facet: {
         row: {
           field: 'metric',
@@ -138,6 +139,8 @@ export const pitcherRollingBuilder: ChartBuilder = {
                 type: 'nominal',
                 legend: null,
               },
+              // Break the line across long absences (see rolling-segments.ts).
+              detail: { field: 'segment', type: 'nominal' },
               tooltip: [
                 { field: 'window_end', type: 'temporal', format: '%Y-%m-%d' },
                 { field: 'metric', title: 'Metric' },
