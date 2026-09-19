@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toMovementValues } from '../../src/viz/charts/movement-values.js';
+import { nudgeMeanLabels, toMovementValues } from '../../src/viz/charts/movement-values.js';
 import { movementBuilder } from '../../src/viz/charts/movement.js';
 import { movementBinnedBuilder } from '../../src/viz/charts/movement-binned.js';
 import { sprayBuilder } from '../../src/viz/charts/spray.js';
@@ -221,7 +221,13 @@ describe('sprayBuilder', () => {
     expect(spec.width / (xd[1]! - xd[0]!)).toBeCloseTo(spec.height / (yd[1]! - yd[0]!), 2);
     const foul = spec.layer.find((l) => l.data?.values[0]?.line === 'L')!.data!.values;
     const tip = foul.find((p) => p.line === 'L' && p.x !== 0)!;
-    expect(Math.hypot(tip.x, tip.y)).toBeCloseTo(400, 0);
+    expect(Math.hypot(tip.x, tip.y)).toBeCloseTo(330, 0);
+    // Fence: 330 down the lines, 400 to center, foul line ends on it.
+    const fence = spec.layer[spec.layer.length - 1]!.data!.values;
+    expect(Math.hypot(fence[0]!.x, fence[0]!.y)).toBeCloseTo(330, 0);
+    const center = fence.find((p) => Math.abs(p.x) < 1e-6)!;
+    expect(center.y).toBeCloseTo(400, 0);
+    expect(Math.hypot(fence[0]!.x - tip.x, fence[0]!.y - tip.y)).toBeLessThan(1e-6);
   });
 });
 
@@ -323,11 +329,15 @@ describe('rollingBuilder', () => {
     expect(labelExpr('AVG')).toContain("'.3f'"); // .312, not 0.312
     expect(labelExpr('Whiff')).toContain("'%'");
     expect(labelExpr('Velo')).toContain("'.0f'");
-    // Headline value per panel, formatted the same way.
-    const latest = (m: string) => (panelOf(spec, m).layer.at(-1)!.data!.values[0] as { label: string }).label;
-    expect(latest('AVG')).toBe('.300');
-    expect(latest('Whiff')).toBe('35.7%');
-    expect(latest('Velo')).toBe('95.2');
+    // Headline value per panel, formatted the same way, with the mean
+    // of the shown windows beside it in the same format.
+    const label = (m: string, fromEnd: number) =>
+      (panelOf(spec, m).layer.at(fromEnd)!.data!.values[0] as { label: string }).label;
+    expect(label('AVG', -2)).toBe('.300');
+    expect(label('Whiff', -2)).toBe('35.7%');
+    expect(label('Velo', -2)).toBe('95.2');
+    expect(label('AVG', -1)).toBe('mean .300');
+    expect(label('Velo', -1)).toBe('mean 95.2');
   });
 
   it('shares the time axis and keeps every value axis independent', () => {
@@ -553,5 +563,31 @@ describe('toMovementValues', () => {
     expect(values[0].hBreak).toBeCloseTo(-6); // feet → inches, flipped for catcher POV
     expect(values[0].vBreak).toBeCloseTo(14.4);
     expect(values[0].velo).toBe(95.4);
+  });
+});
+
+describe('nudgeMeanLabels', () => {
+  const side = 600; // 12 px per inch over the ±25 domain
+  const means = (pairs: Array<[string, number, number]>) =>
+    pairs.map(([pitch_type, hBreak, vBreak]) => ({ pitch_type, n: 1, hBreak, vBreak }));
+
+  it('leaves well-separated labels at their marker height', () => {
+    const out = nudgeMeanLabels(means([['FF', 8, 16], ['SL', -4, 2]]), side, 14, 140);
+    expect(out.find((l) => l.pitch_type === 'FF')!.labelBreak).toBeCloseTo(16);
+    expect(out.find((l) => l.pitch_type === 'SL')!.labelBreak).toBeCloseTo(2);
+  });
+
+  it('pushes the lower of two colliding labels down until it clears', () => {
+    // 1 in apart is 12 px here, under the 17.5 px label height.
+    const out = nudgeMeanLabels(means([['SI', 14, 8], ['CH', 15, 7]]), side, 14, 140);
+    const si = out.find((l) => l.pitch_type === 'SI')!.labelBreak;
+    const ch = out.find((l) => l.pitch_type === 'CH')!.labelBreak;
+    expect(si).toBeCloseTo(8);
+    expect(si - ch).toBeGreaterThanOrEqual(14 * 1.25 / 12 - 1e-9);
+  });
+
+  it('does not nudge labels that are vertically close but far apart horizontally', () => {
+    const out = nudgeMeanLabels(means([['FF', -15, 8], ['SL', 15, 7]]), side, 14, 140);
+    expect(out.find((l) => l.pitch_type === 'SL')!.labelBreak).toBeCloseTo(7);
   });
 });

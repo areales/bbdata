@@ -175,21 +175,45 @@ export function buildRollingSpec(input: RollingSpecInput) {
           },
         },
         ...(last
-          ? [{
-              // Latest value, headline size, at the panel's top-right.
-              data: { values: [{ label: formatMetric(last.value, unit) }] },
-              mark: {
-                type: 'text',
-                align: 'right',
-                baseline: 'bottom',
-                x: { expr: 'width' },
-                y: { expr: `-${headerHeight + 4}` },
-                fontSize: Math.round(d.titleFontSize * 1.1),
-                fontWeight: 'bold',
-                color: t.ink,
-              },
-              encoding: { text: { field: 'label', type: 'nominal' } },
-            }]
+          ? (() => {
+              // Latest value, headline size, at the panel's top-right, with
+              // the mean of the shown windows in muted ink to its left. A
+              // nine-game September window after an IL stint reads as the
+              // player's level without the mean beside it.
+              const headline = formatMetric(last.value, unit);
+              const headlineSize = Math.round(d.titleFontSize * 1.1);
+              // Bold sans runs about 0.62 em per glyph; no text measurement in a spec.
+              const headlineWidth = Math.ceil(headline.length * headlineSize * 0.62);
+              return [
+                {
+                  data: { values: [{ label: headline }] },
+                  mark: {
+                    type: 'text',
+                    align: 'right',
+                    baseline: 'bottom',
+                    x: { expr: 'width' },
+                    y: { expr: `-${headerHeight + 4}` },
+                    fontSize: headlineSize,
+                    fontWeight: 'bold',
+                    color: t.ink,
+                  },
+                  encoding: { text: { field: 'label', type: 'nominal' } },
+                },
+                {
+                  data: { values: [{ label: `mean ${formatMetric(mean, unit)}` }] },
+                  mark: {
+                    type: 'text',
+                    align: 'right',
+                    baseline: 'bottom',
+                    x: { expr: `width - ${headlineWidth + 10}` },
+                    y: { expr: `-${headerHeight + 4}` },
+                    fontSize: d.axisLabelFontSize,
+                    color: t.muted,
+                  },
+                  encoding: { text: { field: 'label', type: 'nominal' } },
+                },
+              ];
+            })()
           : []),
       ],
     };

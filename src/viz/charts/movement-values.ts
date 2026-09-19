@@ -84,6 +84,37 @@ export function zeroLineLayers(options: ResolvedVizOptions) {
 }
 
 /**
+ * Label positions for the mean markers. Labels sit to the right of their
+ * marker at the marker's height; when two markers are close enough that
+ * their labels would overprint (SI on CH for a pitcher whose means are
+ * 2 in apart), the lower label is pushed down until it clears. Returns
+ * the label's y in data units (inches) so the text layer can encode it.
+ */
+export function nudgeMeanLabels(
+  means: ReturnType<typeof pitchMeans>,
+  side: number,
+  fontSize: number,
+  markerSize: number,
+): Array<{ pitch_type: string; labelBreak: number }> {
+  const pxPerIn = side / (MOVEMENT_DOMAIN[1] - MOVEMENT_DOMAIN[0]);
+  const labelH = fontSize * 1.25;
+  // Widest label the pitch-type vocabulary produces is four glyphs (KC, SV, CS…).
+  const labelW = fontSize * 0.65 * 4 + Math.sqrt(markerSize) / 2 + 6;
+  // Top-down: each label is pushed below the previous one it collides with.
+  const order = means.slice().sort((a, b) => b.vBreak - a.vBreak);
+  const placed: Array<{ pitch_type: string; xPx: number; yPx: number }> = [];
+  for (const m of order) {
+    const xPx = m.hBreak * pxPerIn;
+    let yPx = -m.vBreak * pxPerIn;
+    for (const p of placed) {
+      if (Math.abs(p.xPx - xPx) < labelW && yPx - p.yPx < labelH) yPx = p.yPx + labelH;
+    }
+    placed.push({ pitch_type: m.pitch_type, xPx, yPx });
+  }
+  return placed.map((p) => ({ pitch_type: p.pitch_type, labelBreak: -p.yPx / pxPerIn }));
+}
+
+/**
  * Mean markers, drawn LAST so no point cluster can bury them: a ring in
  * the surface color, the filled marker in the pitch color, and the pitch
  * label beside it with a surface-color halo. The audit found the old
@@ -100,9 +131,12 @@ export function meanMarkerLayers(
   // Color and shape are resolved here and passed through with `scale: null`
   // so these layers never touch the point layer's legend.
   const idx = new Map(enc.domain.map((p, i) => [p, i]));
+  const labelY = new Map(
+    nudgeMeanLabels(means, movementSide(options), d.axisTitleFontSize, markerSize).map((l) => [l.pitch_type, l.labelBreak]),
+  );
   const resolved = means.map((m) => {
     const i = idx.get(m.pitch_type) ?? 0;
-    return { ...m, color: enc.colorRange[i], shape: enc.shapeRange[i] };
+    return { ...m, color: enc.colorRange[i], shape: enc.shapeRange[i], labelBreak: labelY.get(m.pitch_type) ?? m.vBreak };
   });
   const color = { field: 'color', type: 'nominal', scale: null };
   const shape = enc.useShape ? { shape: { field: 'shape', type: 'nominal', scale: null } } : {};
@@ -133,7 +167,11 @@ export function meanMarkerLayers(
         color: t.ink,
         ...textHalo(options.theme),
       },
-      encoding: { ...xy, text: { field: 'pitch_type', type: 'nominal' } },
+      encoding: {
+        x: xy.x,
+        y: { field: 'labelBreak', type: 'quantitative' },
+        text: { field: 'pitch_type', type: 'nominal' },
+      },
     },
   ];
 }

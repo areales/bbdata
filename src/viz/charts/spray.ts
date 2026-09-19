@@ -27,8 +27,14 @@ import {
  * shape so a result never rides on hue alone.
  */
 
-/** Schematic fence: a 400-ft arc from foul line to foul line. */
-const FENCE_FT = 400;
+/**
+ * Schematic fence: 330 ft down each line, 400 ft to center, a smooth curve
+ * between (r = 330 + 70·cos(2φ), φ measured from center field). Not any real
+ * park, but the shape every analyst pattern-matches on; a single 400-ft
+ * circle made line-drive homers look short of the wall.
+ */
+const FENCE_LINE_FT = 330;
+const FENCE_CENTER_FT = 400;
 const RING_FT = [200, 300];
 const BASE_PATH_FT = 90;
 
@@ -74,13 +80,18 @@ export const sprayBuilder: ChartBuilder = {
     const drawOrder = (r: string) => (r === 'Out' ? 0 : 1);
     points.sort((a, b) => drawOrder(a.result) - drawOrder(b.result));
 
-    const foulTip = FENCE_FT * Math.SQRT1_2; // where a 45° foul line meets the arc
+    const foulTip = FENCE_LINE_FT * Math.SQRT1_2; // where a 45° foul line meets the fence
     const arcPoints = (radius: number, n = 48) =>
       Array.from({ length: n + 1 }, (_, i) => {
         const a = Math.PI / 4 + (Math.PI / 2) * (i / n); // 45° → 135°
         return { x: -Math.cos(a) * radius, y: Math.sin(a) * radius, r: radius };
       });
-    const fence = arcPoints(FENCE_FT);
+    const fence = Array.from({ length: 65 }, (_, i) => {
+      const a = Math.PI / 4 + (Math.PI / 2) * (i / 64);
+      const phi = a - Math.PI / 2; // 0 at center field, ±45° at the lines
+      const radius = FENCE_LINE_FT + (FENCE_CENTER_FT - FENCE_LINE_FT) * Math.cos(2 * phi);
+      return { x: -Math.cos(a) * radius, y: Math.sin(a) * radius };
+    });
     const rings = RING_FT.flatMap((r) => arcPoints(r, 32));
     const ringLabels = RING_FT.map((r) => ({ x: 0, y: r, label: `${r} ft` }));
     const foulLines = [
@@ -92,11 +103,14 @@ export const sprayBuilder: ChartBuilder = {
       { x: 0, y: 0 }, { x: half, y: half }, { x: 0, y: 2 * half }, { x: -half, y: half }, { x: 0, y: 0 },
     ].map((p, i) => ({ ...p, order: i }));
 
-    // Equal feet per pixel on both axes, or the fence arc isn't a circle:
+    // Equal feet per pixel on both axes, or the fence curve is distorted:
     // the requested canvas is the bounding box, the x span is the wider
     // one, so width fills it and height follows the y span.
-    const xDomain: [number, number] = [-FENCE_FT - 20, FENCE_FT + 20];
-    const yDomain: [number, number] = [-30, FENCE_FT + 30];
+    // The field sets the floor; a ball over the wall widens the domain.
+    const xReach = Math.max(foulTip, ...points.map((p) => Math.abs(p.x)));
+    const yReach = Math.max(FENCE_CENTER_FT, ...points.map((p) => p.y));
+    const xDomain: [number, number] = [-xReach - 20, xReach + 20];
+    const yDomain: [number, number] = [-30, yReach + 30];
     const ftPerPx = Math.max(
       (xDomain[1] - xDomain[0]) / options.width,
       (yDomain[1] - yDomain[0]) / options.height,
@@ -114,7 +128,7 @@ export const sprayBuilder: ChartBuilder = {
       $schema: 'https://vega.github.io/schema/vega-lite/v6.json',
       title: {
         text: options.title,
-        subtitle: `${points.length} batted balls · schematic field, fence drawn at ${FENCE_FT} ft`,
+        subtitle: `${points.length} batted balls · schematic field, fence ${FENCE_LINE_FT} ft down the lines, ${FENCE_CENTER_FT} ft to center`,
       },
       width,
       height,

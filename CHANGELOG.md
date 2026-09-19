@@ -32,16 +32,21 @@ before still works. Details per chart:
   colors by family (fastballs warm, breaking cool, offspeed green), small
   translucent points so a 450-pitch fastball cluster reads as a cloud, and
   the per-type mean drawn LAST as a ringed marker with its label — the audit
-  found the old hollow crosses visible for one type out of seven.
+  found the old hollow crosses visible for one type out of seven. When two
+  means sit close enough that their labels would overprint (SI on CH, 2 in
+  apart), the lower label is nudged down until it clears; `movement-binned`
+  shares the rule.
 - **`movement-binned`**: the 5×2-in blue rect heatmap with tableau crosses
   is now count bubbles — one circle per 2.5-in square bin and pitch type,
   area = count, hue = pitch type. Square bins read the same on both axes and
   the changeup no longer vanishes on a mid-blue cell.
 - **`spray`**: results carry display labels (Single … Home run) and every
   non-hit buckets to Out, so no more raw Savant enums or unmapped hollow
-  circles; infield diamond, 200/300 ft rings, and a fence arc the foul lines
-  actually end on give the reader a scale; equal feet per pixel so the arc
-  is round; exit velocity still sizes the mark.
+  circles; infield diamond, 200/300 ft rings, and a schematic fence (330 ft
+  down the lines, 400 ft to center) the foul lines actually end on give the
+  reader a scale; equal feet per pixel so the fence keeps its shape; the
+  domain grows to fit a ball hit over the wall; exit velocity still sizes
+  the mark.
 - **`zone`**: strike-zone proportions (17×24) regardless of canvas, no
   gridlines through the labels, one sequential blue ramp (xwOBA is a
   magnitude, not a polarity), `.524` not `0.524`, and the PA count in every
@@ -49,7 +54,9 @@ before still works. Details per chart:
 - **`rolling` / `pitcher-rolling`**: one shared builder
   (`rolling-facets.ts`), one panel per metric stacked with `vconcat`. Metric
   name above its panel in a shared gutter (the side labels used to stagger),
-  the latest value printed large at each panel's top-right, rate stats as
+  the latest value printed large at each panel's top-right with the mean of
+  the shown windows beside it in muted ink (a nine-game September window
+  after an IL stint shouldn't read as the player's level), rate stats as
   `.312`, percentages with `%`, subtitle names the window size
   (`15-game windows` / `5-start windows`) and the date span, one accent hue
   for every row, and an mph panel's domain is at least ±2 mph around its

@@ -10,15 +10,20 @@ Source: `../ai-baseball-data-analyst/course-audit.md` (2026-04-13). CLI-side ite
 
 ## Start here
 
-**2026-09-18 — viz redesign on branch `viz-redesign`, awaiting Aaron's
-sign-off on the renders.** Follows the same-day visual audit (artifact
-"bbdata Viz Audit") and the Codex mockup study (bbdata-visual-lab). Direction
-agreed with Aaron: one family in the existing Vega-Lite builders (no React
-renderer), light base, `--theme dark|print` (print = grayscale + shapes),
-sibling variants over A/B/C forks. Full per-chart list in CHANGELOG
-"Unreleased → Changed". Gates: lint, typecheck, 460/460 tests, four snapshots
-regenerated. New: `src/viz/theme.ts` (tokens + validated palettes),
-`zone-ranked`, `rolling-facets.ts`. Deferred from the mockups, filed here:
+**2026-09-18 — viz redesign on branch `viz-redesign`, approved, ready to
+merge.** Follows the same-day visual audit (artifact "bbdata Viz Audit") and
+the Codex mockup study (bbdata-visual-lab). Direction agreed with Aaron: one
+family in the existing Vega-Lite builders (no React renderer), light base,
+`--theme dark|print` (print = grayscale + shapes), sibling variants over
+A/B/C forks. Full per-chart list in CHANGELOG "Unreleased → Changed". New:
+`src/viz/theme.ts` (tokens + validated palettes), `zone-ranked`,
+`rolling-facets.ts`. Aaron's rulings on the six judgment calls (artifact
+"bbdata Viz Redesign"): zone ramp stays blue; spray fence is 330/400/330;
+rolling headline shows the mean beside the latest value; velocity band stays
+±2 mph (make it per-metric config only if a coach asks); movement labels
+nudge apart; `zone-ranked` stays CLI-only until the report templates that
+fetch nothing (BBDATA-DRIFT axis B) are fixed. Deferred from the mockups,
+filed here:
 
 - **V1** `comparison` rate axes still read `0.25`; apply the rate `labelExpr`
   per facet the way rolling does (needs vconcat or a per-metric axis format).
