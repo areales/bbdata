@@ -117,16 +117,17 @@ Generate data visualizations as SVG.
 | Type | Description |
 |---|---|
 | `movement` | Pitch movement plot (horizontal break vs vertical break) |
-| `movement-binned` | Binned density variant for compact inline use |
-| `spray` | Batted ball spray chart |
-| `zone` | 3x3 strike zone heatmap (xwOBA) |
-| `rolling` | Rolling performance trend line (hitters) |
+| `movement-binned` | Count-bubble variant of `movement` (2.5-in bins) for compact inline use |
+| `spray` | Batted ball spray chart on a schematic field |
+| `zone` | 3x3 strike zone heatmap (xwOBA, with PA per cell) |
+| `zone-ranked` | The same nine zones as ranked bars, for exact comparison in reports |
+| `rolling` | Rolling performance trend, one panel per metric (hitters) |
 | `pitcher-rolling` | 5-start rolling trend for pitchers (velo, Whiff %, K %, CSW %) |
 | `comparison` | Side-by-side hitter season stats for 2+ players — the chart `--players` drives |
 
-Aliases: `pitching-movement`, `hitting-spray`, `hitting-zones`, `trend-rolling`, `player-comparison`, `compare`.
+Aliases: `pitching-movement`, `hitting-spray`, `hitting-zones`, `hitting-zones-ranked`, `trend-rolling`, `player-comparison`, `compare`.
 
-**Key options:** `--colorblind` (viridis palette), `-a, --audience` (coach/analyst/frontoffice/presentation), `--size WxH`, `-o, --output <path>`
+**Key options:** `--theme light|dark|print` (print is grayscale with shapes), `--colorblind` (adds shape as a redundant channel), `-a, --audience` (coach/analyst/frontoffice/presentation), `--size WxH`, `-o, --output <path>`
 
 `--players` takes a comma-separated list and only applies to chart types that
 compare. Passing two or more names to a single-player chart is an error naming
@@ -135,6 +136,7 @@ the types that do compare, rather than a silently ignored flag.
 ```sh
 bbdata viz spray --player "Aaron Judge" --audience coach
 bbdata viz zone --player "Shohei Ohtani" --colorblind
+bbdata viz movement --player "Paul Skenes" --theme print --format pdf -o skenes.pdf
 bbdata viz comparison --players "Aaron Judge,Shohei Ohtani,Juan Soto" --season 2025
 ```
 

@@ -39,6 +39,7 @@ function baseOpts(overrides: Partial<ResolvedVizOptions> = {}): ResolvedVizOptio
     width: 800,
     height: 500,
     colorblind: false,
+    theme: 'light',
     title: 'Demo Chart',
     ...overrides,
   };

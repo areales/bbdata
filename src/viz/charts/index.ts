@@ -3,6 +3,7 @@ import { movementBuilder } from './movement.js';
 import { movementBinnedBuilder } from './movement-binned.js';
 import { sprayBuilder } from './spray.js';
 import { zoneBuilder } from './zone.js';
+import { zoneRankedBuilder } from './zone-ranked.js';
 import { rollingBuilder } from './rolling.js';
 import { pitcherRollingBuilder } from './pitcher-rolling.js';
 import { comparisonBuilder } from './comparison.js';
@@ -12,6 +13,7 @@ const builders: Record<ChartType, ChartBuilder> = {
   'movement-binned': movementBinnedBuilder,
   spray: sprayBuilder,
   zone: zoneBuilder,
+  'zone-ranked': zoneRankedBuilder,
   rolling: rollingBuilder,
   'pitcher-rolling': pitcherRollingBuilder,
   comparison: comparisonBuilder,
@@ -33,6 +35,7 @@ const aliases: Record<string, ChartType> = {
   'pitching-movement': 'movement',
   'hitting-spray': 'spray',
   'hitting-zones': 'zone',
+  'hitting-zones-ranked': 'zone-ranked',
   'trend-rolling': 'rolling',
   'player-comparison': 'comparison',
   compare: 'comparison',

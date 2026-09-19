@@ -18,6 +18,7 @@ import { AUDIENCE_DEFAULTS } from '../viz/audience.js';
 import {
   COMPARISON_PLAYER_FIELD,
   resolveVizAudience,
+  resolveVizTheme,
   type VizOptions,
   type VizResult,
   type ChartType,
@@ -27,6 +28,18 @@ import {
 import type { Audience } from '../templates/reports/registry.js';
 
 const SUPPORTED_FORMATS: VizFormat[] = ['svg', 'png', 'html', 'pdf'];
+
+/**
+ * The plot size a builder actually drew. Single-view specs carry numeric
+ * `width`/`height` at the top level; faceted specs (rolling, comparison)
+ * size their panels internally and keep the requested canvas.
+ */
+function effectivePlotSize(spec: object, resolved: ResolvedVizOptions): ResolvedVizOptions {
+  const s = spec as { width?: unknown; height?: unknown };
+  const width = typeof s.width === 'number' && Number.isFinite(s.width) ? s.width : resolved.width;
+  const height = typeof s.height === 'number' && Number.isFinite(s.height) ? s.height : resolved.height;
+  return { ...resolved, width, height };
+}
 
 async function renderVizPayload(
   svg: string,
@@ -67,6 +80,7 @@ export async function viz(options: VizOptions): Promise<VizResult> {
     options.audience ?? (context.config.defaultAudience as Audience),
   );
   const defaults = AUDIENCE_DEFAULTS[audience];
+  const theme = resolveVizTheme(options.theme);
 
   // Resolve alias → canonical chart type before anything else depends on it.
   // getChartBuilder throws for unknown types; we also keep the canonical id
@@ -192,6 +206,7 @@ export async function viz(options: VizOptions): Promise<VizResult> {
     width,
     height,
     colorblind: options.colorblind ?? false,
+    theme,
     title:
       options.title ??
       (isComparison
@@ -203,6 +218,12 @@ export async function viz(options: VizOptions): Promise<VizResult> {
   };
 
   const spec = builder.buildSpec(rows, resolved);
+  // Charts whose axes share a unit (movement, spray, zone) fit a fixed-aspect
+  // plot inside the requested canvas, so the effective plot size can be
+  // smaller than `--size`. `meta` reports what was drawn; the raster and PDF
+  // page keep the requested size so `--dpi` and `--size` mean what the help
+  // text says they mean.
+  const effective = effectivePlotSize(spec, resolved);
   const svg = await specToSvg(spec);
   const formatted = await renderVizPayload(svg, spec, resolved, options);
 
@@ -228,9 +249,10 @@ export async function viz(options: VizOptions): Promise<VizResult> {
       season,
       audience,
       rowCount: Object.values(rows).reduce((a, r) => a + r.length, 0),
+      theme,
       source,
-      width,
-      height,
+      width: effective.width,
+      height: effective.height,
       cliVersion: CLI_VERSION,
     },
   };
@@ -245,6 +267,7 @@ const CHART_TYPE_DESCRIPTIONS: Record<ChartType, string> = {
   'movement-binned': 'binned density variant of movement for compact inline use',
   spray:             'spray chart (batted ball landing positions on a field)',
   zone:              '3x3 zone profile heatmap (xwOBA per plate region)',
+  'zone-ranked':     'zone profile as ranked bars (same data as zone, exact comparison)',
   rolling:           'rolling performance trend for hitters (xwOBA, xwOBAcon)',
   'pitcher-rolling': '5-start rolling trend for pitchers (velo, Whiff %, K %, CSW %)',
   comparison:        'side-by-side hitter season stats for 2+ players (needs --players)',
@@ -283,7 +306,8 @@ export function registerVizCommand(program: Command): void {
     .option('--pdf-mode <mode>', 'PDF rendering: vector (default) or raster (fallback for complex Vega output)')
     .option('--window <n>', 'Rolling window size in games (rolling chart only)', (v) => parseInt(v, 10))
     .option('--size <WxH>', 'Plot area, e.g. 800x600 — axes and legend sit outside it, so the file is larger')
-    .option('--colorblind', 'Use a colorblind-safe palette (viridis)')
+    .option('--colorblind', 'Add shape as a redundant channel to the (CVD-validated) palette')
+    .option('--theme <theme>', 'Visual theme: light (default), dark, print (grayscale + shapes)')
     .option('-o, --output <path>', 'Write chart to a file (otherwise prints to stdout)')
     .option('--source <src>', 'Force a data source (savant, fangraphs, ...)')
     .option('--stdin', 'Read pre-fetched JSON data from stdin')
@@ -339,6 +363,7 @@ ${formatChartTypeList()}
           width,
           height,
           colorblind: opts.colorblind,
+          theme: opts.theme,
           output: opts.output,
           source: opts.source,
           stdin: opts.stdin,

@@ -6,6 +6,7 @@ export type ChartType =
   | 'movement-binned'
   | 'spray'
   | 'zone'
+  | 'zone-ranked'
   | 'rolling'
   | 'pitcher-rolling'
   | 'comparison';
@@ -26,6 +27,22 @@ export type VizFormat = 'svg' | 'png' | 'pdf' | 'html';
  */
 export type VizAudience = 'coach' | 'analyst' | 'frontoffice' | 'presentation';
 
+/**
+ * Visual theme. `light` is the default every consumer gets today; `dark`
+ * re-steps the same palette for a dark surface; `print` is grayscale with
+ * shape carrying identity, for photocopies and grayscale reports.
+ */
+export type VizTheme = 'light' | 'dark' | 'print';
+export const VIZ_THEMES: readonly VizTheme[] = ['light', 'dark', 'print'];
+
+export function resolveVizTheme(t: string | undefined): VizTheme {
+  if (!t) return 'light';
+  if ((VIZ_THEMES as readonly string[]).includes(t)) return t as VizTheme;
+  throw new Error(
+    `Unknown --theme "${String(t)}". Expected one of: ${VIZ_THEMES.join(', ')}.`,
+  );
+}
+
 export interface VizOptions {
   type: ChartType | string;
   player?: string;
@@ -36,6 +53,8 @@ export interface VizOptions {
   width?: number;
   height?: number;
   colorblind?: boolean;
+  /** Visual theme: light (default), dark, or print (grayscale + shapes). */
+  theme?: VizTheme | string;
   output?: string;
   source?: string;
   stdin?: boolean;
@@ -74,6 +93,7 @@ export interface VizResult {
     season: number;
     audience: VizAudience;
     rowCount: number;
+    theme: VizTheme;
     source: string;
     width: number;
     height: number;
@@ -97,6 +117,7 @@ export interface ResolvedVizOptions {
   width: number;
   height: number;
   colorblind: boolean;
+  theme: VizTheme;
   title: string;
   players?: string[];
   window?: number;

@@ -1,6 +1,7 @@
 import type { ChartBuilder, ResolvedVizOptions } from '../types.js';
 import { COMPARISON_PLAYER_FIELD } from '../types.js';
 import { AUDIENCE_DEFAULTS, audienceConfig } from '../audience.js';
+import { THEMES } from '../theme.js';
 
 /**
  * Multi-Player Comparison (P5.1)
@@ -101,7 +102,7 @@ export const comparisonBuilder: ChartBuilder = {
         data: { values: [{ msg: 'No comparable season data for the requested players' }] },
         mark: { type: 'text', fontSize: 14, color: '#888' },
         encoding: { text: { field: 'msg', type: 'nominal' } },
-        config: audienceConfig(options.audience, options.colorblind),
+        config: audienceConfig(options.audience, { colorblind: options.colorblind, theme: options.theme }),
       };
     }
 
@@ -147,7 +148,7 @@ export const comparisonBuilder: ChartBuilder = {
         height: panelHeight,
         layer: [
           {
-            mark: { type: 'bar', cornerRadiusEnd: 2 },
+            mark: { type: 'bar', cornerRadiusEnd: 4 },
             encoding: {
               x: xEncoding,
               y: {
@@ -185,13 +186,13 @@ export const comparisonBuilder: ChartBuilder = {
               x: xEncoding,
               y: { field: 'value', type: 'quantitative' },
               text: { field: 'display', type: 'nominal' },
-              color: { value: '#222' },
+              color: { value: THEMES[options.theme].ink },
             },
           },
         ],
       },
       resolve: { scale: { y: 'independent' } },
-      config: audienceConfig(options.audience, options.colorblind),
+      config: audienceConfig(options.audience, { colorblind: options.colorblind, theme: options.theme }),
     };
   },
 };

@@ -26,6 +26,7 @@ import { movementBuilder } from '../src/viz/charts/movement.js';
 import { movementBinnedBuilder } from '../src/viz/charts/movement-binned.js';
 import { sprayBuilder } from '../src/viz/charts/spray.js';
 import { zoneBuilder } from '../src/viz/charts/zone.js';
+import { zoneRankedBuilder } from '../src/viz/charts/zone-ranked.js';
 import { rollingBuilder } from '../src/viz/charts/rolling.js';
 import { pitcherRollingBuilder } from '../src/viz/charts/pitcher-rolling.js';
 import { comparisonBuilder } from '../src/viz/charts/comparison.js';
@@ -94,6 +95,16 @@ export const FIXTURES: ChartFixture[] = [
     overrides: { width: 520, height: 520 },
   },
   {
+    // Same fixture as zone; the ranked-bar sibling exists for exact
+    // comparison in written reports.
+    type: 'zone-ranked',
+    builder: zoneRankedBuilder,
+    queryKey: 'hitter-zone-grid',
+    fixture: 'zone-grid.sample.json',
+    player: 'Demo Hitter',
+    overrides: { width: 640, height: 400 },
+  },
+  {
     type: 'rolling',
     builder: rollingBuilder,
     queryKey: 'trend-rolling-average',
@@ -143,6 +154,7 @@ function baseOptions(
     width: 800,
     height: 500,
     colorblind: false,
+    theme: 'light',
     title: `${player} — ${titleCase(type)} Chart (Fixture)`,
     ...overrides,
   };

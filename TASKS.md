@@ -10,6 +10,27 @@ Source: `../ai-baseball-data-analyst/course-audit.md` (2026-04-13). CLI-side ite
 
 ## Start here
 
+**2026-09-18 — viz redesign on branch `viz-redesign`, awaiting Aaron's
+sign-off on the renders.** Follows the same-day visual audit (artifact
+"bbdata Viz Audit") and the Codex mockup study (bbdata-visual-lab). Direction
+agreed with Aaron: one family in the existing Vega-Lite builders (no React
+renderer), light base, `--theme dark|print` (print = grayscale + shapes),
+sibling variants over A/B/C forks. Full per-chart list in CHANGELOG
+"Unreleased → Changed". Gates: lint, typecheck, 460/460 tests, four snapshots
+regenerated. New: `src/viz/theme.ts` (tokens + validated palettes),
+`zone-ranked`, `rolling-facets.ts`. Deferred from the mockups, filed here:
+
+- **V1** `comparison` rate axes still read `0.25`; apply the rate `labelExpr`
+  per facet the way rolling does (needs vconcat or a per-metric axis format).
+- **V2** `comparison` lower-is-better cue for K %.
+- **V3** `zone` handedness: `hitter-zone-grid` rows don't carry batter side,
+  so the title can't say "(RHB)". Add `stand` to the template first.
+- **V4** Course + skills: `query-data`/`scout-report` SKILL.md and the
+  Module 04 viz deliverable don't mention `--theme` or `zone-ranked`.
+  `advance-sp` embeds `movement-binned`, whose look changed — re-check the
+  report page.
+- **V5** `labelDensity` is still declared per audience and read by nobody.
+
 **v0.11.0 shipped 2026-09-07 — the course is unpinned from 0.10.0.** The
 14-item P1 wave, P2.7, P3.5, P3.6, and P4.6–P4.13 are all released; see the
 "Shipped in v0.11.0" section. They had sat on `main` since 2026-08-29 while
@@ -152,6 +173,48 @@ these are one fix, not several:
    audit), P4.8 (`report --audience` enum validation), P4.9 (COURSE_TEST_PLAN
    wording), P4.10 (`SO` missing from `pitcher-season-profile`), P4.11 (raw-pitches
    field gaps — a scope decision, not a bug).
+
+### P5.6 — `leaderboard-custom` falls through to the wrong adapter on an unknown stat key, and its error names keys that don't work — **Pending, surfaced 2026-09-09 (M05 L03 video facts gate, verified on the released 0.12.0)**
+
+```
+$ bbdata query leaderboard-custom --stat sprint_speed --min-pa 300 --top 3
+✗ Adapter "mlb-stats-api" threw while fetching "leaderboard-custom" (season=2026):
+  Stat "sprint_speed" not found in leaderboard data. Available stat keys: age,
+  airOuts, atBats, ... totalBases, triples
+```
+
+Three defects in one message, in descending order of harm:
+
+1. **The remediation list is actively wrong.** `barrel_rate`, `xwOBA`,
+   `hard_hit_rate`, `BB%` and `K%` all resolve and return correct rows — and
+   **none of them appear** in the "available stat keys" list the error prints.
+   That list is the MLB Stats API namespace. A student who trusts it abandons
+   the key that works. This is squarely the 0.12 "say what you do" theme, which
+   is why it's filed as P5.6 rather than a P4.
+2. **Wrong adapter.** Working keys resolve through FanGraphs; an unrecognized
+   key silently falls through to `mlb-stats-api` instead of failing against the
+   adapter the working keys use. The fallthrough is what produces (1).
+3. **Season defaults to 2026** when `--season` is omitted, so the failure is
+   reported against a season with no data — misdirecting the diagnosis a third
+   time.
+
+**Suggested fix:** resolve the key against the FanGraphs stat object first and
+fail there with the FanGraphs key list (or a "did you mean" against it); only
+reach `mlb-stats-api` for keys that belong to it. Default the season to the most
+recent complete one.
+
+**Course-side consequence, already absorbed:** `.claude/skills/build-model/SKILL.md`
+offers `leaderboard-custom --stat <metric>` as the generic route to model inputs,
+and four of Template 5B's seven features (`launch_angle`, `chase_rate`,
+`whiff_rate`, `sprint_speed`) don't resolve. Detail in
+`../video-hyperframes/m05-l03/FACTS-PREFLIGHT.md` §F2–F3. The M05 L03 video makes
+no claim that depends on this.
+
+> **Ledger note:** the "Start here" section above says 0.12 is "not yet released".
+> It is — the global install reports **0.12.0** and stamps `cliVersion: "0.12.0"`
+> into query `meta` (P5.5 working as designed). Update that line.
+
+---
 
 **Two things to know before starting.** Fixes in `src/templates/` and
 `src/adapters/` land in the JSON envelope, so they reach students, agents and
