@@ -8,9 +8,9 @@ Baseball data CLI (`bbdata`) for querying stats, generating scouting reports, an
 
 ## Workspace context
 
-`bbdata` is the **shared data layer** across a four-project ecosystem (full map in `../CLAUDE.md`). It is the only project consumed by both the education side and the product side:
+`bbdata` is the **shared data layer** across a multi-project workspace (full map in `../CLAUDE.md`). It is the only project consumed by both the education side and the product side:
 
-- **`../ai-baseball-data-analyst/`** — Skool course. Its Agent Skills (`.claude/skills/query-data/SKILL.md`, `.claude/skills/scout-report/SKILL.md`) invoke `bbdata` on student machines. CLI flag and template names are mirrored in those skill files — rename a template here and both skills drift.
+- **`../ai-baseball-data-analyst/`** — Skool course. Six of its Agent Skills (query-data, scout-report, viz, build-model, automate, game-plan) invoke `bbdata` on student machines and mirror its flag and template names — rename a template here and grep those skills.
 - **`../scout-app/`** — Production SaaS. Invokes `bbdata` server-side via `src/lib/prefetch.ts` before handing off to a Claude Managed Agent. The `{ data, meta }` JSON envelope is part of its contract.
 - **`../baseball-analyst-wiki/`** — Student "starter pack" wiki. Not a runtime consumer, but its templates assume analysts are feeding it `bbdata` output.
 
