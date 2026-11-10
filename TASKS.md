@@ -227,6 +227,150 @@ and four of Template 5B's seven features (`launch_angle`, `chase_rate`,
 `../video-hyperframes/m05-l03/FACTS-PREFLIGHT.md` §F2–F3. The M05 L03 video makes
 no claim that depends on this.
 
+### P5.7 — Finish the `bbdata-cli` → `bbdata` rename: phases 4 and 5 are still open five months after 0.8.0 — **Pending, surfaced 2026-09-22. Blocks launch.**
+
+Phases 1–2 shipped 2026-04-14 (see "Shipped in v0.8.0"). Phase 3 is done —
+`scout-app` greps clean. **Phases 4 and 5 never ran**, and `RENAME_PLAN.md`,
+cited on line 415 as where they're tracked, no longer exists in the repo. This
+item replaces it.
+
+**Phase 4 — six live commands in `baseball-analyst-wiki` still name the dead package:**
+
+| File | Lines |
+|---|---|
+| `.claude/skills/scout-report/SKILL.md` | 14, 49, 57 |
+| `.claude/skills/query-data/SKILL.md` | 39 |
+| `docs/reference/bbdata-user-guide.md` | 18, 24 |
+
+These don't error — they resolve to `bbdata-cli@0.7.2`, frozen since
+2026-04-14. A student following the User Guide installs a CLI that predates
+every BBDATA-0xx fix from the April dogfood rounds and all of v0.9.0–v0.13.0.
+That's the launch risk: silent version pinning with no warning at install time.
+
+Leave the dated records alone — `CHANGELOG.md`, `raw/bbdata-dogfood-*`,
+`raw/dogfood-*-summary.md`, `docs/reports/*` and `docs/players/*` all say
+`bbdata-cli` because that *was* the name when they were written. Same for
+`../ai-baseball-data-analyst/course-audit.md` (dated 2026-04-13). The root
+`../CLAUDE.md:19` was wrong and was fixed 2026-09-22;
+`../ai-baseball-data-analyst/CLAUDE.md:64` was already correct.
+
+**Phase 5 — `npm deprecate bbdata-cli`.** The 0.8.0 CHANGELOG promised this
+"~3 weeks after 0.8.0 ships." Run it once phase 4 lands, with a message
+pointing at `bbdata`. It does not unpublish — pinned consumers keep working —
+but it makes any future stale install print a warning, which is the guardrail
+that would have caught this drift on a student's first run. Do it **after**
+the doc sweep so nobody hits a deprecation notice from our own instructions.
+
+---
+
+## From the launch live-run (2026-11-10) — all Pending
+
+Every item below was reproduced on the **published** `bbdata@0.13.1` tarball
+(installed with `npm install bbdata@0.13.1 --prefix <scratch>`, not the linked
+working tree) while running the course's printed commands for
+`video-hyperframes/TASKS.md` gate #78. Nothing here is fixed.
+
+### P5.8 — `Whiff %` omits foul tips, so it reads low against Savant (P1.7 is half-fixed) — **Pending. Affects a number students compare with Savant.**
+
+`Put Away %`, `Usage %`, and `Pitches` now match Savant's
+`pitch-arsenal-stats` leaderboard exactly. `Whiff %` doesn't:
+
+| 2025 | bbdata `pitcher-arsenal` | Savant | bbdata recomputed with `foul_tip` as a whiff |
+|---|---|---|---|
+| Skubal CH | 45.7% | 46.8 | 46.8% |
+| Skubal FF | 25.0% | 28.7 | 28.7% |
+| Skubal SI | 16.5% | 18.3 | 18.3% |
+| Skubal SL | 23.6% | 25.5 | 25.5% |
+| Skubal CU | 32.1% | 35.7 | 35.7% |
+| Burnes FC | 19.3% | 21.7 | 21.3% |
+
+Cause: the numerator is `description.includes('swinging_strike')`
+(`src/templates/queries/pitcher-arsenal.ts:79`); Savant also counts
+`foul_tip`. The same filter is in `pitcher-handedness-splits.ts:71`,
+`hitter-handedness-splits.ts:71`, `hitter-vs-pitch-type.ts:59`,
+`hitter-hot-cold-zones.ts:62`, and the `WHIFF_DESCRIPTIONS` sets in
+`pitcher-rolling-trend.ts:18` and `pitcher-by-count.ts:75`. The course's
+`build-model` skill already defines whiffs as including `foul_tip`, so the
+CLI disagrees with its own documentation. Burnes FC is still 0.4 points off
+after the fix; bunt descriptions in the swing set are the likely remainder.
+
+### P5.9 — `matchup-pitcher-vs-hitter` returns 0 rows when the names are given hitter-first, and the template's own example can never return rows — **Pending.**
+
+```
+$ bbdata query matchup-pitcher-vs-hitter --players "Aaron Judge,Garrett Crochet" --season 2025
+✗ Adapter(s) [savant] returned 0 rows ... Try an earlier --season or verify the player name.   (exit 1)
+$ bbdata query matchup-pitcher-vs-hitter --players "Garrett Crochet,Aaron Judge" --season 2025
+Total Pitches 56 · Plate Appearances 13 ...                                                    (exit 0)
+```
+
+1. The order is `[pitcher, hitter]` (`matchup-pitcher-vs-hitter.ts:15`) but
+   neither `--help` nor the error says so, and the error blames the season or
+   the name. Both players resolve, so the CLI can tell which one pitches; swap
+   them or say "expected pitcher first".
+2. The template's example is `"Gerrit Cole,Aaron Judge"` (line 18). They've
+   been teammates since 2020, so it returns 0 rows for every season from 2020
+   on. Pick a pair that has faced each other.
+
+Course-side consequence: M02 L03 line 44 tells students the order is
+`"Hitter,Pitcher"` and line 268 prints `"Aaron Judge,Gerrit Cole"` with no
+season. That command exits 1.
+
+### P5.10 — `trend-year-over-year` doesn't detect a pitcher, and its error names the wrong season — **Pending.**
+
+```
+$ bbdata query trend-year-over-year --player "Corbin Burnes" --seasons 2024-2025 --format table
+✗ Adapter "fangraphs" threw ... (player=Corbin Burnes, season=2026): No batting data for
+  "Corbin Burnes" in the requested seasons — if they're a pitcher, re-run with --stat pitching.
+```
+
+Adding `--stat pitching` works (ERA 2.92 → 2.66, 11 rows). The message is
+actionable, but it reports `season=2026` when `--seasons 2024-2025` was passed,
+and the player lookup already knows Burnes is a pitcher. M02 L03 line 413
+prints the failing form.
+
+### P5.11 — `leaderboard-custom` rounds ERA, SIERA, FIP to one decimal — **Pending.**
+
+`--stat ERA --min-ip 100 --season 2025` prints Eovaldi `1.7`, Rogers `1.8`,
+Skenes `2.0`; the JSON envelope carries the same strings (`"ERA": "1.8"`).
+`pitcher-season-profile` prints two decimals for the same stat (`ERA,2.66`).
+One decimal makes adjacent ranks tie on screen and can't be used as a model
+input.
+
+### P5.12 — `leaderboard-custom` has no default qualifier — **Pending.**
+
+Without `--min-pa` or `--min-ip` the top of the board is one-PA noise:
+`--stat wRC+ --season 2025` leads with Ryne Nelson 489.8 (1 PA) and
+`--stat ERA --top 5 --season 2025` returns five relievers at `0.0`. Default to
+the qualified threshold, or print a one-line stderr note that no minimum was
+applied.
+
+### P5.13 — `viz rolling` on a pitcher fails with the generic zero-row message instead of pointing at `pitcher-rolling` — **Pending, low.**
+
+```
+$ bbdata viz rolling --player "Corbin Burnes" --season 2025 --window 5 -o burnes_rolling.svg
+✗ Adapter(s) [savant] returned 0 rows for "trend-rolling-average" (player=Corbin Burnes, season=2025).
+  Try an earlier --season or verify the player name.   (exit 1)
+```
+
+`viz pitcher-rolling` with the same arguments works. M04 L05 line 130 still
+prints the failing command under the comment "Rolling 5-game ERA".
+
+### P5.14 — `viz --format pdf` prints `SvgPath: command M with 0 numbers` to stderr — **Pending, low.**
+
+`viz spray --player "Aaron Judge" --season 2025 --format pdf -o x.pdf` exits 0
+and the PDF renders correctly, but stderr carries one to six of these lines.
+`viz rolling --format pdf` is clean. Noise from the SVG-to-PDF path on
+zero-length path segments; suppress it or drop the empty paths.
+
+### P5.15 — Two silent no-op flag cases on `viz zone` — **Pending, low. Same class as the 0.13.0 `spray --colorblind` fix.**
+
+- `viz zone --colorblind` writes a byte-identical SVG to `viz zone` (MD5
+  match). The heatmap has no categorical channel, so there's nothing to add a
+  shape to, but the flag is accepted without a word. M04 L05 line 133 uses
+  exactly this command as its "colorblind-safe zone profile" example.
+- `viz zone --size 800x600` yields a 425x600 plot area: the height is applied
+  and the width is discarded in favour of the fixed aspect ratio.
+
 ---
 
 ## Shipped in v0.13.0 — 2026-09-18
@@ -412,7 +556,7 @@ instructions and `RENAME_PLAN.md` for the full 5-phase plan.
 
 - **Phase 1 (rename source edits):** commit `e5e1f1d` — `package.json` name, `src/utils/version.ts` walk-up sentinel, README/badges/import example, `CHANGELOG.md` 0.8.0 section.
 - **Phase 2 (publish):** commit `166478c`, tag `v0.8.0`, published 2026-04-14. Verified: `npm view bbdata version` → `0.8.0`; fresh-project `import { query, report, viz } from 'bbdata'` → all three `function`.
-- **Phase 3** (scout-app migration), **phase 4** (course + skill docs sweep), **phase 5** (`npm deprecate bbdata-cli`) are tracked in `RENAME_PLAN.md` and deferred to separate sessions.
+- **Phase 3** (scout-app migration) is done — `scout-app` greps clean as of 2026-09-22. **Phase 4** (course + skill docs sweep) and **phase 5** (`npm deprecate bbdata-cli`) are still open and now tracked as **P5.7** above. `RENAME_PLAN.md` no longer exists in the repo; P5.7 replaces it.
 
 ---
 
