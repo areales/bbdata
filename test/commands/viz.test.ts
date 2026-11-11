@@ -59,6 +59,7 @@ import { query as runQuery } from '../../src/commands/query.js';
 import { specToSvg, specToPdf } from '../../src/viz/render.js';
 import { rasterizeSvg } from '../../src/viz/rasterize.js';
 import { writeFileSync } from 'node:fs';
+import { log } from '../../src/utils/logger.js';
 
 describe('viz command', () => {
   beforeEach(() => {
@@ -241,6 +242,124 @@ describe('viz command', () => {
       (c) => typeof c[1] === 'string' && String(c[1]).includes('<!doctype html>'),
     );
     expect(call).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// P5.13 / P5.15 — flags and errors that used to say nothing
+// ---------------------------------------------------------------------------
+
+describe('P5.15 — no-op flags say so on stderr', () => {
+  const pitches = (types: string[]) => ({
+    data: types.map((pitch_type, i) => ({ pitch_type, pfx_x: 0.5 * i, pfx_z: 1.2, release_speed: 95 })),
+    formatted: '{}',
+    meta: { template: 'pitcher-raw-pitches', source: 'savant', cached: false, rowCount: types.length, season: 2025 },
+  });
+  const warnings = () => vi.mocked(log.warn).mock.calls.map((c) => String(c[0]));
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(runQuery).mockResolvedValue(pitches(['FF', 'SL']));
+  });
+
+  it('warns when --colorblind changes nothing on zone', async () => {
+    await viz({ type: 'zone', player: 'Test', colorblind: true });
+    expect(warnings().some((w) => /--colorblind has no effect on the zone chart/.test(w))).toBe(true);
+  });
+
+  it('names the missing redundant channel on comparison', async () => {
+    vi.mocked(runQuery).mockResolvedValue({
+      data: [{ Metric: 'AVG', Value: '0.300' }],
+      formatted: '{}',
+      meta: { template: 'hitter-season-profile', source: 'fangraphs', cached: false, rowCount: 1, season: 2025 },
+    });
+    await viz({ type: 'comparison', players: ['A', 'B'], colorblind: true });
+    expect(warnings().some((w) => /comparison chart: players are told apart by color only/.test(w))).toBe(true);
+  });
+
+  it('stays quiet when --colorblind adds shapes to movement', async () => {
+    await viz({ type: 'movement', player: 'Test', colorblind: true });
+    expect(warnings().filter((w) => /--colorblind/.test(w))).toEqual([]);
+  });
+
+  it('stays quiet without --colorblind', async () => {
+    await viz({ type: 'zone', player: 'Test' });
+    expect(warnings().filter((w) => /--colorblind/.test(w))).toEqual([]);
+  });
+
+  it('says shapes are already on when the theme adds them', async () => {
+    await viz({ type: 'movement', player: 'Test', colorblind: true, theme: 'dark' });
+    expect(warnings().some((w) => /shapes are already enabled/.test(w))).toBe(true);
+  });
+
+  it('says shapes are already on when two plotted types share a hue', async () => {
+    // Unknown pitch types both fall back to the neutral color, which turns
+    // shape on by itself on the light theme.
+    vi.mocked(runQuery).mockResolvedValue(pitches(['XX', 'YY']));
+    await viz({ type: 'movement', player: 'Test', colorblind: true });
+    expect(warnings().some((w) => /shapes are already enabled/.test(w))).toBe(true);
+  });
+
+  it('reports the plot area zone drew when --size asks for another shape', async () => {
+    const result = await viz({ type: 'zone', player: 'Test', width: 800, height: 600 });
+    expect(result.meta.width).toBe(425);
+    expect(warnings().some((w) => /drew a 425x600 plot area inside the requested 800x600/.test(w))).toBe(true);
+  });
+
+  it('reports it when only one dimension is given', async () => {
+    await viz({ type: 'zone', player: 'Test', audience: 'analyst', width: 900 });
+    expect(warnings().some((w) => /sets its own proportions/.test(w))).toBe(true);
+  });
+
+  it('says nothing about size when none was requested', async () => {
+    await viz({ type: 'zone', player: 'Test' });
+    expect(warnings().filter((w) => /proportions/.test(w))).toEqual([]);
+  });
+});
+
+describe('P5.13 — rolling charts point at their counterpart', () => {
+  const zeroRows = new Error(
+    'Adapter(s) [savant] returned 0 rows for "trend-rolling-average" (player=Corbin Burnes, season=2025). ' +
+      'Try an earlier --season or verify the player name.',
+  );
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('points a pitcher from rolling to pitcher-rolling and keeps the cause', async () => {
+    vi.mocked(runQuery).mockRejectedValue(zeroRows);
+    const err = await viz({ type: 'rolling', player: 'Corbin Burnes', season: 2025 }).catch((e) => e);
+    expect(err.message).toContain(zeroRows.message);
+    expect(err.message).toContain('bbdata viz pitcher-rolling --player "Corbin Burnes" --season 2025');
+    expect(err.cause).toBe(zeroRows);
+  });
+
+  it('points a hitter from pitcher-rolling to rolling', async () => {
+    vi.mocked(runQuery).mockRejectedValue(zeroRows);
+    await expect(
+      viz({ type: 'pitcher-rolling', player: 'Aaron Judge', season: 2025 }),
+    ).rejects.toThrow('bbdata viz rolling --player "Aaron Judge" --season 2025');
+  });
+
+  it('works through the trend-rolling alias and a single-name --players', async () => {
+    vi.mocked(runQuery).mockRejectedValue(zeroRows);
+    await expect(
+      viz({ type: 'trend-rolling', players: ['Corbin Burnes'], season: 2025 }),
+    ).rejects.toThrow('bbdata viz pitcher-rolling --player "Corbin Burnes"');
+  });
+
+  it('leaves an adapter failure alone', async () => {
+    const threw = new Error('Adapter "savant" threw while fetching "trend-rolling-average": socket hang up');
+    vi.mocked(runQuery).mockRejectedValue(threw);
+    const err = await viz({ type: 'rolling', player: 'Corbin Burnes', season: 2025 }).catch((e) => e);
+    expect(err).toBe(threw);
+  });
+
+  it('leaves zero rows on other charts alone', async () => {
+    vi.mocked(runQuery).mockRejectedValue(zeroRows);
+    const err = await viz({ type: 'spray', player: 'Corbin Burnes', season: 2025 }).catch((e) => e);
+    expect(err).toBe(zeroRows);
   });
 });
 

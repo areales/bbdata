@@ -344,16 +344,12 @@ Without `--min-pa` or `--min-ip` the top of the board is one-PA noise:
 the qualified threshold, or print a one-line stderr note that no minimum was
 applied.
 
-### P5.13 — `viz rolling` on a pitcher fails with the generic zero-row message instead of pointing at `pitcher-rolling` — **Pending, low.**
+### P5.13 — moved to "Shipped in v0.13.2"
 
-```
-$ bbdata viz rolling --player "Corbin Burnes" --season 2025 --window 5 -o burnes_rolling.svg
-✗ Adapter(s) [savant] returned 0 rows for "trend-rolling-average" (player=Corbin Burnes, season=2025).
-  Try an earlier --season or verify the player name.   (exit 1)
-```
-
-`viz pitcher-rolling` with the same arguments works. M04 L05 line 130 still
-prints the failing command under the comment "Rolling 5-game ERA".
+Course-side remainder, still open: M04 L05 line 130 prints
+`bbdata viz rolling --player "Corbin Burnes"` under the comment "Rolling
+5-game ERA". The CLI now names the right command; the lesson page still
+prints the wrong one.
 
 ### P5.14 — `viz --format pdf` prints `SvgPath: command M with 0 numbers` to stderr — **Pending, low.**
 
@@ -362,14 +358,39 @@ and the PDF renders correctly, but stderr carries one to six of these lines.
 `viz rolling --format pdf` is clean. Noise from the SVG-to-PDF path on
 zero-length path segments; suppress it or drop the empty paths.
 
-### P5.15 — Two silent no-op flag cases on `viz zone` — **Pending, low. Same class as the 0.13.0 `spray --colorblind` fix.**
+### P5.15 — moved to "Shipped in v0.13.2"
 
-- `viz zone --colorblind` writes a byte-identical SVG to `viz zone` (MD5
-  match). The heatmap has no categorical channel, so there's nothing to add a
-  shape to, but the flag is accepted without a word. M04 L05 line 133 uses
-  exactly this command as its "colorblind-safe zone profile" example.
-- `viz zone --size 800x600` yields a 425x600 plot area: the height is applied
-  and the width is discarded in favour of the fixed aspect ratio.
+Course-side remainder, still open: M04 L05 line 133 uses
+`viz zone --colorblind` as its "colorblind-safe zone profile" example. The
+zone chart is colorblind-safe without the flag; the example should drop it or
+switch to `movement`.
+
+### V6 — `comparison` has no redundant channel for player identity — **Pending. Filed 2026-11-11 from the P5.15 Codex review.**
+
+Players are told apart by the color legend only and the player axis is hidden
+(`src/viz/charts/comparison.ts:124-166`), so `--colorblind` has nothing to
+switch on. 0.13.2 says so on stderr. The fix is direct player labels on the
+bars or a symbol layer. Related: an optional `meta.warnings` on `VizResult`,
+so agents that never read stderr get the same notes (minor release).
+
+---
+
+## Shipped in v0.13.2 — 2026-11-11
+
+Gates before the bump: typecheck, lint, 478/478 tests. All three are in
+`src/commands/viz.ts`; tests in `test/commands/viz.test.ts` ("P5.15" and
+"P5.13" blocks). Plan and diff both Codex-reviewed.
+
+- **P5.15a `--colorblind` no-op note** — `viz()` builds the spec with and
+  without the flag and warns on stderr when they match
+  (`colorblindNoOpMessage`). Help text, README, and the `--colorblind` example
+  now name `movement`, `movement-binned`, `spray`.
+- **P5.15b `--size` note** — stderr reports the drawn plot area when a chart
+  sets its own proportions (`zone --size 800x600` → 425x600). Behaviour
+  unchanged.
+- **P5.13 rolling counterpart hint** — `withRollingHint` appends the
+  `pitcher-rolling` / `rolling` command to the zero-row error and keeps
+  `cause`.
 
 ---
 

@@ -3,6 +3,35 @@
 All notable changes to `bbdata` are documented here. This project follows
 [Semantic Versioning](https://semver.org/).
 
+## 0.13.2 — 2026-11-11
+
+Three `viz` cases where a flag was accepted and did nothing, or an error
+pointed away from the fix. Found by the 2026-11-10 live run of the course's
+printed commands. Patch bump: stderr notes and one longer error message.
+No chart output changes, and no command that exited 0 now fails.
+
+### Fixed
+
+- **`--colorblind` says so when it changes nothing.** `viz zone --colorblind`
+  wrote a byte-identical SVG with no word (TASKS P5.15). `viz` now builds the
+  chart with and without the flag and, when the two match, prints a note on
+  stderr: on `zone`, `zone-ranked`, `rolling`, and `pitcher-rolling` there is
+  no color-coded category to add a shape to; on `comparison` a redundant
+  channel is not supported yet (filed as V6); on `movement`,
+  `movement-binned`, and `spray` under `--theme dark|print`, shapes are
+  already on. The help text and README now name the three charts the flag
+  acts on, and their `--colorblind` example uses `movement`, not `zone`.
+- **`--size` reports the plot area a fixed-proportion chart drew.**
+  `viz zone --size 800x600` draws 425x600 by design (the zone keeps a strike
+  zone's proportions), but said nothing. A stderr note now gives the drawn
+  size beside the requested one, for `zone`, `movement`, `spray`, and any
+  other chart that sets its own proportions. `meta.width`/`meta.height`
+  already reported the drawn size and are unchanged.
+- **`viz rolling` on a pitcher points at `pitcher-rolling`** (TASKS P5.13),
+  and `viz pitcher-rolling` on a hitter points at `rolling`. The zero-row
+  error keeps its original text and gains the exact command to run instead.
+  Adapter failures and zero rows on other chart types are untouched.
+
 ## 0.13.0 — 2026-09-18
 
 Three chart defects found by the 2026-09-18 visual audit of every `viz`

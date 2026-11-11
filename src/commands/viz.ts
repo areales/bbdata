@@ -41,6 +41,47 @@ function effectivePlotSize(spec: object, resolved: ResolvedVizOptions): Resolved
   return { ...resolved, width, height };
 }
 
+// P5.13: `rolling` charts hitters and `pitcher-rolling` charts pitchers. Asking
+// one for the other kind of player used to fail with query's generic "try an
+// earlier --season" message, which points away from the actual fix.
+const ROLLING_COUNTERPART: Partial<Record<ChartType, { other: ChartType; role: string }>> = {
+  rolling: { other: 'pitcher-rolling', role: 'pitcher' },
+  'pitcher-rolling': { other: 'rolling', role: 'hitter' },
+};
+
+function withRollingHint(err: unknown, chartType: ChartType, who: string, season: number): unknown {
+  const counterpart = ROLLING_COUNTERPART[chartType];
+  const message = err instanceof Error ? err.message : String(err);
+  // Only the empty-result case: an adapter that threw has its own message.
+  if (!counterpart || !who || !/returned 0 rows/.test(message)) return err;
+  return new Error(
+    `${message} If "${who}" is a ${counterpart.role}, use: ` +
+      `bbdata viz ${counterpart.other} --player "${who}" --season ${season}`,
+    { cause: err },
+  );
+}
+
+// P5.15: charts where `--colorblind` can add shape. On these an unchanged spec
+// means shapes were already on (dark/print theme, or two plotted types share a
+// hue); on every other chart the flag has nothing to act on.
+const SHAPE_CHARTS: ReadonlySet<ChartType> = new Set(['movement', 'movement-binned', 'spray']);
+
+function colorblindNoOpMessage(chartType: ChartType): string {
+  if (SHAPE_CHARTS.has(chartType)) {
+    return `--colorblind changed nothing on this ${chartType} chart: shapes are already enabled for this theme and data.`;
+  }
+  if (chartType === 'comparison') {
+    return (
+      '--colorblind has no effect on the comparison chart: players are told apart by color only, ' +
+      'and a redundant shape or label is not supported there yet. The chart is drawn unchanged.'
+    );
+  }
+  return (
+    `--colorblind has no effect on the ${chartType} chart: it does not use color to tell categories apart, ` +
+    'so there is no shape to add. The chart is drawn unchanged.'
+  );
+}
+
 async function renderVizPayload(
   svg: string,
   spec: object,
@@ -188,7 +229,7 @@ export async function viz(options: VizOptions): Promise<VizResult> {
             { cause: err },
           );
         }
-        if (req.required) throw err;
+        if (req.required) throw withRollingHint(err, chartType, who, season);
       }
     }
   }
@@ -224,6 +265,23 @@ export async function viz(options: VizOptions): Promise<VizResult> {
   // page keep the requested size so `--dpi` and `--size` mean what the help
   // text says they mean.
   const effective = effectivePlotSize(spec, resolved);
+
+  // P5.15: a flag that is accepted and changes nothing gets said out loud.
+  // Both notes go to stderr; the chart and the exit code are unchanged.
+  if (resolved.colorblind) {
+    const plain = builder.buildSpec(rows, { ...resolved, colorblind: false });
+    if (JSON.stringify(plain) === JSON.stringify(spec)) {
+      log.warn(colorblindNoOpMessage(chartType));
+    }
+  }
+  const sizeRequested = options.width != null || options.height != null;
+  if (sizeRequested && (effective.width !== width || effective.height !== height)) {
+    log.warn(
+      `The ${chartType} chart sets its own proportions: drew a ${effective.width}x${effective.height} ` +
+        `plot area inside the requested ${width}x${height}.`,
+    );
+  }
+
   const svg = await specToSvg(spec);
   const formatted = await renderVizPayload(svg, spec, resolved, options);
 
@@ -306,7 +364,7 @@ export function registerVizCommand(program: Command): void {
     .option('--pdf-mode <mode>', 'PDF rendering: vector (default) or raster (fallback for complex Vega output)')
     .option('--window <n>', 'Rolling window size in games (rolling chart only)', (v) => parseInt(v, 10))
     .option('--size <WxH>', 'Plot area, e.g. 800x600 — axes and legend sit outside it, so the file is larger')
-    .option('--colorblind', 'Add shape as a redundant channel to the (CVD-validated) palette')
+    .option('--colorblind', 'Add shape as a redundant channel to the (CVD-validated) palette (movement, movement-binned, spray)')
     .option('--theme <theme>', 'Visual theme: light (default), dark, print (grayscale + shapes)')
     .option('-o, --output <path>', 'Write chart to a file (otherwise prints to stdout)')
     .option('--source <src>', 'Force a data source (savant, fangraphs, ...)')
@@ -316,7 +374,8 @@ export function registerVizCommand(program: Command): void {
 Examples:
   bbdata viz movement --player "Corbin Burnes" --season 2025 -o burnes_movement.svg
   bbdata viz spray    --player "Aaron Judge" --audience coach --format png -o judge_spray.png
-  bbdata viz zone     --player "Shohei Ohtani" --colorblind --format html -o ohtani.html
+  bbdata viz zone     --player "Shohei Ohtani" --format html -o ohtani.html
+  bbdata viz movement --player "Tarik Skubal" --colorblind -o skubal_movement.svg
   bbdata viz rolling  --player "Freddie Freeman" --window 5
   bbdata viz spray    --player "Aaron Judge" --format pdf -o judge_spray.pdf
   bbdata viz comparison --players "Aaron Judge,Shohei Ohtani,Juan Soto" --season 2025

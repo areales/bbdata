@@ -127,7 +127,13 @@ Generate data visualizations as SVG.
 
 Aliases: `pitching-movement`, `hitting-spray`, `hitting-zones`, `hitting-zones-ranked`, `trend-rolling`, `player-comparison`, `compare`.
 
-**Key options:** `--theme light|dark|print` (print is grayscale with shapes), `--colorblind` (adds shape as a redundant channel), `-a, --audience` (coach/analyst/frontoffice/presentation), `--size WxH`, `-o, --output <path>`
+**Key options:** `--theme light|dark|print` (print is grayscale with shapes), `--colorblind` (adds shape as a redundant channel on `movement`, `movement-binned`, and `spray`), `-a, --audience` (coach/analyst/frontoffice/presentation), `--size WxH`, `-o, --output <path>`
+
+Every palette is already colorblind-safe. On a chart where `--colorblind` has
+nothing to add (`zone`, `zone-ranked`, the rolling charts, `comparison`), the
+chart is drawn unchanged and a note on stderr says so. `--size` sets the plot
+area; `zone`, `movement`, and `spray` keep their own proportions inside it and
+report the size they drew on stderr.
 
 `--players` takes a comma-separated list and only applies to chart types that
 compare. Passing two or more names to a single-player chart is an error naming
@@ -135,7 +141,8 @@ the types that do compare, rather than a silently ignored flag.
 
 ```sh
 bbdata viz spray --player "Aaron Judge" --audience coach
-bbdata viz zone --player "Shohei Ohtani" --colorblind
+bbdata viz zone --player "Shohei Ohtani"
+bbdata viz movement --player "Tarik Skubal" --colorblind
 bbdata viz movement --player "Paul Skenes" --theme print --format pdf -o skenes.pdf
 bbdata viz comparison --players "Aaron Judge,Shohei Ohtani,Juan Soto" --season 2025
 ```
