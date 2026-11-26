@@ -3,7 +3,11 @@
 All notable changes to `bbdata` are documented here. This project follows
 [Semantic Versioning](https://semver.org/).
 
-## Unreleased
+## 0.13.3 — 2026-11-26
+
+The default season. Found by the 2026-11-26 audit of the course videos, many
+of which print commands with no `--season`. Patch bump: one stderr notice and
+a longer help line. No command that exited 0 now fails.
 
 ### Fixed
 

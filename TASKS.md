@@ -358,28 +358,10 @@ and the PDF renders correctly, but stderr carries one to six of these lines.
 `viz rolling --format pdf` is clean. Noise from the SVG-to-PDF path on
 zero-length path segments; suppress it or drop the empty paths.
 
-### P5.16 — an omitted `--season` requests the calendar year, which is empty from January 1 until Opening Day — **Fixed 2026-11-26 on branch `fix/default-season-cutover`, unreleased. Surfaced by the 2026-11-26 course-video audit.**
+### P5.16 — moved to "Shipped in v0.13.3"
 
-`query`, `report`, and `viz` defaulted `--season` to `new Date().getFullYear()`
-(and Commander baked the same year in as the flag default). Many of the 40
-shipped lesson videos print commands with no `--season`; from 2027-01-01 those
-would have requested 2027 and returned 0 rows.
-
-**Fix.** `src/utils/season.ts`: `defaultSeason(now)` returns the calendar year
-on or after **April 1** (local time) and the previous year before that;
-`resolveSeason()` prints one stderr notice when the default falls back.
-Fixed date, not an MLB Stats API schedule check: deterministic, no network
-call on every command, works offline with `--stdin`/`--data`. Between Opening
-Day and April 1 the default is still the previous season (the notice says how
-to override). The FanGraphs `resolvePlayer` leaderboard year uses the same
-helper. Tests: `test/utils/season.test.ts`,
-`test/commands/season-default-query.test.ts`,
-`test/commands/season-default-report-viz.test.ts`.
-
-Before release: move this to a "Shipped in" section, and re-run
-COURSE_TEST_PLAN H.3–H.5 (`--help`) and F.3 (`--season`). Related: item 3 of
-P5.6, which asks for the most recent *complete* season in-season too — not
-done here. Still open, filed here:
+Related and not done there: item 3 of P5.6, which asks for the most recent
+*complete* season in-season too. Still open from that fix:
 
 - **P5.16a** About 20 query templates keep an unreachable
   `params.season ?? new Date().getFullYear()` in `buildQuery`
@@ -406,6 +388,32 @@ Players are told apart by the color legend only and the player axis is hidden
 switch on. 0.13.2 says so on stderr. The fix is direct player labels on the
 bars or a symbol layer. Related: an optional `meta.warnings` on `VizResult`,
 so agents that never read stderr get the same notes (minor release).
+
+---
+
+## Shipped in v0.13.3 — 2026-11-26
+
+Gates before the bump: build, typecheck, lint, 509/509 tests; COURSE_TEST_PLAN
+H.3–H.5 and F.3 re-run on the built `dist/`. Plan Codex-reviewed. Commit
+`118658f`.
+
+- **P5.16 an omitted `--season` requested the calendar year, which is empty
+  from January 1 until Opening Day.** Surfaced by the 2026-11-26 course-video
+  audit: many of the 40 shipped lesson videos print commands with no
+  `--season`, and from 2027-01-01 those would have requested 2027 and returned
+  0 rows. `src/utils/season.ts`: `defaultSeason(now)` returns the calendar
+  year on or after **April 1** (local time) and the previous year before
+  that; `resolveSeason()` prints one stderr notice when the default falls
+  back, skipped when `--seasons` names the range. Fixed date, not an MLB
+  Stats API schedule check: deterministic, no network call on every command,
+  works offline with `--stdin`/`--data`. Wired into `query.ts`, `report.ts`,
+  `viz.ts`, and the FanGraphs `resolvePlayer` leaderboard year
+  (`src/adapters/fangraphs.ts`). Commander no longer supplies the flag
+  default; `--help` describes the rule. Tests: `test/utils/season.test.ts`,
+  `test/commands/season-default-query.test.ts`,
+  `test/commands/season-default-report-viz.test.ts`.
+
+Still open from this cycle, filed above: **P5.16a–c**.
 
 ---
 
