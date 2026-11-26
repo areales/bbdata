@@ -43,7 +43,7 @@ Query baseball data using pre-built templates. Returns structured data in your c
 |---|---|
 | `-p, --player <name>` | Player name |
 | `--players <names>` | Comma-separated names (matchups/comparisons) |
-| `-s, --season <year>` | Season year (default: current) |
+| `-s, --season <year>` | Season year (default: the current year from April 1, the previous year before that) |
 | `-f, --format <fmt>` | `json` (default), `table`, `csv`, `markdown` |
 | `--source <src>` | Force data source: `savant`, `fangraphs`, `mlb-stats-api` |
 | `--no-cache` | Bypass cache |
@@ -51,6 +51,15 @@ Query baseball data using pre-built templates. Returns structured data in your c
 | `--data <path>` | Load data from a local `.json` or `.csv` file (Savant CSV schema) |
 
 Run `bbdata query --help` for the full option list.
+
+**Default season.** If you omit `--season`, `query`, `report`, and `viz` use the
+current calendar year from April 1 on, and the previous year before that. From
+January 1 until Opening Day the calendar year has no games, so the default
+points at the last season that does. When that happens, a one-line notice on
+stderr names the season used; stdout is unchanged. The rule is a fixed date,
+not a schedule lookup, so in the days between Opening Day and April 1 pass
+`--season` to get the new season. An explicit `--season` is always used as
+given.
 
 **22 templates across 5 categories:**
 

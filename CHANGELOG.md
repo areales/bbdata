@@ -3,6 +3,31 @@
 All notable changes to `bbdata` are documented here. This project follows
 [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Fixed
+
+- **An omitted `--season` no longer points at a season with no games.**
+  `query`, `report`, and `viz` defaulted to the calendar year, so from
+  January 1 until Opening Day a command with no `--season` requested an empty
+  season and failed with 0 rows (TASKS P5.16). The default is now the current
+  year from April 1 on and the previous year before that, from one shared
+  helper (`src/utils/season.ts`). When the default falls back, one notice on
+  stderr names the season used and how to override it; stdout and the JSON
+  envelope shape are unchanged, and `meta.season` reports the season fetched.
+  The notice is skipped when `--seasons` names the range. An explicit
+  `--season` behaves exactly as before. The rule is a fixed date, not a
+  schedule lookup: between Opening Day and April 1 the default is still the
+  previous season, so pass `--season` for the new one.
+- **FanGraphs name lookup uses the same default.** `resolvePlayer` searched
+  the calendar year's leaderboard, which is empty in the offseason.
+
+### Changed
+
+- `--help` for `query`, `report`, and `viz` describes the `--season` default
+  and the April 1 rule. Commander no longer supplies the default, so the help
+  line reads `(default: 2026; …)` in the description, not `(default: "2026")`.
+
 ## 0.13.2 — 2026-11-11
 
 Three `viz` cases where a flag was accepted and did nothing, or an error

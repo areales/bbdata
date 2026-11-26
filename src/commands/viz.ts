@@ -4,6 +4,7 @@ import { resolve as resolvePath } from 'node:path';
 import { ExecutionContext } from '../context/execution.js';
 import { log } from '../utils/logger.js';
 import { CLI_VERSION } from '../utils/version.js';
+import { resolveSeason, seasonOptionDescription } from '../utils/season.js';
 import { query as runQuery } from './query.js';
 import {
   getChartBuilder,
@@ -135,7 +136,7 @@ export async function viz(options: VizOptions): Promise<VizResult> {
   const builder = getChartBuilder(options.type);
   const chartType = canonicalType ?? (options.type as ChartType);
 
-  const season = options.season ?? new Date().getFullYear();
+  const season = resolveSeason(options.season);
   const player = options.player ?? 'Unknown';
   const width = options.width ?? defaults.width;
   const height = options.height ?? defaults.height;
@@ -354,7 +355,7 @@ export function registerVizCommand(program: Command): void {
     .option('--type <type>', 'Chart type (see list below)')
     .option('-p, --player <name>', 'Player name')
     .option('--players <names>', 'Comma-separated player names, for chart types that compare (see list below)')
-    .option('-s, --season <year>', 'Season year', String(new Date().getFullYear()))
+    .option('-s, --season <year>', seasonOptionDescription())
     .option(
       '-a, --audience <role>',
       'Audience: coach, analyst, frontoffice, presentation, gm, scout',

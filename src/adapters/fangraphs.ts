@@ -1,5 +1,6 @@
 import { fetchText } from '../utils/http.js';
 import { log } from '../utils/logger.js';
+import { defaultSeason } from '../utils/season.js';
 import type {
   DataAdapter,
   AdapterQuery,
@@ -32,7 +33,9 @@ export class FanGraphsAdapter implements DataAdapter {
     log.debug(`FanGraphs: resolving player "${name}" via leaderboard search`);
 
     try {
-      const season = new Date().getFullYear();
+      // The calendar year's leaderboard is empty from January 1 until
+      // Opening Day, which would fail every name lookup in the offseason.
+      const season = defaultSeason();
       const params = new URLSearchParams({
         pos: 'all',
         stats: 'bat',

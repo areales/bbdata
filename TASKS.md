@@ -358,6 +358,40 @@ and the PDF renders correctly, but stderr carries one to six of these lines.
 `viz rolling --format pdf` is clean. Noise from the SVG-to-PDF path on
 zero-length path segments; suppress it or drop the empty paths.
 
+### P5.16 — an omitted `--season` requests the calendar year, which is empty from January 1 until Opening Day — **Fixed 2026-11-26 on branch `fix/default-season-cutover`, unreleased. Surfaced by the 2026-11-26 course-video audit.**
+
+`query`, `report`, and `viz` defaulted `--season` to `new Date().getFullYear()`
+(and Commander baked the same year in as the flag default). Many of the 40
+shipped lesson videos print commands with no `--season`; from 2027-01-01 those
+would have requested 2027 and returned 0 rows.
+
+**Fix.** `src/utils/season.ts`: `defaultSeason(now)` returns the calendar year
+on or after **April 1** (local time) and the previous year before that;
+`resolveSeason()` prints one stderr notice when the default falls back.
+Fixed date, not an MLB Stats API schedule check: deterministic, no network
+call on every command, works offline with `--stdin`/`--data`. Between Opening
+Day and April 1 the default is still the previous season (the notice says how
+to override). The FanGraphs `resolvePlayer` leaderboard year uses the same
+helper. Tests: `test/utils/season.test.ts`,
+`test/commands/season-default-query.test.ts`,
+`test/commands/season-default-report-viz.test.ts`.
+
+Before release: move this to a "Shipped in" section, and re-run
+COURSE_TEST_PLAN H.3–H.5 (`--help`) and F.3 (`--season`). Related: item 3 of
+P5.6, which asks for the most recent *complete* season in-season too — not
+done here. Still open, filed here:
+
+- **P5.16a** About 20 query templates keep an unreachable
+  `params.season ?? new Date().getFullYear()` in `buildQuery`
+  (`src/templates/queries/*.ts`). `query()` always sets `params.season`, so
+  they never run through the commands; switch them to `defaultSeason()` so a
+  direct `buildQuery` caller can't hit the old default.
+- **P5.16b** With `--seasons`, `meta.season` and the error summary still
+  report the single-season default and not the range end (the P5.10 symptom).
+- **P5.16c** A season that opens after April 1 (2020, 2022) still returns 0
+  rows on the default until its first game. If that recurs, add a per-year
+  override to `SEASON_CUTOVER`.
+
 ### P5.15 — moved to "Shipped in v0.13.2"
 
 Course-side remainder, still open: M04 L05 line 133 uses

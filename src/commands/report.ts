@@ -49,6 +49,7 @@ function resolveReportAudience(a: Audience | VizAudience | string | undefined): 
   }
 }
 import { CLI_VERSION } from '../utils/version.js';
+import { resolveSeason, seasonOptionDescription } from '../utils/season.js';
 
 export interface ReportOptions {
   template: string;
@@ -228,7 +229,7 @@ export async function report(options: ReportOptions): Promise<ReportResult> {
     throw new Error(`Unknown report template "${options.template}". Available:\n${available}`);
   }
 
-  const season = options.season ?? new Date().getFullYear();
+  const season = resolveSeason(options.season);
   const player = options.player ?? 'Unknown';
   const team = options.team ?? '';
 
@@ -504,7 +505,7 @@ export function registerReportCommand(program: Command): void {
     .description('Generate scouting reports using pre-built templates')
     .option('-p, --player <name>', 'Player name')
     .option('-t, --team <code>', 'Team abbreviation')
-    .option('-s, --season <year>', 'Season year', String(new Date().getFullYear()))
+    .option('-s, --season <year>', seasonOptionDescription())
     .option('-a, --audience <role>', 'Target audience: coach, gm, scout, analyst (also accepts frontoffice→gm, presentation→analyst)')
     .option('-f, --format <fmt>', 'Output: markdown, json', 'markdown')
     .option('--validate', 'Run validation checklist on the report')

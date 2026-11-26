@@ -5,6 +5,7 @@ import type { DataSource, PitchData, PlayerStats } from '../adapters/types.js';
 import { format, type OutputFormat } from '../formatters/index.js';
 import { log } from '../utils/logger.js';
 import { CLI_VERSION } from '../utils/version.js';
+import { resolveSeason, seasonOptionDescription } from '../utils/season.js';
 import {
   getTemplate,
   getAllTemplates,
@@ -133,12 +134,17 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
     throw new Error(`Unknown template "${options.template}". Available templates:\n${available}`);
   }
 
+  // An omitted --season resolves to the latest season with games, not the
+  // calendar year (which has no rows from January 1 until Opening Day). The
+  // fallback notice stays quiet when --seasons names the range instead.
+  const season = resolveSeason(options.season, { quiet: options.seasons != null });
+
   // Build template params from CLI options
   const params: QueryTemplateParams = {
     player: options.player,
     players: options.players?.split(',').map((s) => s.trim()).filter((s) => s.length > 0),
     team: options.team,
-    season: options.season ?? new Date().getFullYear(),
+    season,
     stat: options.stat,
     pitchType: options.pitchType,
     minPa: options.minPa,
@@ -276,7 +282,7 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
     source: result.source,
     cached: result.cached,
     queryTimeMs,
-    season: params.season ?? new Date().getFullYear(),
+    season,
     sampleSize: result.rows.length,
     template: template.id,
   }, outputFormat, { columns: result.columns, columnFormats: result.columnFormats });
@@ -289,7 +295,7 @@ export async function query(options: QueryOptions): Promise<QueryResult> {
       source: result.source,
       cached: result.cached,
       sampleSize: result.rows.length,
-      season: params.season ?? new Date().getFullYear(),
+      season,
       queryTimeMs,
       cliVersion: CLI_VERSION,
     },
@@ -305,7 +311,7 @@ export function registerQueryCommand(program: Command): void {
     .description('Query baseball data using pre-built templates')
     .option('-p, --player <name>', 'Player name')
     .option('--players <names>', 'Comma-separated player names (for matchups/comparisons)')
-    .option('-s, --season <year>', 'Season year', String(new Date().getFullYear()))
+    .option('-s, --season <year>', seasonOptionDescription())
     .option('-f, --format <fmt>', 'Output: json, table, csv, markdown', 'json')
     .option('--source <src>', 'Force a data source: savant, fangraphs, mlb-stats-api')
     .option('--stat <stat>', 'Stat to query (for leaderboards)')

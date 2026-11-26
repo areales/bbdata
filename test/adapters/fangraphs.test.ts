@@ -38,6 +38,23 @@ describe('FanGraphsAdapter', () => {
       expect(result!.fangraphs_id).toBe('17109');
     });
 
+    it('searches the latest season with games, not an empty offseason leaderboard', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      try {
+        vi.setSystemTime(new Date(2027, 0, 15, 12));
+        vi.mocked(fetchText).mockResolvedValueOnce(sampleJson);
+        await adapter.resolvePlayer('Aaron Judge');
+        expect(new URL(vi.mocked(fetchText).mock.calls[0]![0]).searchParams.get('season')).toBe('2026');
+
+        vi.setSystemTime(new Date(2027, 6, 4, 12));
+        vi.mocked(fetchText).mockResolvedValueOnce(sampleJson);
+        await adapter.resolvePlayer('Aaron Judge');
+        expect(new URL(vi.mocked(fetchText).mock.calls[1]![0]).searchParams.get('season')).toBe('2027');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('finds player with case-insensitive match', async () => {
       vi.mocked(fetchText).mockResolvedValueOnce(sampleJson);
 
